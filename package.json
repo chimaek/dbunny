@@ -2,20 +2,22 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "1.0.0",
-  "publisher": "your-publisher-name",
-  "author": "Your Name",
+  "version": "1.0.3",
+  "publisher": "chimaek",
+  "author": "chimaek",
   "license": "MIT",
   "icon": "resources/bunny-icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/dbunny"
+    "url": "https://github.com/chimaek/dbunny"
   },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
+    "Debuggers",
     "Data Science",
+    "Testing",
     "Other"
   ],
   "keywords": [
@@ -57,6 +59,16 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "dbunny.explorer",
+        "contents": "No database connections yet.\n[Add Connection](command:dbunny.addConnection)"
+      },
+      {
+        "view": "dbunny.queries",
+        "contents": "No query history yet.\nExecute a query with Ctrl+Enter (or Cmd+Enter on Mac) to see it here."
+      }
+    ],
     "commands": [
       {
         "command": "dbunny.addConnection",
@@ -111,6 +123,30 @@
         "title": "New Query",
         "category": "DBunny",
         "icon": "$(new-file)"
+      },
+      {
+        "command": "dbunny.editTableData",
+        "title": "Edit Table Data",
+        "category": "DBunny",
+        "icon": "$(table)"
+      },
+      {
+        "command": "dbunny.clearHistory",
+        "title": "Clear History",
+        "category": "DBunny",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "dbunny.copyQuery",
+        "title": "Copy Query",
+        "category": "DBunny",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "dbunny.viewKeyData",
+        "title": "View Data",
+        "category": "DBunny",
+        "icon": "$(eye)"
       }
     ],
     "menus": {
@@ -123,6 +159,11 @@
         {
           "command": "dbunny.refreshConnection",
           "when": "view == dbunny.explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "dbunny.clearHistory",
+          "when": "view == dbunny.queries",
           "group": "navigation"
         }
       ],
@@ -146,9 +187,42 @@
           "command": "dbunny.newQuery",
           "when": "view == dbunny.explorer && viewItem == database",
           "group": "inline"
+        },
+        {
+          "command": "dbunny.editTableData",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "inline"
+        },
+        {
+          "command": "dbunny.viewKeyData",
+          "when": "view == dbunny.explorer && viewItem == table-nosql",
+          "group": "inline"
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "dbunny.executeQuery",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorLangId == sql"
+      },
+      {
+        "command": "dbunny.executeQuery",
+        "key": "f5",
+        "when": "editorLangId == sql"
+      },
+      {
+        "command": "dbunny.newQuery",
+        "key": "ctrl+shift+q",
+        "mac": "cmd+shift+q"
+      },
+      {
+        "command": "dbunny.addConnection",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d"
+      }
+    ],
     "configuration": {
       "title": "DBunny",
       "properties": {

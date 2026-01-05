@@ -44,8 +44,21 @@ export class I18n {
      * Load translation file for specified locale
      */
     private async loadTranslations(locale: string): Promise<void> {
-        const localesDir = path.join(this.context.extensionPath, 'src', 'locales');
-        const filePath = path.join(localesDir, `${locale}.json`);
+        // Try src/locales first (for packaged extension), then fallback to other paths
+        let localesDir = path.join(this.context.extensionPath, 'src', 'locales');
+        let filePath = path.join(localesDir, `${locale}.json`);
+
+        // If not found, try dist/locales (development with bundled locales)
+        if (!fs.existsSync(filePath)) {
+            localesDir = path.join(this.context.extensionPath, 'dist', 'locales');
+            filePath = path.join(localesDir, `${locale}.json`);
+        }
+
+        // If still not found, try locales at root (alternative structure)
+        if (!fs.existsSync(filePath)) {
+            localesDir = path.join(this.context.extensionPath, 'locales');
+            filePath = path.join(localesDir, `${locale}.json`);
+        }
 
         try {
             if (fs.existsSync(filePath)) {
@@ -107,6 +120,13 @@ export class I18n {
      * Get current locale
      */
     getCurrentLocale(): string {
+        return this.currentLocale;
+    }
+
+    /**
+     * Get current language (alias for getCurrentLocale)
+     */
+    getCurrentLanguage(): string {
         return this.currentLocale;
     }
 

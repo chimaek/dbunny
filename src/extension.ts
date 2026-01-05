@@ -4,6 +4,7 @@ import { QueryHistoryProvider } from './views/queryHistoryView';
 import { ConnectionManager } from './managers/connectionManager';
 import { I18n } from './utils/i18n';
 import { registerCommands } from './commands';
+import { registerCompletionProvider } from './providers/completionProvider';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     console.log('DBunny extension is now active!');
@@ -26,6 +27,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Register commands
     registerCommands(context, connectionManager, connectionTreeProvider, queryHistoryProvider, i18n);
+
+    // Register SQL autocomplete provider
+    registerCompletionProvider(context, connectionManager);
 
     // Create status bar item
     const statusBarItem = vscode.window.createStatusBarItem(

@@ -1,15 +1,17 @@
 .vscode/**
 .vscode-test/**
 src/**
+!src/locales/**
 test/**
-node_modules/**
+out/**
+coverage/**
+.github/**
+.claude/**
+
+# Config files
 .gitignore
 .yarnrc
 .editorconfig
-*.vsix
-**/*.map
-**/*.ts
-!dist/**
 tsconfig.json
 esbuild.js
 .eslintrc.json
@@ -17,13 +19,41 @@ eslint.config.mjs
 .prettierrc
 .env
 .env.*
+
+# Security
 *.pem
 *.key
-**/*.spec.ts
-coverage/**
-.github/**
-.DS_Store
-out/**
+
+# Build artifacts
+*.vsix
+
+# Documentation (except README)
 *.md
 !README.md
 !CHANGELOG.md
+
+# Dev dependencies - exclude these from node_modules
+node_modules/.bin/**
+node_modules/.cache/**
+node_modules/@types/**
+node_modules/@typescript-eslint/**
+node_modules/@vscode/**
+node_modules/@eslint/**
+node_modules/typescript/**
+node_modules/eslint/**
+node_modules/esbuild/**
+node_modules/mocha/**
+node_modules/glob/**
+node_modules/npm-run-all/**
+node_modules/**/test/**
+node_modules/**/tests/**
+node_modules/**/__tests__/**
+node_modules/**/docs/**
+node_modules/**/doc/**
+node_modules/**/example/**
+node_modules/**/examples/**
+node_modules/**/.github/**
+node_modules/**/*.md
+node_modules/**/*.ts
+!node_modules/**/*.d.ts
+node_modules/**/*.map

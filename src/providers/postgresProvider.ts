@@ -91,6 +91,7 @@ export class PostgresProvider implements DatabaseConnection {
     }
 
     async getTableSchema(table: string): Promise<ColumnInfo[]> {
+        const safeTable = table.replace(/'/g, "''");
         const result = await this.executeQuery(`
             SELECT
                 c.column_name,
@@ -105,9 +106,9 @@ export class PostgresProvider implements DatabaseConnection {
                 JOIN information_schema.key_column_usage ku
                     ON tc.constraint_name = ku.constraint_name
                 WHERE tc.constraint_type = 'PRIMARY KEY'
-                    AND tc.table_name = '${table}'
+                    AND tc.table_name = '${safeTable}'
             ) pk ON c.column_name = pk.column_name
-            WHERE c.table_name = '${table}'
+            WHERE c.table_name = '${safeTable}'
             AND c.table_schema = 'public'
         `);
 

@@ -35,7 +35,16 @@ async function main() {
         outfile: 'dist/extension.js',
         external: [
             'vscode',
-            'better-sqlite3'
+            // Native modules - must be in node_modules at runtime
+            'better-sqlite3',
+            'ssh2',
+            'cpu-features',
+            // Database drivers - externalized for node_modules
+            'pg',
+            'pg-native',
+            'mysql2',
+            'mongodb',
+            'redis'
         ],
         logLevel: 'silent',
         plugins: [

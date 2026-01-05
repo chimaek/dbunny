@@ -60,7 +60,8 @@
     "noEditor": "No active editor",
     "noConnection": "No active connection. Please connect to a database first.",
     "noQuery": "No query to execute",
-    "queryCopied": "Query copied to clipboard"
+    "queryCopied": "Query copied to clipboard",
+    "noTableSelected": "No table selected"
   },
   "status": {
     "connected": "Connected to {name}",
@@ -74,5 +75,61 @@
     "csv": "Export as CSV",
     "json": "Export as JSON",
     "excel": "Export as Excel"
+  },
+  "webview": {
+    "connectionForm": {
+      "title": "New Connection",
+      "editTitle": "Edit Connection",
+      "subtitle": "Connect to your database in seconds",
+      "editSubtitle": "Update your database connection settings",
+      "basicInfo": "Basic Information",
+      "connectionName": "Connection Name",
+      "connectionNamePlaceholder": "e.g., Production DB, Local Dev",
+      "connectionDetails": "Connection Details",
+      "host": "Host",
+      "port": "Port",
+      "username": "Username",
+      "password": "Password",
+      "database": "Database",
+      "optional": "optional",
+      "required": "required",
+      "sshTunnel": "SSH Tunnel",
+      "sshDesc": "Connect through a secure SSH tunnel",
+      "sshConfig": "SSH Configuration",
+      "sshHost": "SSH Host",
+      "sshPort": "SSH Port",
+      "sshUsername": "SSH Username",
+      "sshPassword": "SSH Password / Key",
+      "testConnection": "Test Connection",
+      "saveConnection": "Save Connection",
+      "updateConnection": "Update Connection",
+      "testing": "Testing..."
+    },
+    "queryResult": {
+      "title": "Query Results",
+      "rows": "Rows",
+      "time": "Time",
+      "columns": "Columns",
+      "copy": "Copy",
+      "showQuery": "Show Query",
+      "noResults": "No results returned",
+      "noResultsHint": "The query executed successfully but returned no rows"
+    },
+    "tableEditor": {
+      "insertRow": "+ Insert Row",
+      "insertTitle": "Insert New Row",
+      "editTitle": "Edit Row",
+      "insert": "Insert",
+      "update": "Update",
+      "deleteConfirm": "Are you sure you want to delete this row?",
+      "actions": "Actions",
+      "readonly": "readonly"
+    },
+    "common": {
+      "cancel": "Cancel",
+      "refresh": "Refresh",
+      "edit": "Edit",
+      "delete": "Delete"
+    }
   }
 }

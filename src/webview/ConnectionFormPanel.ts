@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ConnectionConfig, DatabaseType } from '../types/database';
+import { ConnectionConfig } from '../types/database';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
 
@@ -130,81 +130,306 @@ export class ConnectionFormPanel {
         const config = this.existingConfig;
         const isEdit = !!config;
 
+        // Get translations for webview
+        const t = {
+            title: isEdit ? this.i18n.t('webview.connectionForm.editTitle') : this.i18n.t('webview.connectionForm.title'),
+            subtitle: isEdit ? this.i18n.t('webview.connectionForm.editSubtitle') : this.i18n.t('webview.connectionForm.subtitle'),
+            basicInfo: this.i18n.t('webview.connectionForm.basicInfo'),
+            connectionName: this.i18n.t('webview.connectionForm.connectionName'),
+            connectionNamePlaceholder: this.i18n.t('webview.connectionForm.connectionNamePlaceholder'),
+            connectionDetails: this.i18n.t('webview.connectionForm.connectionDetails'),
+            host: this.i18n.t('webview.connectionForm.host'),
+            port: this.i18n.t('webview.connectionForm.port'),
+            username: this.i18n.t('webview.connectionForm.username'),
+            password: this.i18n.t('webview.connectionForm.password'),
+            database: this.i18n.t('webview.connectionForm.database'),
+            optional: this.i18n.t('webview.connectionForm.optional'),
+            required: this.i18n.t('webview.connectionForm.required'),
+            sshTunnel: this.i18n.t('webview.connectionForm.sshTunnel'),
+            sshDesc: this.i18n.t('webview.connectionForm.sshDesc'),
+            sshConfig: this.i18n.t('webview.connectionForm.sshConfig'),
+            sshHost: this.i18n.t('webview.connectionForm.sshHost'),
+            sshPort: this.i18n.t('webview.connectionForm.sshPort'),
+            sshUsername: this.i18n.t('webview.connectionForm.sshUsername'),
+            sshPassword: this.i18n.t('webview.connectionForm.sshPassword'),
+            testConnection: this.i18n.t('webview.connectionForm.testConnection'),
+            saveConnection: isEdit ? this.i18n.t('webview.connectionForm.updateConnection') : this.i18n.t('webview.connectionForm.saveConnection'),
+            testing: this.i18n.t('webview.connectionForm.testing'),
+            cancel: this.i18n.t('webview.common.cancel'),
+            filePath: this.i18n.t('webview.connectionForm.database')
+        };
+
         return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${this.i18n.getCurrentLanguage()}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${isEdit ? 'Edit' : 'Add'} Connection</title>
+    <title>${t.title}</title>
     <style>
         :root {
             --vscode-font: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+            --mysql-color: #00758F;
+            --postgres-color: #336791;
+            --sqlite-color: #003B57;
+            --mongodb-color: #47A248;
+            --redis-color: #DC382D;
+            --border-radius: 0.5rem;
+            --transition: all 0.2s ease;
         }
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html {
+            font-size: var(--vscode-font-size, 13px);
         }
         body {
             font-family: var(--vscode-font);
-            padding: 20px;
+            padding: 0;
             color: var(--vscode-foreground);
             background: var(--vscode-editor-background);
+            line-height: 1.5;
         }
-        h2 {
-            margin-top: 0;
-            color: var(--vscode-foreground);
+        .container {
+            max-width: 50rem;
+            margin: 0 auto;
+            padding: 2.5rem;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
             border-bottom: 1px solid var(--vscode-panel-border);
-            padding-bottom: 10px;
         }
-        .form-group {
-            margin-bottom: 16px;
+        .header-icon {
+            font-size: 2.5rem;
         }
-        label {
-            display: block;
-            margin-bottom: 6px;
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--vscode-foreground);
+        }
+        .header p {
+            font-size: 1rem;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 0.25rem;
+        }
+
+        /* Database Type Selector */
+        .db-type-selector {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        .db-type-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.25rem 0.5rem;
+            border: 2px solid var(--vscode-input-border);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--vscode-input-background);
+        }
+        .db-type-card:hover {
+            border-color: var(--vscode-focusBorder);
+            transform: translateY(-0.125rem);
+        }
+        .db-type-card.selected {
+            border-color: var(--db-color, var(--vscode-focusBorder));
+            background: color-mix(in srgb, var(--db-color, var(--vscode-focusBorder)) 10%, transparent);
+        }
+        .db-type-card .icon {
+            width: 3rem;
+            height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            border-radius: 0.5rem;
+        }
+        .db-type-card .name {
+            font-size: 0.9rem;
             font-weight: 500;
             color: var(--vscode-foreground);
+        }
+        .db-type-card[data-type="mysql"] { --db-color: var(--mysql-color); }
+        .db-type-card[data-type="postgres"] { --db-color: var(--postgres-color); }
+        .db-type-card[data-type="sqlite"] { --db-color: var(--sqlite-color); }
+        .db-type-card[data-type="mongodb"] { --db-color: var(--mongodb-color); }
+        .db-type-card[data-type="redis"] { --db-color: var(--redis-color); }
+
+        /* Form Styles */
+        .form-section {
+            background: var(--vscode-input-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .form-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03rem;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .form-section-title::before {
+            content: '';
+            width: 0.25rem;
+            height: 1.25rem;
+            background: var(--db-color, var(--vscode-focusBorder));
+            border-radius: 0.125rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+        label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--vscode-foreground);
+        }
+        label .required {
+            color: var(--vscode-errorForeground);
+        }
+        label .hint {
+            font-size: 0.85rem;
+            color: var(--vscode-descriptionForeground);
+            font-weight: 400;
         }
         input, select {
             width: 100%;
-            padding: 8px 12px;
+            padding: 0.75rem 1rem;
             border: 1px solid var(--vscode-input-border);
-            background: var(--vscode-input-background);
+            background: var(--vscode-editor-background);
             color: var(--vscode-input-foreground);
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 0.4rem;
+            font-size: 1.1rem;
+            transition: var(--transition);
         }
         input:focus, select:focus {
             outline: none;
-            border-color: var(--vscode-focusBorder);
+            border-color: var(--db-color, var(--vscode-focusBorder));
+            box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--db-color, var(--vscode-focusBorder)) 20%, transparent);
+        }
+        input::placeholder {
+            color: var(--vscode-input-placeholderForeground);
         }
         .row {
-            display: flex;
-            gap: 16px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.9rem;
         }
-        .row .form-group {
+        .row.equal {
+            grid-template-columns: 1fr 1fr;
+        }
+        .port-input {
+            width: 7.5rem;
+        }
+
+        /* SSH Section */
+        .ssh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            padding: 1rem 1.25rem;
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 1.5rem;
+        }
+        .ssh-toggle:hover {
+            border-color: var(--vscode-focusBorder);
+        }
+        .ssh-toggle.active {
+            border-color: var(--vscode-focusBorder);
+            background: color-mix(in srgb, var(--vscode-focusBorder) 5%, var(--vscode-editor-background));
+        }
+        .ssh-toggle input {
+            width: 1.4rem;
+            height: 1.4rem;
+            cursor: pointer;
+        }
+        .ssh-toggle-content {
             flex: 1;
         }
+        .ssh-toggle-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .ssh-toggle-desc {
+            font-size: 0.9rem;
+            color: var(--vscode-descriptionForeground);
+        }
+        .ssh-fields {
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+        .ssh-fields.visible {
+            display: block;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-0.75rem);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Buttons */
         .buttons {
             display: flex;
-            gap: 10px;
-            margin-top: 24px;
-            padding-top: 16px;
+            gap: 0.9rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
             border-top: 1px solid var(--vscode-panel-border);
         }
         button {
-            padding: 8px 16px;
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 4px;
+            border-radius: 0.4rem;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 1.1rem;
             font-weight: 500;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         .btn-primary {
-            background: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
+            background: var(--db-color, var(--vscode-button-background));
+            color: white;
+            flex: 1;
+            justify-content: center;
         }
         .btn-primary:hover {
-            background: var(--vscode-button-hoverBackground);
+            filter: brightness(1.1);
+            transform: translateY(-0.0625rem);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
         }
         .btn-secondary {
             background: var(--vscode-button-secondaryBackground);
@@ -215,164 +440,245 @@ export class ConnectionFormPanel {
         }
         .btn-test {
             margin-left: auto;
+            background: transparent;
+            border: 1px solid var(--vscode-input-border);
+            color: var(--vscode-foreground);
         }
+        .btn-test:hover {
+            border-color: var(--db-color, var(--vscode-focusBorder));
+            color: var(--db-color, var(--vscode-focusBorder));
+        }
+
+        /* Messages */
         .message {
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 16px;
+            padding: 0.9rem 1.25rem;
+            border-radius: 0.4rem;
+            margin-top: 1.25rem;
             display: none;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1rem;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-0.3rem); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .message.success {
-            background: var(--vscode-testing-iconPassed);
-            color: white;
-            display: block;
+            display: flex;
+            background: color-mix(in srgb, #28a745 15%, var(--vscode-editor-background));
+            border: 1px solid #28a745;
+            color: #28a745;
         }
         .message.error {
-            background: var(--vscode-testing-iconFailed);
-            color: white;
-            display: block;
-        }
-        .ssh-section {
-            margin-top: 24px;
-            padding: 16px;
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 4px;
-        }
-        .ssh-section h3 {
-            margin-top: 0;
-            font-size: 14px;
-        }
-        .checkbox-group {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            background: color-mix(in srgb, #dc3545 15%, var(--vscode-editor-background));
+            border: 1px solid #dc3545;
+            color: #dc3545;
         }
-        .checkbox-group input {
-            width: auto;
+        .message .icon {
+            font-size: 1.4rem;
         }
-        .hidden {
-            display: none;
-        }
+
+        /* Spinner */
         .spinner {
             display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid transparent;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 0.125rem solid transparent;
             border-top-color: currentColor;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-            margin-right: 8px;
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 45rem) {
+            .db-type-selector {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .row {
+                grid-template-columns: 1fr;
+            }
+            .port-input {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <h2>${isEdit ? '🐰 Edit Connection' : '🐰 Add New Connection'}</h2>
-
-    <form id="connectionForm">
-        <div class="form-group">
-            <label for="name">Connection Name *</label>
-            <input type="text" id="name" name="name" required value="${config?.name || ''}" placeholder="My Database">
+    <div class="container">
+        <div class="header">
+            <span class="header-icon">🐰</span>
+            <div>
+                <h1>${t.title}</h1>
+                <p>${t.subtitle}</p>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="type">Database Type *</label>
-            <select id="type" name="type" required>
-                <option value="mysql" ${config?.type === 'mysql' ? 'selected' : ''}>MySQL</option>
-                <option value="postgres" ${config?.type === 'postgres' ? 'selected' : ''}>PostgreSQL</option>
-                <option value="sqlite" ${config?.type === 'sqlite' ? 'selected' : ''}>SQLite</option>
-                <option value="mongodb" ${config?.type === 'mongodb' ? 'selected' : ''}>MongoDB</option>
-                <option value="redis" ${config?.type === 'redis' ? 'selected' : ''}>Redis</option>
-            </select>
-        </div>
+        <form id="connectionForm">
+            <!-- Database Type Selector -->
+            <div class="db-type-selector">
+                <div class="db-type-card ${config?.type === 'mysql' || !config ? 'selected' : ''}" data-type="mysql" onclick="selectDbType('mysql')">
+                    <div class="icon">🐬</div>
+                    <span class="name">MySQL</span>
+                </div>
+                <div class="db-type-card ${config?.type === 'postgres' ? 'selected' : ''}" data-type="postgres" onclick="selectDbType('postgres')">
+                    <div class="icon">🐘</div>
+                    <span class="name">PostgreSQL</span>
+                </div>
+                <div class="db-type-card ${config?.type === 'sqlite' ? 'selected' : ''}" data-type="sqlite" onclick="selectDbType('sqlite')">
+                    <div class="icon">🪶</div>
+                    <span class="name">SQLite</span>
+                </div>
+                <div class="db-type-card ${config?.type === 'mongodb' ? 'selected' : ''}" data-type="mongodb" onclick="selectDbType('mongodb')">
+                    <div class="icon">🍃</div>
+                    <span class="name">MongoDB</span>
+                </div>
+                <div class="db-type-card ${config?.type === 'redis' ? 'selected' : ''}" data-type="redis" onclick="selectDbType('redis')">
+                    <div class="icon">⚡</div>
+                    <span class="name">Redis</span>
+                </div>
+            </div>
+            <input type="hidden" id="type" name="type" value="${config?.type || 'mysql'}">
 
-        <div id="connectionFields">
-            <div class="row">
+            <!-- Basic Info -->
+            <div class="form-section">
+                <div class="form-section-title">${t.basicInfo}</div>
                 <div class="form-group">
-                    <label for="host">Host *</label>
-                    <input type="text" id="host" name="host" value="${config?.host || 'localhost'}" placeholder="localhost">
-                </div>
-                <div class="form-group" style="max-width: 120px;">
-                    <label for="port">Port *</label>
-                    <input type="number" id="port" name="port" value="${config?.port || 3306}" placeholder="3306">
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" value="${config?.username || ''}" placeholder="root">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="••••••••">
+                    <label for="name">
+                        ${t.connectionName}
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" id="name" name="name" required value="${config?.name || ''}" placeholder="${t.connectionNamePlaceholder}">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="database">Database</label>
-                <input type="text" id="database" name="database" value="${config?.database || ''}" placeholder="mydb">
-            </div>
-        </div>
-
-        <div id="sqliteFields" class="hidden">
-            <div class="form-group">
-                <label for="sqlitePath">Database File Path *</label>
-                <input type="text" id="sqlitePath" name="sqlitePath" value="${config?.database || ''}" placeholder="/path/to/database.db">
-            </div>
-        </div>
-
-        <div class="ssh-section">
-            <div class="checkbox-group">
-                <input type="checkbox" id="useSSH" name="useSSH" ${config?.ssh ? 'checked' : ''}>
-                <label for="useSSH" style="margin-bottom: 0;">Use SSH Tunnel</label>
-            </div>
-            <div id="sshFields" class="${config?.ssh ? '' : 'hidden'}">
-                <div class="row" style="margin-top: 16px;">
-                    <div class="form-group">
-                        <label for="sshHost">SSH Host</label>
-                        <input type="text" id="sshHost" name="sshHost" value="${config?.ssh?.host || ''}" placeholder="bastion.example.com">
-                    </div>
-                    <div class="form-group" style="max-width: 120px;">
-                        <label for="sshPort">SSH Port</label>
-                        <input type="number" id="sshPort" name="sshPort" value="${config?.ssh?.port || 22}" placeholder="22">
-                    </div>
-                </div>
+            <!-- Connection Details -->
+            <div class="form-section" id="connectionFields">
+                <div class="form-section-title">${t.connectionDetails}</div>
                 <div class="row">
                     <div class="form-group">
-                        <label for="sshUsername">SSH Username</label>
+                        <label for="host">
+                            ${t.host}
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" id="host" name="host" value="${config?.host || 'localhost'}" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label for="port">
+                            ${t.port}
+                            <span class="required">*</span>
+                        </label>
+                        <input type="number" id="port" name="port" class="port-input" value="${config?.port || 3306}" placeholder="3306">
+                    </div>
+                </div>
+
+                <div class="row equal">
+                    <div class="form-group">
+                        <label for="username">
+                            ${t.username}
+                            <span class="hint">(${t.optional})</span>
+                        </label>
+                        <input type="text" id="username" name="username" value="${config?.username || ''}" placeholder="root">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">
+                            ${t.password}
+                            <span class="hint">(${t.optional})</span>
+                        </label>
+                        <input type="password" id="password" name="password" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="database">
+                        ${t.database}
+                        <span class="hint">(${t.optional})</span>
+                    </label>
+                    <input type="text" id="database" name="database" value="${config?.database || ''}" placeholder="mydb">
+                </div>
+            </div>
+
+            <!-- SQLite Fields -->
+            <div class="form-section hidden" id="sqliteFields">
+                <div class="form-section-title">${t.filePath}</div>
+                <div class="form-group">
+                    <label for="sqlitePath">
+                        ${t.filePath}
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" id="sqlitePath" name="sqlitePath" value="${config?.database || ''}" placeholder="/path/to/database.db">
+                </div>
+            </div>
+
+            <!-- SSH Tunnel -->
+            <label class="ssh-toggle ${config?.ssh ? 'active' : ''}" id="sshToggle">
+                <input type="checkbox" id="useSSH" name="useSSH" ${config?.ssh ? 'checked' : ''}>
+                <div class="ssh-toggle-content">
+                    <div class="ssh-toggle-title">🔐 ${t.sshTunnel}</div>
+                    <div class="ssh-toggle-desc">${t.sshDesc}</div>
+                </div>
+            </label>
+
+            <div class="form-section ssh-fields ${config?.ssh ? 'visible' : ''}" id="sshFields">
+                <div class="form-section-title">${t.sshConfig}</div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="sshHost">${t.sshHost}</label>
+                        <input type="text" id="sshHost" name="sshHost" value="${config?.ssh?.host || ''}" placeholder="bastion.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="sshPort">${t.sshPort}</label>
+                        <input type="number" id="sshPort" name="sshPort" class="port-input" value="${config?.ssh?.port || 22}" placeholder="22">
+                    </div>
+                </div>
+                <div class="row equal">
+                    <div class="form-group">
+                        <label for="sshUsername">${t.sshUsername}</label>
                         <input type="text" id="sshUsername" name="sshUsername" value="${config?.ssh?.username || ''}" placeholder="ubuntu">
                     </div>
                     <div class="form-group">
-                        <label for="sshPassword">SSH Password</label>
+                        <label for="sshPassword">${t.sshPassword}</label>
                         <input type="password" id="sshPassword" name="sshPassword" placeholder="••••••••">
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div id="testMessage" class="message"></div>
+            <div id="testMessage" class="message">
+                <span class="icon"></span>
+                <span class="text"></span>
+            </div>
 
-        <div class="buttons">
-            <button type="button" class="btn-secondary" onclick="cancel()">Cancel</button>
-            <button type="button" class="btn-secondary btn-test" id="testBtn" onclick="testConnection()">
-                Test Connection
-            </button>
-            <button type="submit" class="btn-primary">
-                ${isEdit ? 'Update' : 'Save'} Connection
-            </button>
-        </div>
-    </form>
+            <div class="buttons">
+                <button type="button" class="btn-secondary" onclick="cancel()">${t.cancel}</button>
+                <button type="button" class="btn-test" id="testBtn" onclick="testConnection()">
+                    <span class="btn-icon">🔌</span>
+                    ${t.testConnection}
+                </button>
+                <button type="submit" class="btn-primary" id="saveBtn">
+                    <span class="btn-icon">${isEdit ? '💾' : '➕'}</span>
+                    ${t.saveConnection}
+                </button>
+            </div>
+        </form>
+    </div>
 
     <script>
         const vscode = acquireVsCodeApi();
         const form = document.getElementById('connectionForm');
-        const typeSelect = document.getElementById('type');
+        const typeInput = document.getElementById('type');
         const connectionFields = document.getElementById('connectionFields');
         const sqliteFields = document.getElementById('sqliteFields');
         const useSSHCheckbox = document.getElementById('useSSH');
+        const sshToggle = document.getElementById('sshToggle');
         const sshFields = document.getElementById('sshFields');
         const testMessage = document.getElementById('testMessage');
         const testBtn = document.getElementById('testBtn');
@@ -385,27 +691,55 @@ export class ConnectionFormPanel {
             redis: 6379
         };
 
-        typeSelect.addEventListener('change', function() {
-            const type = this.value;
+        const dbColors = {
+            mysql: '#00758F',
+            postgres: '#336791',
+            sqlite: '#003B57',
+            mongodb: '#47A248',
+            redis: '#DC382D'
+        };
+
+        function selectDbType(type) {
+            // Update hidden input
+            typeInput.value = type;
+
+            // Update card selection
+            document.querySelectorAll('.db-type-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelector('[data-type="' + type + '"]').classList.add('selected');
+
+            // Update port
             document.getElementById('port').value = defaultPorts[type];
 
+            // Show/hide fields based on type
             if (type === 'sqlite') {
                 connectionFields.classList.add('hidden');
                 sqliteFields.classList.remove('hidden');
+                sshToggle.classList.add('hidden');
+                sshFields.classList.remove('visible');
             } else {
                 connectionFields.classList.remove('hidden');
                 sqliteFields.classList.add('hidden');
+                sshToggle.classList.remove('hidden');
             }
-        });
 
+            // Update CSS variable for theming
+            document.documentElement.style.setProperty('--db-color', dbColors[type]);
+        }
+
+        // SSH Toggle
         useSSHCheckbox.addEventListener('change', function() {
             if (this.checked) {
-                sshFields.classList.remove('hidden');
+                sshToggle.classList.add('active');
+                sshFields.classList.add('visible');
             } else {
-                sshFields.classList.add('hidden');
+                sshToggle.classList.remove('active');
+                sshFields.classList.remove('visible');
             }
         });
 
+        // Form submit
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const data = getFormData();
@@ -413,7 +747,7 @@ export class ConnectionFormPanel {
         });
 
         function getFormData() {
-            const type = typeSelect.value;
+            const type = typeInput.value;
             const data = {
                 id: '${config?.id || ''}',
                 name: document.getElementById('name').value,
@@ -453,22 +787,23 @@ export class ConnectionFormPanel {
             switch (message.command) {
                 case 'testing':
                     if (message.status) {
-                        testBtn.innerHTML = '<span class="spinner"></span>Testing...';
+                        testBtn.innerHTML = '<span class="spinner"></span>${t.testing}';
                         testBtn.disabled = true;
                     } else {
-                        testBtn.innerHTML = 'Test Connection';
+                        testBtn.innerHTML = '<span class="btn-icon">🔌</span>${t.testConnection}';
                         testBtn.disabled = false;
                     }
                     break;
                 case 'testResult':
                     testMessage.className = 'message ' + (message.success ? 'success' : 'error');
-                    testMessage.textContent = message.message;
+                    testMessage.querySelector('.icon').textContent = message.success ? '✅' : '❌';
+                    testMessage.querySelector('.text').textContent = message.message;
                     break;
             }
         });
 
-        // Initialize
-        typeSelect.dispatchEvent(new Event('change'));
+        // Initialize with current type
+        selectDbType('${config?.type || 'mysql'}');
     </script>
 </body>
 </html>`;

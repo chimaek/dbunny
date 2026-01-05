@@ -13,10 +13,17 @@ export class ConnectionTreeItem extends vscode.TreeItem {
         public readonly connectionId?: string,
         public readonly databaseName?: string,
         public readonly tableName?: string,
+        public readonly dbType?: string,
         collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.None
     ) {
         super(label, collapsibleState);
-        this.contextValue = itemType;
+        // Include database type in contextValue for SQL vs NoSQL distinction
+        if (dbType && itemType === 'table') {
+            const isSqlDb = ['mysql', 'postgres', 'sqlite'].includes(dbType);
+            this.contextValue = isSqlDb ? 'table-sql' : 'table-nosql';
+        } else {
+            this.contextValue = itemType;
+        }
         this.setIcon();
     }
 
@@ -99,6 +106,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
                 conn.config.id,
                 undefined,
                 undefined,
+                conn.config.type,
                 isActive ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
             );
 
@@ -127,12 +135,14 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             }
 
             const databases = await connection.getDatabases();
+            const dbType = connection.config.type;
             return databases.map(db => new ConnectionTreeItem(
                 db,
                 'database',
                 connectionId,
                 db,
                 undefined,
+                dbType,
                 vscode.TreeItemCollapsibleState.Collapsed
             ));
         } catch (error) {
@@ -152,12 +162,15 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             }
 
             const tables = await connection.getTables(databaseName);
+            const dbType = connection.config.type;
+
             return tables.map(table => new ConnectionTreeItem(
                 table,
                 'table',
                 connectionId,
                 databaseName,
                 table,
+                dbType,
                 vscode.TreeItemCollapsibleState.Collapsed
             ));
         } catch (error) {
@@ -177,6 +190,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             }
 
             const columns = await connection.getTableSchema(tableName);
+            const dbType = connection.config.type;
             return columns.map(col => {
                 const item = new ConnectionTreeItem(
                     col.name,
@@ -184,6 +198,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
                     connectionId,
                     undefined,
                     tableName,
+                    dbType,
                     vscode.TreeItemCollapsibleState.None
                 );
                 item.description = col.type;

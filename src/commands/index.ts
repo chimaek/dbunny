@@ -5,6 +5,7 @@ import { QueryHistoryProvider } from '../views/queryHistoryView';
 import { I18n } from '../utils/i18n';
 import { ConnectionFormPanel } from '../webview/ConnectionFormPanel';
 import { QueryResultPanel } from '../webview/QueryResultPanel';
+import { TableEditorPanel } from '../webview/TableEditorPanel';
 
 /**
  * Register all commands
@@ -30,10 +31,10 @@ export function registerCommands(
     // Edit Connection (Webview)
     context.subscriptions.push(
         vscode.commands.registerCommand('dbunny.editConnection', (item: ConnectionTreeItem) => {
-            if (!item?.connectionId) return;
+            if (!item?.connectionId) {return;}
 
             const connection = connectionManager.getConnection(item.connectionId);
-            if (!connection) return;
+            if (!connection) {return;}
 
             ConnectionFormPanel.createOrShow(
                 context.extensionUri,
@@ -47,10 +48,10 @@ export function registerCommands(
     // Delete Connection
     context.subscriptions.push(
         vscode.commands.registerCommand('dbunny.deleteConnection', async (item: ConnectionTreeItem) => {
-            if (!item?.connectionId) return;
+            if (!item?.connectionId) {return;}
 
             const connection = connectionManager.getConnection(item.connectionId);
-            if (!connection) return;
+            if (!connection) {return;}
 
             const confirm = await vscode.window.showWarningMessage(
                 i18n.t('messages.deleteConfirm', { name: connection.config.name }),
@@ -78,7 +79,7 @@ export function registerCommands(
     // Connect
     context.subscriptions.push(
         vscode.commands.registerCommand('dbunny.connect', async (item: ConnectionTreeItem) => {
-            if (!item?.connectionId) return;
+            if (!item?.connectionId) {return;}
 
             try {
                 await vscode.window.withProgress(
@@ -193,9 +194,52 @@ export function registerCommands(
     // New Query
     context.subscriptions.push(
         vscode.commands.registerCommand('dbunny.newQuery', async () => {
+            const activeConnection = connectionManager.getActiveConnection();
+            const dbType = activeConnection?.config.type || 'sql';
+
+            let language = 'sql';
+            let content = '-- DBunny Query\n-- SELECT * FROM table_name;\n\n';
+
+            switch (dbType) {
+                case 'redis':
+                    language = 'plaintext';
+                    content = `# Redis Commands
+# Key-Value: GET key, SET key value, DEL key
+# Hash: HGET key field, HSET key field value, HGETALL key
+# List: LPUSH key value, RPUSH key value, LRANGE key 0 -1
+# Set: SADD key value, SMEMBERS key, SCARD key
+# Sorted Set: ZADD key score value, ZRANGE key 0 -1
+# Other: KEYS *, SCAN 0, TTL key, EXPIRE key seconds
+# Database: SELECT 0 (switch to db 0-15)
+
+KEYS *
+`;
+                    break;
+                case 'mongodb':
+                    language = 'javascript';
+                    content = `// MongoDB Query (JSON format)
+// Find: db.collection.find({ field: "value" })
+// Insert: db.collection.insertOne({ field: "value" })
+// Update: db.collection.updateOne({ _id: id }, { $set: { field: "value" } })
+// Delete: db.collection.deleteOne({ _id: id })
+
+db.collectionName.find({})
+`;
+                    break;
+                case 'mysql':
+                    content = '-- MySQL Query\n-- SELECT * FROM table_name;\n-- SHOW DATABASES;\n-- SHOW TABLES;\n\n';
+                    break;
+                case 'postgres':
+                    content = '-- PostgreSQL Query\n-- SELECT * FROM table_name;\n-- \\dt (list tables)\n-- \\d table_name (describe table)\n\n';
+                    break;
+                case 'sqlite':
+                    content = '-- SQLite Query\n-- SELECT * FROM table_name;\n-- .tables (list tables)\n-- PRAGMA table_info(table_name);\n\n';
+                    break;
+            }
+
             const doc = await vscode.workspace.openTextDocument({
-                language: 'sql',
-                content: '-- DBunny Query\n\n'
+                language,
+                content
             });
             await vscode.window.showTextDocument(doc);
         })
@@ -213,6 +257,110 @@ export function registerCommands(
     context.subscriptions.push(
         vscode.commands.registerCommand('dbunny.exportData', async () => {
             vscode.window.showInformationMessage('Export feature coming soon!');
+        })
+    );
+
+    // Edit Table Data
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.editTableData', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            // Get table name from tree item
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            // Get database name from connection config
+            const databaseName = activeConnection.config.database || '';
+
+            await TableEditorPanel.createOrShow(
+                context.extensionUri,
+                connectionManager,
+                i18n,
+                tableName,
+                databaseName
+            );
+        })
+    );
+
+    // View Key/Document Data (for NoSQL databases)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.viewKeyData', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const keyName = item?.label?.toString() || '';
+            if (!keyName) {
+                vscode.window.showWarningMessage('No key selected');
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            const resultPanel = QueryResultPanel.createOrShow(context.extensionUri, i18n);
+            resultPanel.showLoading(keyName);
+
+            try {
+                let query = '';
+                if (dbType === 'redis') {
+                    // For Redis, first get the key type to use appropriate command
+                    const typeResult = await activeConnection.executeQuery(`TYPE ${keyName}`);
+                    const keyType = typeResult.rows[0]?.result?.toString() || 'string';
+
+                    switch (keyType) {
+                        case 'string':
+                            query = `GET ${keyName}`;
+                            break;
+                        case 'hash':
+                            query = `HGETALL ${keyName}`;
+                            break;
+                        case 'list':
+                            query = `LRANGE ${keyName} 0 -1`;
+                            break;
+                        case 'set':
+                            query = `SMEMBERS ${keyName}`;
+                            break;
+                        case 'zset':
+                            query = `ZRANGE ${keyName} 0 -1 WITHSCORES`;
+                            break;
+                        default:
+                            query = `GET ${keyName}`;
+                    }
+                } else if (dbType === 'mongodb') {
+                    // For MongoDB, query the collection
+                    query = `db.${keyName}.find({}).limit(100)`;
+                }
+
+                const result = await activeConnection.executeQuery(query);
+                resultPanel.updateResults(query, result);
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                resultPanel.showError(keyName, message);
+            }
+        })
+    );
+
+    // Clear Query History
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.clearHistory', async () => {
+            const confirm = await vscode.window.showWarningMessage(
+                'Clear all query history?',
+                { modal: true },
+                'Clear'
+            );
+            if (confirm === 'Clear') {
+                await queryHistoryProvider.clearHistory();
+                vscode.window.showInformationMessage('Query history cleared');
+            }
         })
     );
 

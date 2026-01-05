@@ -87,7 +87,8 @@ export class SQLiteProvider implements DatabaseConnection {
     }
 
     async getTableSchema(table: string): Promise<ColumnInfo[]> {
-        const result = await this.executeQuery(`PRAGMA table_info('${table}')`);
+        const safeTable = table.replace(/'/g, "''");
+        const result = await this.executeQuery(`PRAGMA table_info('${safeTable}')`);
         return result.rows.map((row) => ({
             name: row.name as string,
             type: row.type as string,

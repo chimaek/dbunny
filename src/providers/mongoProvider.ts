@@ -130,9 +130,9 @@ export class MongoDBProvider implements DatabaseConnection {
     }
 
     private getMongoType(value: unknown): string {
-        if (value === null) return 'null';
-        if (Array.isArray(value)) return 'array';
-        if (value instanceof Date) return 'date';
+        if (value === null) {return 'null';}
+        if (Array.isArray(value)) {return 'array';}
+        if (value instanceof Date) {return 'date';}
         if (typeof value === 'object' && '_bsontype' in (value as object)) {
             return (value as { _bsontype: string })._bsontype;
         }
