@@ -6,6 +6,7 @@ import { I18n } from '../utils/i18n';
 import { ConnectionFormPanel } from '../webview/ConnectionFormPanel';
 import { QueryResultPanel } from '../webview/QueryResultPanel';
 import { TableEditorPanel } from '../webview/TableEditorPanel';
+import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 
 /**
  * Register all commands
@@ -313,7 +314,7 @@ db.collectionName.find({})
                 if (dbType === 'redis') {
                     // For Redis, first get the key type to use appropriate command
                     const typeResult = await activeConnection.executeQuery(`TYPE ${keyName}`);
-                    const keyType = typeResult.rows[0]?.result?.toString() || 'string';
+                    const keyType = (typeResult.rows[0]?.value as string)?.toLowerCase() || 'string';
 
                     switch (keyType) {
                         case 'string':
@@ -331,6 +332,8 @@ db.collectionName.find({})
                         case 'zset':
                             query = `ZRANGE ${keyName} 0 -1 WITHSCORES`;
                             break;
+                        case 'none':
+                            throw new Error(`Key "${keyName}" does not exist`);
                         default:
                             query = `GET ${keyName}`;
                     }
@@ -362,6 +365,81 @@ db.collectionName.find({})
                 vscode.window.showInformationMessage('Query history cleared');
             }
         })
+    );
+
+    // Execute Query at Cursor (for CodeLens)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.executeQueryAtCursor', async (
+            document: vscode.TextDocument,
+            startLine: number,
+            endLine: number
+        ) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            // Extract query from the specified lines
+            const lines: string[] = [];
+            for (let i = startLine; i <= endLine; i++) {
+                lines.push(document.lineAt(i).text);
+            }
+            const query = lines.join('\n').trim();
+
+            if (!query) {
+                vscode.window.showWarningMessage(i18n.t('messages.noQuery'));
+                return;
+            }
+
+            const resultPanel = QueryResultPanel.createOrShow(context.extensionUri, i18n);
+            resultPanel.showLoading(query);
+
+            try {
+                const result = await connectionManager.executeQuery(query);
+
+                await queryHistoryProvider.addQuery({
+                    query,
+                    connectionId: activeConnection.config.id,
+                    connectionName: activeConnection.config.name,
+                    executedAt: new Date(),
+                    executionTime: result.executionTime,
+                    rowCount: result.rowCount,
+                    status: 'success'
+                });
+
+                resultPanel.updateResults(query, result);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+
+                await queryHistoryProvider.addQuery({
+                    query,
+                    connectionId: activeConnection.config.id,
+                    connectionName: activeConnection.config.name,
+                    executedAt: new Date(),
+                    executionTime: 0,
+                    rowCount: 0,
+                    status: 'error',
+                    error: message
+                });
+
+                resultPanel.showError(query, message);
+            }
+        })
+    );
+
+    // Register SQL CodeLens provider
+    const codeLensProvider = new SqlCodeLensProvider();
+    context.subscriptions.push(
+        vscode.languages.registerCodeLensProvider(
+            [
+                { language: 'sql' },
+                { language: 'plpgsql' },
+                { language: 'mysql' },
+                { pattern: '**/*.sql' }
+            ],
+            codeLensProvider
+        )
     );
 
     // Listen for connection changes to refresh tree

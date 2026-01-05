@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -147,6 +147,12 @@
         "title": "View Data",
         "category": "DBunny",
         "icon": "$(eye)"
+      },
+      {
+        "command": "dbunny.executeQueryAtCursor",
+        "title": "Run Query",
+        "category": "DBunny",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -205,12 +211,12 @@
         "command": "dbunny.executeQuery",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
-        "when": "editorLangId == sql"
+        "when": "editorLangId == sql || editorLangId == plpgsql || editorLangId == mysql"
       },
       {
         "command": "dbunny.executeQuery",
         "key": "f5",
-        "when": "editorLangId == sql"
+        "when": "editorLangId == sql || editorLangId == plpgsql || editorLangId == mysql"
       },
       {
         "command": "dbunny.newQuery",
