@@ -3,7 +3,7 @@
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
   "version": "1.0.5",
-  "publisher": "chimaek",
+  "publisher": "dbunny",
   "author": "chimaek",
   "license": "MIT",
   "icon": "resources/bunny-icon.png",
