@@ -1,0 +1,236 @@
+import * as vscode from 'vscode';
+import { ConnectionManager } from '../managers/connectionManager';
+import { DatabaseConnection, TreeItemType } from '../types/database';
+import { I18n } from '../utils/i18n';
+
+/**
+ * Tree item representing a connection, database, table, or column
+ */
+export class ConnectionTreeItem extends vscode.TreeItem {
+    constructor(
+        public readonly label: string,
+        public readonly itemType: TreeItemType,
+        public readonly connectionId?: string,
+        public readonly databaseName?: string,
+        public readonly tableName?: string,
+        collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.None
+    ) {
+        super(label, collapsibleState);
+        this.contextValue = itemType;
+        this.setIcon();
+    }
+
+    private setIcon(): void {
+        switch (this.itemType) {
+            case 'connection':
+                this.iconPath = new vscode.ThemeIcon('database');
+                break;
+            case 'database':
+                this.iconPath = new vscode.ThemeIcon('symbol-namespace');
+                break;
+            case 'table':
+                this.iconPath = new vscode.ThemeIcon('symbol-class');
+                break;
+            case 'column':
+                this.iconPath = new vscode.ThemeIcon('symbol-field');
+                break;
+        }
+    }
+}
+
+/**
+ * Tree data provider for database connections
+ */
+export class ConnectionTreeProvider implements vscode.TreeDataProvider<ConnectionTreeItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<ConnectionTreeItem | undefined | null | void>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+    constructor(
+        private connectionManager: ConnectionManager,
+        private i18n: I18n
+    ) {}
+
+    /**
+     * Refresh the tree view
+     */
+    refresh(): void {
+        this._onDidChangeTreeData.fire();
+    }
+
+    /**
+     * Get tree item for display
+     */
+    getTreeItem(element: ConnectionTreeItem): vscode.TreeItem {
+        return element;
+    }
+
+    /**
+     * Get children of a tree item
+     */
+    async getChildren(element?: ConnectionTreeItem): Promise<ConnectionTreeItem[]> {
+        if (!element) {
+            // Root level - show all connections
+            return this.getConnectionItems();
+        }
+
+        switch (element.itemType) {
+            case 'connection':
+                return this.getDatabaseItems(element.connectionId!);
+            case 'database':
+                return this.getTableItems(element.connectionId!, element.databaseName!);
+            case 'table':
+                return this.getColumnItems(element.connectionId!, element.tableName!);
+            default:
+                return [];
+        }
+    }
+
+    /**
+     * Get all connection items
+     */
+    private getConnectionItems(): ConnectionTreeItem[] {
+        const connections = this.connectionManager.getAllConnections();
+
+        return connections.map(conn => {
+            const isActive = this.connectionManager.isConnected(conn.config.id);
+            const item = new ConnectionTreeItem(
+                conn.config.name,
+                'connection',
+                conn.config.id,
+                undefined,
+                undefined,
+                isActive ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+            );
+
+            // Show connection status
+            if (isActive) {
+                item.description = this.i18n.t('connection.connected');
+                item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
+            } else {
+                item.description = this.getDbTypeLabel(conn.config.type);
+            }
+
+            item.tooltip = this.buildConnectionTooltip(conn);
+
+            return item;
+        });
+    }
+
+    /**
+     * Get database items for a connection
+     */
+    private async getDatabaseItems(connectionId: string): Promise<ConnectionTreeItem[]> {
+        try {
+            const connection = this.connectionManager.getActiveConnection();
+            if (!connection || connection.config.id !== connectionId) {
+                return [];
+            }
+
+            const databases = await connection.getDatabases();
+            return databases.map(db => new ConnectionTreeItem(
+                db,
+                'database',
+                connectionId,
+                db,
+                undefined,
+                vscode.TreeItemCollapsibleState.Collapsed
+            ));
+        } catch (error) {
+            console.error('Failed to get databases:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get table items for a database
+     */
+    private async getTableItems(connectionId: string, databaseName: string): Promise<ConnectionTreeItem[]> {
+        try {
+            const connection = this.connectionManager.getActiveConnection();
+            if (!connection || connection.config.id !== connectionId) {
+                return [];
+            }
+
+            const tables = await connection.getTables(databaseName);
+            return tables.map(table => new ConnectionTreeItem(
+                table,
+                'table',
+                connectionId,
+                databaseName,
+                table,
+                vscode.TreeItemCollapsibleState.Collapsed
+            ));
+        } catch (error) {
+            console.error('Failed to get tables:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get column items for a table
+     */
+    private async getColumnItems(connectionId: string, tableName: string): Promise<ConnectionTreeItem[]> {
+        try {
+            const connection = this.connectionManager.getActiveConnection();
+            if (!connection || connection.config.id !== connectionId) {
+                return [];
+            }
+
+            const columns = await connection.getTableSchema(tableName);
+            return columns.map(col => {
+                const item = new ConnectionTreeItem(
+                    col.name,
+                    'column',
+                    connectionId,
+                    undefined,
+                    tableName,
+                    vscode.TreeItemCollapsibleState.None
+                );
+                item.description = col.type;
+                if (col.primaryKey) {
+                    item.iconPath = new vscode.ThemeIcon('key');
+                }
+                return item;
+            });
+        } catch (error) {
+            console.error('Failed to get columns:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Build tooltip for connection
+     */
+    private buildConnectionTooltip(conn: DatabaseConnection): string {
+        const config = conn.config;
+        const lines = [
+            `Name: ${config.name}`,
+            `Type: ${config.type.toUpperCase()}`,
+            `Host: ${config.host}:${config.port}`,
+        ];
+
+        if (config.database) {
+            lines.push(`Database: ${config.database}`);
+        }
+
+        if (config.ssh) {
+            lines.push(`SSH: ${config.ssh.host}:${config.ssh.port || 22}`);
+        }
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Get display label for database type
+     */
+    private getDbTypeLabel(type: string): string {
+        const labels: Record<string, string> = {
+            mysql: 'MySQL',
+            postgres: 'PostgreSQL',
+            sqlite: 'SQLite',
+            mongodb: 'MongoDB',
+            redis: 'Redis'
+        };
+        return labels[type] || type;
+    }
+}

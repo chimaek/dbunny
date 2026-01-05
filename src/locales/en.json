@@ -1,0 +1,78 @@
+{
+  "common": {
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "refresh": "Refresh",
+    "export": "Export",
+    "import": "Import",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "connection": {
+    "addConnection": "Add Connection",
+    "editConnection": "Edit Connection",
+    "deleteConnection": "Delete Connection",
+    "selectType": "Select database type",
+    "enterName": "Enter connection name",
+    "enterHost": "Enter host address",
+    "enterPort": "Enter port number",
+    "enterUsername": "Enter username",
+    "enterPassword": "Enter password",
+    "enterDatabase": "Enter database name (optional)",
+    "selectDatabase": "Select database file",
+    "testConnection": "Test Connection",
+    "testSuccess": "Connection successful!",
+    "testFailed": "Connection failed: {error}",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "query": {
+    "execute": "Execute Query",
+    "newQuery": "New Query",
+    "saveQuery": "Save Query",
+    "executionTime": "Execution time: {time}ms",
+    "rowCount": "{count} row(s)",
+    "noResults": "No results",
+    "error": "Query execution error: {error}"
+  },
+  "messages": {
+    "welcome": "DBunny is ready! Hop into your databases!",
+    "connectionAdded": "Connection '{name}' added successfully",
+    "connectionAddFailed": "Failed to add connection: {error}",
+    "connectionUpdated": "Connection '{name}' updated successfully",
+    "connectionUpdateFailed": "Failed to update connection: {error}",
+    "connectionDeleted": "Connection '{name}' deleted",
+    "connectionDeleteFailed": "Failed to delete connection: {error}",
+    "deleteConfirm": "Are you sure you want to delete '{name}'?",
+    "connecting": "Connecting...",
+    "connected": "Connected to '{name}'",
+    "connectionFailed": "Connection failed: {error}",
+    "disconnected": "Disconnected",
+    "disconnectFailed": "Disconnect failed: {error}",
+    "executing": "Executing query...",
+    "queryFailed": "Query failed: {error}",
+    "noEditor": "No active editor",
+    "noConnection": "No active connection. Please connect to a database first.",
+    "noQuery": "No query to execute",
+    "queryCopied": "Query copied to clipboard"
+  },
+  "status": {
+    "connected": "Connected to {name}",
+    "disconnected": "Not connected"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidPort": "Port must be between 1 and 65535"
+  },
+  "export": {
+    "csv": "Export as CSV",
+    "json": "Export as JSON",
+    "excel": "Export as Excel"
+  }
+}

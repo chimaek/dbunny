@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+out/
+dist/
+
+# VS Code Extension packages
+*.vsix
+
+# Test outputs
+.vscode-test/
+coverage/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.claude/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Private keys
+*.pem
+*.key
+
+# Documentation (except README)
+*.md
+!README.md
+!CHANGELOG.md
