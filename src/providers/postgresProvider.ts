@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 import { Client as SSHClient } from 'ssh2';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
 
 /**
  * PostgreSQL database provider
@@ -146,6 +146,35 @@ export class PostgresProvider implements DatabaseConnection {
         }
 
         return `CREATE TABLE "${safeTable}" (\n${columns.join(',\n')}\n);`;
+    }
+
+    async getForeignKeys(table: string): Promise<ForeignKeyInfo[]> {
+        const safeTable = table.replace(/'/g, "''");
+
+        const result = await this.executeQuery(`
+            SELECT
+                tc.constraint_name as "constraintName",
+                kcu.column_name as "columnName",
+                ccu.table_name as "referencedTable",
+                ccu.column_name as "referencedColumn"
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage AS ccu
+                ON ccu.constraint_name = tc.constraint_name
+                AND ccu.table_schema = tc.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_name = '${safeTable}'
+                AND tc.table_schema = 'public'
+        `);
+
+        return result.rows.map(row => ({
+            constraintName: row.constraintName as string,
+            columnName: row.columnName as string,
+            referencedTable: row.referencedTable as string,
+            referencedColumn: row.referencedColumn as string
+        }));
     }
 
     private async establishSSHTunnel(): Promise<void> {

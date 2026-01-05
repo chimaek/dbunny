@@ -7,6 +7,8 @@ import { I18n } from '../utils/i18n';
 import { ConnectionFormPanel } from '../webview/ConnectionFormPanel';
 import { QueryResultPanel } from '../webview/QueryResultPanel';
 import { TableEditorPanel } from '../webview/TableEditorPanel';
+import { ERDPanel } from '../webview/ERDPanel';
+import { TableERDInfo } from '../types/database';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
 
@@ -860,6 +862,56 @@ db.collectionName.find({})
                     const message = error instanceof Error ? error.message : 'Unknown error';
                     vscode.window.showErrorMessage(i18n.t('groups.deleteFailed', { error: message }));
                 }
+            }
+        })
+    );
+
+    // Show ERD Diagram
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.showERD', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('erd.notSupported'));
+                return;
+            }
+
+            const databaseName = item?.databaseName || activeConnection.config.database || 'Database';
+
+            const erdPanel = ERDPanel.createOrShow(context.extensionUri, i18n);
+            erdPanel.showLoading();
+
+            try {
+                // Get all tables
+                const tables = await activeConnection.getTables(databaseName);
+                const tableInfos: TableERDInfo[] = [];
+
+                // Get schema and foreign keys for each table
+                for (const tableName of tables) {
+                    const columns = await activeConnection.getTableSchema(tableName);
+                    let foreignKeys: { constraintName: string; columnName: string; referencedTable: string; referencedColumn: string }[] = [];
+
+                    if (activeConnection.getForeignKeys) {
+                        foreignKeys = await activeConnection.getForeignKeys(tableName);
+                    }
+
+                    tableInfos.push({
+                        name: tableName,
+                        columns,
+                        foreignKeys
+                    });
+                }
+
+                erdPanel.updateERD(tableInfos, databaseName);
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('erd.loadFailed', { error: message }));
             }
         })
     );

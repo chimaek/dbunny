@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
 
 /**
  * SQLite database provider
@@ -111,5 +111,17 @@ export class SQLiteProvider implements DatabaseConnection {
             return result.rows[0].sql as string;
         }
         throw new Error(`Could not get CREATE TABLE statement for ${table}`);
+    }
+
+    async getForeignKeys(table: string): Promise<ForeignKeyInfo[]> {
+        const safeTable = table.replace(/'/g, "''");
+        const result = await this.executeQuery(`PRAGMA foreign_key_list('${safeTable}')`);
+
+        return result.rows.map((row, index) => ({
+            constraintName: `fk_${table}_${index}`,
+            columnName: row.from as string,
+            referencedTable: row.table as string,
+            referencedColumn: row.to as string
+        }));
     }
 }

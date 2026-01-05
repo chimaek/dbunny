@@ -101,6 +101,12 @@
     "groupDeleted": "Group '{name}' deleted",
     "deleteFailed": "Failed to delete group: {error}"
   },
+  "erd": {
+    "notSupported": "ERD diagram is not supported for this database type",
+    "loadFailed": "Failed to load ERD diagram: {error}",
+    "exportedSVG": "ERD diagram exported to {path}",
+    "exportedPNG": "ERD diagram exported to {path}"
+  },
   "status": {
     "connected": "Connected to {name}",
     "disconnected": "Not connected"

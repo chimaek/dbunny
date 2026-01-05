@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Create groups (dev/staging/prod)
   - Move connections between groups
   - Rename and delete groups
+- **ERD Diagram**: Visual entity relationship diagram
+  - Table relationship visualization
+  - Foreign key connections with arrows
+  - Drag and drop table positioning
+  - Zoom and pan controls
+  - Export to SVG and PNG formats
+  - Auto layout feature
 
 ### Changed
 - Tree view now displays groups at root level

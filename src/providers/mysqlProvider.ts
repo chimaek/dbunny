@@ -1,6 +1,6 @@
 import * as mysql from 'mysql2/promise';
 import { Client as SSHClient } from 'ssh2';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
 
 /**
  * MySQL database provider
@@ -111,6 +111,31 @@ export class MySQLProvider implements DatabaseConnection {
             return result.rows[0]['Create Table'] as string;
         }
         throw new Error(`Could not get CREATE TABLE statement for ${table}`);
+    }
+
+    async getForeignKeys(table: string): Promise<ForeignKeyInfo[]> {
+        const safeTable = table.replace(/'/g, "''");
+        const database = this.config.database || '';
+        const safeDatabase = database.replace(/'/g, "''");
+
+        const result = await this.executeQuery(`
+            SELECT
+                CONSTRAINT_NAME as constraintName,
+                COLUMN_NAME as columnName,
+                REFERENCED_TABLE_NAME as referencedTable,
+                REFERENCED_COLUMN_NAME as referencedColumn
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = '${safeDatabase}'
+                AND TABLE_NAME = '${safeTable}'
+                AND REFERENCED_TABLE_NAME IS NOT NULL
+        `);
+
+        return result.rows.map(row => ({
+            constraintName: row.constraintName as string,
+            columnName: row.columnName as string,
+            referencedTable: row.referencedTable as string,
+            referencedColumn: row.referencedColumn as string
+        }));
     }
 
     private async establishSSHTunnel(): Promise<void> {

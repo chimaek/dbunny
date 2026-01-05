@@ -101,6 +101,12 @@
     "groupDeleted": "'{name}' 그룹이 삭제되었습니다",
     "deleteFailed": "그룹 삭제 실패: {error}"
   },
+  "erd": {
+    "notSupported": "이 데이터베이스 유형에서는 ERD 다이어그램을 지원하지 않습니다",
+    "loadFailed": "ERD 다이어그램 로드 실패: {error}",
+    "exportedSVG": "ERD 다이어그램이 {path}에 저장되었습니다",
+    "exportedPNG": "ERD 다이어그램이 {path}에 저장되었습니다"
+  },
   "status": {
     "connected": "{name}에 연결됨",
     "disconnected": "연결 안됨"

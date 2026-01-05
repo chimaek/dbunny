@@ -63,6 +63,7 @@ export interface DatabaseConnection {
     getTables(database: string): Promise<string[]>;
     getTableSchema(table: string): Promise<ColumnInfo[]>;
     getCreateTableStatement?(table: string): Promise<string>;
+    getForeignKeys?(table: string): Promise<ForeignKeyInfo[]>;
     isConnected(): boolean;
 }
 
@@ -75,6 +76,25 @@ export interface ColumnInfo {
     nullable: boolean;
     primaryKey: boolean;
     defaultValue?: string;
+}
+
+/**
+ * Foreign key information for ERD
+ */
+export interface ForeignKeyInfo {
+    constraintName: string;
+    columnName: string;
+    referencedTable: string;
+    referencedColumn: string;
+}
+
+/**
+ * Table info for ERD with columns and foreign keys
+ */
+export interface TableERDInfo {
+    name: string;
+    columns: ColumnInfo[];
+    foreignKeys: ForeignKeyInfo[];
 }
 
 /**
