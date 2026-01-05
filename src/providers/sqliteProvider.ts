@@ -101,4 +101,15 @@ export class SQLiteProvider implements DatabaseConnection {
     isConnected(): boolean {
         return this.db !== null;
     }
+
+    async getCreateTableStatement(table: string): Promise<string> {
+        const safeTable = table.replace(/'/g, "''");
+        const result = await this.executeQuery(
+            `SELECT sql FROM sqlite_master WHERE type='table' AND name='${safeTable}'`
+        );
+        if (result.rows.length > 0 && result.rows[0].sql) {
+            return result.rows[0].sql as string;
+        }
+        throw new Error(`Could not get CREATE TABLE statement for ${table}`);
+    }
 }

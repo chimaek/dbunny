@@ -104,6 +104,15 @@ export class MySQLProvider implements DatabaseConnection {
         return this.connection !== null;
     }
 
+    async getCreateTableStatement(table: string): Promise<string> {
+        const safeTable = table.replace(/`/g, '``');
+        const result = await this.executeQuery(`SHOW CREATE TABLE \`${safeTable}\``);
+        if (result.rows.length > 0) {
+            return result.rows[0]['Create Table'] as string;
+        }
+        throw new Error(`Could not get CREATE TABLE statement for ${table}`);
+    }
+
     private async establishSSHTunnel(): Promise<void> {
         return new Promise((resolve, reject) => {
             this.sshClient = new SSHClient();

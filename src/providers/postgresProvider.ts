@@ -125,6 +125,29 @@ export class PostgresProvider implements DatabaseConnection {
         return this.client !== null;
     }
 
+    async getCreateTableStatement(table: string): Promise<string> {
+        const schema = await this.getTableSchema(table);
+        const safeTable = table.replace(/"/g, '""');
+
+        const columns = schema.map(col => {
+            let def = `    "${col.name}" ${col.type.toUpperCase()}`;
+            if (!col.nullable) {
+                def += ' NOT NULL';
+            }
+            if (col.defaultValue) {
+                def += ` DEFAULT ${col.defaultValue}`;
+            }
+            return def;
+        });
+
+        const primaryKeys = schema.filter(col => col.primaryKey).map(col => `"${col.name}"`);
+        if (primaryKeys.length > 0) {
+            columns.push(`    PRIMARY KEY (${primaryKeys.join(', ')})`);
+        }
+
+        return `CREATE TABLE "${safeTable}" (\n${columns.join(',\n')}\n);`;
+    }
+
     private async establishSSHTunnel(): Promise<void> {
         return new Promise((resolve, reject) => {
             this.sshClient = new SSHClient();

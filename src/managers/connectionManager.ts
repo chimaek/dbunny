@@ -250,4 +250,85 @@ export class ConnectionManager {
         };
         return ports[type];
     }
+
+    /**
+     * Get all unique groups
+     */
+    getGroups(): string[] {
+        const groups = new Set<string>();
+        for (const conn of this.connections.values()) {
+            if (conn.config.group) {
+                groups.add(conn.config.group);
+            }
+        }
+        return Array.from(groups).sort();
+    }
+
+    /**
+     * Get connections by group
+     */
+    getConnectionsByGroup(group: string | null): DatabaseConnection[] {
+        return Array.from(this.connections.values()).filter(conn => {
+            if (group === null) {
+                return !conn.config.group;
+            }
+            return conn.config.group === group;
+        });
+    }
+
+    /**
+     * Set connection group
+     */
+    async setConnectionGroup(connectionId: string, group: string | undefined): Promise<void> {
+        const connection = this.connections.get(connectionId);
+        if (!connection) {
+            throw new Error(`Connection not found: ${connectionId}`);
+        }
+
+        const updatedConfig: ConnectionConfig = {
+            ...connection.config,
+            group
+        };
+
+        const newConnection = this.createConnection(updatedConfig);
+        this.connections.set(connectionId, newConnection);
+        await this.saveConnections();
+        this._onDidChangeConnections.fire();
+    }
+
+    /**
+     * Rename a group
+     */
+    async renameGroup(oldName: string, newName: string): Promise<void> {
+        for (const conn of this.connections.values()) {
+            if (conn.config.group === oldName) {
+                const updatedConfig: ConnectionConfig = {
+                    ...conn.config,
+                    group: newName
+                };
+                const newConnection = this.createConnection(updatedConfig);
+                this.connections.set(conn.config.id, newConnection);
+            }
+        }
+        await this.saveConnections();
+        this._onDidChangeConnections.fire();
+    }
+
+    /**
+     * Delete a group (moves connections to ungrouped)
+     */
+    async deleteGroup(groupName: string): Promise<void> {
+        for (const conn of this.connections.values()) {
+            if (conn.config.group === groupName) {
+                const updatedConfig: ConnectionConfig = {
+                    ...conn.config,
+                    group: undefined
+                };
+                const newConnection = this.createConnection(updatedConfig);
+                this.connections.set(conn.config.id, newConnection);
+            }
+        }
+        await this.saveConnections();
+        this._onDidChangeConnections.fire();
+    }
 }

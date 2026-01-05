@@ -12,6 +12,7 @@ export interface ConnectionConfig {
     database?: string;
     ssh?: SSHConfig;
     options?: Record<string, unknown>;
+    group?: string;
 }
 
 /**
@@ -61,6 +62,7 @@ export interface DatabaseConnection {
     getDatabases(): Promise<string[]>;
     getTables(database: string): Promise<string[]>;
     getTableSchema(table: string): Promise<ColumnInfo[]>;
+    getCreateTableStatement?(table: string): Promise<string>;
     isConnected(): boolean;
 }
 
@@ -78,7 +80,7 @@ export interface ColumnInfo {
 /**
  * Tree item types for the explorer view
  */
-export type TreeItemType = 'connection' | 'database' | 'table' | 'column';
+export type TreeItemType = 'connection' | 'database' | 'table' | 'column' | 'group';
 
 /**
  * Connection status
@@ -98,4 +100,18 @@ export interface QueryHistoryEntry {
     rowCount: number;
     status: 'success' | 'error';
     error?: string;
+}
+
+/**
+ * Saved query (bookmark)
+ */
+export interface SavedQuery {
+    id: string;
+    name: string;
+    query: string;
+    description?: string;
+    category?: string;
+    databaseType?: DatabaseType;
+    createdAt: Date;
+    updatedAt: Date;
 }

@@ -2,11 +2,13 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { ConnectionTreeProvider, ConnectionTreeItem } from '../views/connectionTreeView';
 import { QueryHistoryProvider } from '../views/queryHistoryView';
+import { SavedQueriesProvider, SavedQueryTreeItem } from '../views/savedQueriesView';
 import { I18n } from '../utils/i18n';
 import { ConnectionFormPanel } from '../webview/ConnectionFormPanel';
 import { QueryResultPanel } from '../webview/QueryResultPanel';
 import { TableEditorPanel } from '../webview/TableEditorPanel';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
+import { format } from 'sql-formatter';
 
 /**
  * Register all commands
@@ -16,6 +18,7 @@ export function registerCommands(
     connectionManager: ConnectionManager,
     connectionTreeProvider: ConnectionTreeProvider,
     queryHistoryProvider: QueryHistoryProvider,
+    savedQueriesProvider: SavedQueriesProvider,
     i18n: I18n
 ): void {
     // Add Connection (Webview)
@@ -440,6 +443,425 @@ db.collectionName.find({})
             ],
             codeLensProvider
         )
+    );
+
+    // Save Query Bookmark
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.saveQueryBookmark', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage(i18n.t('messages.noEditor'));
+                return;
+            }
+
+            const query = editor.document.getText(editor.selection.isEmpty ? undefined : editor.selection);
+            if (!query.trim()) {
+                vscode.window.showWarningMessage(i18n.t('messages.noQuery'));
+                return;
+            }
+
+            const name = await vscode.window.showInputBox({
+                prompt: i18n.t('savedQueries.enterName'),
+                placeHolder: i18n.t('savedQueries.namePlaceholder')
+            });
+
+            if (!name) {return;}
+
+            const description = await vscode.window.showInputBox({
+                prompt: i18n.t('savedQueries.enterDescription'),
+                placeHolder: i18n.t('savedQueries.descriptionPlaceholder')
+            });
+
+            const categories = savedQueriesProvider.getCategories();
+            let category: string | undefined;
+
+            if (categories.length > 0) {
+                const selected = await vscode.window.showQuickPick(
+                    [...categories, '+ ' + i18n.t('savedQueries.newCategory')],
+                    { placeHolder: i18n.t('savedQueries.selectCategory') }
+                );
+
+                if (selected?.startsWith('+ ')) {
+                    category = await vscode.window.showInputBox({
+                        prompt: i18n.t('savedQueries.enterCategory'),
+                        placeHolder: i18n.t('savedQueries.categoryPlaceholder')
+                    });
+                } else {
+                    category = selected;
+                }
+            } else {
+                category = await vscode.window.showInputBox({
+                    prompt: i18n.t('savedQueries.enterCategory'),
+                    placeHolder: i18n.t('savedQueries.categoryPlaceholder')
+                });
+            }
+
+            const activeConnection = connectionManager.getActiveConnection();
+
+            await savedQueriesProvider.saveQuery({
+                name,
+                query: query.trim(),
+                description,
+                category,
+                databaseType: activeConnection?.config.type
+            });
+
+            vscode.window.showInformationMessage(i18n.t('savedQueries.saved', { name }));
+        })
+    );
+
+    // Load Saved Query
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.loadSavedQuery', async (savedQuery: { query: string; name: string }) => {
+            const doc = await vscode.workspace.openTextDocument({
+                language: 'sql',
+                content: savedQuery.query
+            });
+            await vscode.window.showTextDocument(doc);
+        })
+    );
+
+    // Edit Saved Query
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.editSavedQuery', async (item: SavedQueryTreeItem) => {
+            if (!item?.savedQuery) {return;}
+
+            const savedQuery = item.savedQuery;
+
+            const name = await vscode.window.showInputBox({
+                prompt: i18n.t('savedQueries.enterName'),
+                value: savedQuery.name
+            });
+
+            if (!name) {return;}
+
+            const description = await vscode.window.showInputBox({
+                prompt: i18n.t('savedQueries.enterDescription'),
+                value: savedQuery.description || ''
+            });
+
+            const category = await vscode.window.showInputBox({
+                prompt: i18n.t('savedQueries.enterCategory'),
+                value: savedQuery.category || ''
+            });
+
+            await savedQueriesProvider.updateQuery(savedQuery.id, {
+                name,
+                description,
+                category
+            });
+
+            vscode.window.showInformationMessage(i18n.t('savedQueries.updated', { name }));
+        })
+    );
+
+    // Delete Saved Query
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.deleteSavedQuery', async (item: SavedQueryTreeItem) => {
+            if (!item?.savedQuery) {return;}
+
+            const confirm = await vscode.window.showWarningMessage(
+                i18n.t('savedQueries.deleteConfirm', { name: item.savedQuery.name }),
+                { modal: true },
+                i18n.t('common.delete')
+            );
+
+            if (confirm) {
+                await savedQueriesProvider.deleteQuery(item.savedQuery.id);
+                vscode.window.showInformationMessage(
+                    i18n.t('savedQueries.deleted', { name: item.savedQuery.name })
+                );
+            }
+        })
+    );
+
+    // Clear All Saved Queries
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.clearSavedQueries', async () => {
+            const confirm = await vscode.window.showWarningMessage(
+                i18n.t('savedQueries.clearConfirm'),
+                { modal: true },
+                i18n.t('common.delete')
+            );
+
+            if (confirm) {
+                const queries = savedQueriesProvider.getAllQueries();
+                for (const query of queries) {
+                    await savedQueriesProvider.deleteQuery(query.id);
+                }
+                vscode.window.showInformationMessage(i18n.t('savedQueries.cleared'));
+            }
+        })
+    );
+
+    // Format SQL
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.formatSQL', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage(i18n.t('messages.noEditor'));
+                return;
+            }
+
+            const document = editor.document;
+            const selection = editor.selection;
+            const text = selection.isEmpty
+                ? document.getText()
+                : document.getText(selection);
+
+            if (!text.trim()) {
+                vscode.window.showWarningMessage(i18n.t('messages.noQuery'));
+                return;
+            }
+
+            try {
+                const activeConnection = connectionManager.getActiveConnection();
+                let language: 'sql' | 'mysql' | 'postgresql' | 'sqlite' = 'sql';
+
+                switch (activeConnection?.config.type) {
+                    case 'mysql':
+                        language = 'mysql';
+                        break;
+                    case 'postgres':
+                        language = 'postgresql';
+                        break;
+                    case 'sqlite':
+                        language = 'sqlite';
+                        break;
+                }
+
+                const formatted = format(text, {
+                    language,
+                    tabWidth: 2,
+                    keywordCase: 'upper',
+                    linesBetweenQueries: 2
+                });
+
+                await editor.edit(editBuilder => {
+                    if (selection.isEmpty) {
+                        const fullRange = new vscode.Range(
+                            document.positionAt(0),
+                            document.positionAt(document.getText().length)
+                        );
+                        editBuilder.replace(fullRange, formatted);
+                    } else {
+                        editBuilder.replace(selection, formatted);
+                    }
+                });
+
+                vscode.window.showInformationMessage(i18n.t('messages.queryFormatted'));
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('messages.formatFailed', { error: message }));
+            }
+        })
+    );
+
+    // Copy Table Schema (CREATE TABLE)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.copyTableSchema', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            try {
+                let createStatement: string;
+
+                if (activeConnection.getCreateTableStatement) {
+                    createStatement = await activeConnection.getCreateTableStatement(tableName);
+                } else {
+                    // Fallback: generate from schema
+                    const schema = await activeConnection.getTableSchema(tableName);
+                    const columns = schema.map(col => {
+                        let def = `  ${col.name} ${col.type}`;
+                        if (!col.nullable) {def += ' NOT NULL';}
+                        if (col.defaultValue) {def += ` DEFAULT ${col.defaultValue}`;}
+                        if (col.primaryKey) {def += ' PRIMARY KEY';}
+                        return def;
+                    });
+                    createStatement = `CREATE TABLE ${tableName} (\n${columns.join(',\n')}\n);`;
+                }
+
+                await vscode.env.clipboard.writeText(createStatement);
+                vscode.window.showInformationMessage(i18n.t('messages.schemaCopied', { table: tableName }));
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('messages.schemaCopyFailed', { error: message }));
+            }
+        })
+    );
+
+    // Explain Query (Show Execution Plan)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.explainQuery', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage(i18n.t('messages.noEditor'));
+                return;
+            }
+
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const query = editor.document.getText(editor.selection.isEmpty ? undefined : editor.selection);
+            if (!query.trim()) {
+                vscode.window.showWarningMessage(i18n.t('messages.noQuery'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('messages.explainNotSupported'));
+                return;
+            }
+
+            try {
+                let explainQuery: string;
+
+                switch (dbType) {
+                    case 'mysql':
+                        explainQuery = `EXPLAIN ${query}`;
+                        break;
+                    case 'postgres':
+                        explainQuery = `EXPLAIN ANALYZE ${query}`;
+                        break;
+                    case 'sqlite':
+                        explainQuery = `EXPLAIN QUERY PLAN ${query}`;
+                        break;
+                    default:
+                        explainQuery = `EXPLAIN ${query}`;
+                }
+
+                const resultPanel = QueryResultPanel.createOrShow(context.extensionUri, i18n);
+                resultPanel.showLoading(explainQuery);
+
+                const result = await activeConnection.executeQuery(explainQuery);
+                resultPanel.updateResults(explainQuery, result);
+
+                await queryHistoryProvider.addQuery({
+                    query: explainQuery,
+                    connectionId: activeConnection.config.id,
+                    connectionName: activeConnection.config.name,
+                    executedAt: new Date(),
+                    executionTime: result.executionTime,
+                    rowCount: result.rowCount,
+                    status: 'success'
+                });
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('messages.explainFailed', { error: message }));
+            }
+        })
+    );
+
+    // Set Connection Group
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.setConnectionGroup', async (item: ConnectionTreeItem) => {
+            if (!item?.connectionId) {return;}
+
+            const groups = connectionManager.getGroups();
+            const options = [
+                i18n.t('groups.noGroup'),
+                ...groups,
+                '+ ' + i18n.t('groups.newGroup')
+            ];
+
+            const selected = await vscode.window.showQuickPick(options, {
+                placeHolder: i18n.t('groups.selectGroup')
+            });
+
+            if (!selected) {return;}
+
+            let group: string | undefined;
+
+            if (selected === i18n.t('groups.noGroup')) {
+                group = undefined;
+            } else if (selected.startsWith('+ ')) {
+                group = await vscode.window.showInputBox({
+                    prompt: i18n.t('groups.enterGroupName'),
+                    placeHolder: i18n.t('groups.groupNamePlaceholder')
+                });
+                if (!group) {return;}
+            } else {
+                group = selected;
+            }
+
+            try {
+                await connectionManager.setConnectionGroup(item.connectionId, group);
+                connectionTreeProvider.refresh();
+                vscode.window.showInformationMessage(
+                    group
+                        ? i18n.t('groups.connectionMoved', { group })
+                        : i18n.t('groups.connectionUngrouped')
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('groups.moveFailed', { error: message }));
+            }
+        })
+    );
+
+    // Rename Group
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.renameGroup', async (item: ConnectionTreeItem) => {
+            if (!item?.groupName) {return;}
+
+            const newName = await vscode.window.showInputBox({
+                prompt: i18n.t('groups.enterNewGroupName'),
+                value: item.groupName
+            });
+
+            if (!newName || newName === item.groupName) {return;}
+
+            try {
+                await connectionManager.renameGroup(item.groupName, newName);
+                connectionTreeProvider.refresh();
+                vscode.window.showInformationMessage(
+                    i18n.t('groups.groupRenamed', { oldName: item.groupName, newName })
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('groups.renameFailed', { error: message }));
+            }
+        })
+    );
+
+    // Delete Group
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.deleteGroup', async (item: ConnectionTreeItem) => {
+            if (!item?.groupName) {return;}
+
+            const confirm = await vscode.window.showWarningMessage(
+                i18n.t('groups.deleteConfirm', { name: item.groupName }),
+                { modal: true },
+                i18n.t('common.delete')
+            );
+
+            if (confirm) {
+                try {
+                    await connectionManager.deleteGroup(item.groupName);
+                    connectionTreeProvider.refresh();
+                    vscode.window.showInformationMessage(
+                        i18n.t('groups.groupDeleted', { name: item.groupName })
+                    );
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Unknown error';
+                    vscode.window.showErrorMessage(i18n.t('groups.deleteFailed', { error: message }));
+                }
+            }
+        })
     );
 
     // Listen for connection changes to refresh tree

@@ -4,7 +4,7 @@ import { DatabaseConnection, TreeItemType } from '../types/database';
 import { I18n } from '../utils/i18n';
 
 /**
- * Tree item representing a connection, database, table, or column
+ * Tree item representing a connection, database, table, column, or group
  */
 export class ConnectionTreeItem extends vscode.TreeItem {
     constructor(
@@ -14,6 +14,7 @@ export class ConnectionTreeItem extends vscode.TreeItem {
         public readonly databaseName?: string,
         public readonly tableName?: string,
         public readonly dbType?: string,
+        public readonly groupName?: string,
         collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.None
     ) {
         super(label, collapsibleState);
@@ -29,6 +30,9 @@ export class ConnectionTreeItem extends vscode.TreeItem {
 
     private setIcon(): void {
         switch (this.itemType) {
+            case 'group':
+                this.iconPath = new vscode.ThemeIcon('folder');
+                break;
             case 'connection':
                 this.iconPath = new vscode.ThemeIcon('database');
                 break;
@@ -76,11 +80,13 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
      */
     async getChildren(element?: ConnectionTreeItem): Promise<ConnectionTreeItem[]> {
         if (!element) {
-            // Root level - show all connections
-            return this.getConnectionItems();
+            // Root level - show groups and ungrouped connections
+            return this.getRootItems();
         }
 
         switch (element.itemType) {
+            case 'group':
+                return this.getGroupConnectionItems(element.groupName!);
             case 'connection':
                 return this.getDatabaseItems(element.connectionId!);
             case 'database':
@@ -93,35 +99,72 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
     }
 
     /**
-     * Get all connection items
+     * Get root level items (groups + ungrouped connections)
      */
-    private getConnectionItems(): ConnectionTreeItem[] {
-        const connections = this.connectionManager.getAllConnections();
+    private getRootItems(): ConnectionTreeItem[] {
+        const items: ConnectionTreeItem[] = [];
+        const groups = this.connectionManager.getGroups();
 
-        return connections.map(conn => {
-            const isActive = this.connectionManager.isConnected(conn.config.id);
-            const item = new ConnectionTreeItem(
-                conn.config.name,
-                'connection',
-                conn.config.id,
+        // Add group items
+        for (const group of groups) {
+            const groupItem = new ConnectionTreeItem(
+                group,
+                'group',
                 undefined,
                 undefined,
-                conn.config.type,
-                isActive ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+                undefined,
+                undefined,
+                group,
+                vscode.TreeItemCollapsibleState.Collapsed
             );
+            groupItem.tooltip = `${group} (${this.connectionManager.getConnectionsByGroup(group).length} connections)`;
+            items.push(groupItem);
+        }
 
-            // Show connection status
-            if (isActive) {
-                item.description = this.i18n.t('connection.connected');
-                item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
-            } else {
-                item.description = this.getDbTypeLabel(conn.config.type);
-            }
+        // Add ungrouped connections
+        const ungroupedConnections = this.connectionManager.getConnectionsByGroup(null);
+        for (const conn of ungroupedConnections) {
+            items.push(this.createConnectionItem(conn));
+        }
 
-            item.tooltip = this.buildConnectionTooltip(conn);
+        return items;
+    }
 
-            return item;
-        });
+    /**
+     * Get connection items for a group
+     */
+    private getGroupConnectionItems(groupName: string): ConnectionTreeItem[] {
+        const connections = this.connectionManager.getConnectionsByGroup(groupName);
+        return connections.map(conn => this.createConnectionItem(conn));
+    }
+
+    /**
+     * Create a connection tree item
+     */
+    private createConnectionItem(conn: DatabaseConnection): ConnectionTreeItem {
+        const isActive = this.connectionManager.isConnected(conn.config.id);
+        const item = new ConnectionTreeItem(
+            conn.config.name,
+            'connection',
+            conn.config.id,
+            undefined,
+            undefined,
+            conn.config.type,
+            conn.config.group,
+            isActive ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+        );
+
+        // Show connection status
+        if (isActive) {
+            item.description = this.i18n.t('connection.connected');
+            item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
+        } else {
+            item.description = this.getDbTypeLabel(conn.config.type);
+        }
+
+        item.tooltip = this.buildConnectionTooltip(conn);
+
+        return item;
     }
 
     /**
@@ -143,6 +186,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
                 db,
                 undefined,
                 dbType,
+                undefined,
                 vscode.TreeItemCollapsibleState.Collapsed
             ));
         } catch (error) {
@@ -171,6 +215,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
                 databaseName,
                 table,
                 dbType,
+                undefined,
                 vscode.TreeItemCollapsibleState.Collapsed
             ));
         } catch (error) {
@@ -199,6 +244,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
                     undefined,
                     tableName,
                     dbType,
+                    undefined,
                     vscode.TreeItemCollapsibleState.None
                 );
                 item.description = col.type;
@@ -226,6 +272,10 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
 
         if (config.database) {
             lines.push(`Database: ${config.database}`);
+        }
+
+        if (config.group) {
+            lines.push(`Group: ${config.group}`);
         }
 
         if (config.ssh) {

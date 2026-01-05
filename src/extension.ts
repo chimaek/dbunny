@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ConnectionTreeProvider } from './views/connectionTreeView';
 import { QueryHistoryProvider } from './views/queryHistoryView';
+import { SavedQueriesProvider } from './views/savedQueriesView';
 import { ConnectionManager } from './managers/connectionManager';
 import { I18n } from './utils/i18n';
 import { registerCommands } from './commands';
@@ -19,14 +20,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Register tree view providers
     const connectionTreeProvider = new ConnectionTreeProvider(connectionManager, i18n);
     const queryHistoryProvider = new QueryHistoryProvider(context, i18n);
+    const savedQueriesProvider = new SavedQueriesProvider(context, i18n);
 
     context.subscriptions.push(
         vscode.window.registerTreeDataProvider('dbunny.explorer', connectionTreeProvider),
+        vscode.window.registerTreeDataProvider('dbunny.savedQueries', savedQueriesProvider),
         vscode.window.registerTreeDataProvider('dbunny.queries', queryHistoryProvider)
     );
 
     // Register commands
-    registerCommands(context, connectionManager, connectionTreeProvider, queryHistoryProvider, i18n);
+    registerCommands(context, connectionManager, connectionTreeProvider, queryHistoryProvider, savedQueriesProvider, i18n);
 
     // Register SQL autocomplete provider
     registerCompletionProvider(context, connectionManager);
