@@ -104,7 +104,7 @@ export class MigrationPanel {
         return MigrationPanel.currentPanel;
     }
 
-    public setDatabaseName(dbName: string): void {
+    public setDatabaseName(_dbName: string): void {
         this._updatePanel();
     }
 

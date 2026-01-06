@@ -120,6 +120,24 @@
     "copied": "SQL이 클립보드에 복사되었습니다",
     "exported": "SQL이 {path}에 저장되었습니다"
   },
+  "migration": {
+    "notSupported": "이 데이터베이스 유형에서는 DB 마이그레이션을 지원하지 않습니다",
+    "loadFailed": "마이그레이션 로드 실패: {error}",
+    "created": "마이그레이션 '{name}'이(가) 생성되었습니다",
+    "applied": "마이그레이션 '{name}'이(가) 적용되었습니다",
+    "rolledBack": "마이그레이션 '{name}'이(가) 롤백되었습니다",
+    "deleted": "마이그레이션 '{name}'이(가) 삭제되었습니다",
+    "deleteConfirm": "마이그레이션 '{name}'을(를) 삭제하시겠습니까?",
+    "applyFailed": "마이그레이션 적용 실패: {error}",
+    "rollbackFailed": "마이그레이션 롤백 실패: {error}",
+    "exported": "마이그레이션이 {path}에 저장되었습니다"
+  },
+  "monitoring": {
+    "notSupported": "실시간 모니터링은 MySQL과 PostgreSQL에서만 지원됩니다",
+    "refreshFailed": "모니터링 데이터 새로고침 실패: {error}",
+    "processKilled": "프로세스 {id}이(가) 종료되었습니다",
+    "killFailed": "프로세스 종료 실패: {error}"
+  },
   "status": {
     "connected": "{name}에 연결됨",
     "disconnected": "연결 안됨"

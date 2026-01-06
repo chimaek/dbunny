@@ -10,6 +10,8 @@ import { TableEditorPanel } from '../webview/TableEditorPanel';
 import { ERDPanel } from '../webview/ERDPanel';
 import { SchemaComparePanel, TableCompareInfo } from '../webview/SchemaComparePanel';
 import { MockDataPanel } from '../webview/MockDataPanel';
+import { MigrationPanel } from '../webview/MigrationPanel';
+import { MonitoringPanel } from '../webview/MonitoringPanel';
 import { TableERDInfo } from '../types/database';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
@@ -1004,6 +1006,53 @@ db.collectionName.find({})
                 const message = error instanceof Error ? error.message : 'Unknown error';
                 vscode.window.showErrorMessage(i18n.t('mockData.loadFailed', { error: message }));
             }
+        })
+    );
+
+    // Show Migration Panel
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.showMigration', async (_item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('migration.notSupported'));
+                return;
+            }
+
+            MigrationPanel.createOrShow(
+                context.extensionUri,
+                i18n,
+                context
+            );
+        })
+    );
+
+    // Show Monitoring Panel
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.showMonitoring', async () => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType !== 'mysql' && dbType !== 'postgres') {
+                vscode.window.showWarningMessage(i18n.t('monitoring.notSupported'));
+                return;
+            }
+
+            MonitoringPanel.createOrShow(
+                context.extensionUri,
+                activeConnection,
+                activeConnection.config,
+                i18n
+            );
         })
     );
 

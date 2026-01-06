@@ -5,6 +5,27 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-07
+
+### Added
+
+- **DB Migration**: Manage database schema migrations
+  - Create, edit, and delete migrations
+  - Version management with timestamps
+  - Apply and rollback migrations
+  - UP/DOWN script editing
+  - Export migrations to SQL files
+- **Real-time Monitoring**: Monitor database performance in real-time
+  - Active process list with query details
+  - Server status dashboard (uptime, connections, queries)
+  - Auto-refresh with configurable intervals
+  - Process termination (KILL)
+  - Support for MySQL and PostgreSQL
+
+### Changed
+
+- License changed from MIT to proprietary license
+
 ## [1.1.0] - 2025-01-06
 
 ### Added

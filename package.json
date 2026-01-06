@@ -2,10 +2,10 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "1.0.5",
+  "version": "1.2.0",
   "publisher": "dbunny",
   "author": "chimaek",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "icon": "resources/bunny-icon.png",
   "repository": {
     "type": "git",
@@ -245,6 +245,18 @@
         "title": "Generate Mock Data",
         "category": "DBunny",
         "icon": "$(beaker)"
+      },
+      {
+        "command": "dbunny.showMigration",
+        "title": "DB Migration",
+        "category": "DBunny",
+        "icon": "$(versions)"
+      },
+      {
+        "command": "dbunny.showMonitoring",
+        "title": "Real-time Monitoring",
+        "category": "DBunny",
+        "icon": "$(pulse)"
       }
     ],
     "menus": {
@@ -315,6 +327,16 @@
           "command": "dbunny.showERD",
           "when": "view == dbunny.explorer && viewItem == database",
           "group": "inline@2"
+        },
+        {
+          "command": "dbunny.showMigration",
+          "when": "view == dbunny.explorer && viewItem == database",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dbunny.showMonitoring",
+          "when": "view == dbunny.explorer && viewItem == database",
+          "group": "navigation@2"
         },
         {
           "command": "dbunny.editTableData",

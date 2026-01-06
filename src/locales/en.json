@@ -120,6 +120,24 @@
     "copied": "SQL copied to clipboard",
     "exported": "SQL exported to {path}"
   },
+  "migration": {
+    "notSupported": "DB Migration is not supported for this database type",
+    "loadFailed": "Failed to load migrations: {error}",
+    "created": "Migration '{name}' created successfully",
+    "applied": "Migration '{name}' applied successfully",
+    "rolledBack": "Migration '{name}' rolled back successfully",
+    "deleted": "Migration '{name}' deleted",
+    "deleteConfirm": "Are you sure you want to delete migration '{name}'?",
+    "applyFailed": "Failed to apply migration: {error}",
+    "rollbackFailed": "Failed to rollback migration: {error}",
+    "exported": "Migration exported to {path}"
+  },
+  "monitoring": {
+    "notSupported": "Real-time monitoring is only supported for MySQL and PostgreSQL",
+    "refreshFailed": "Failed to refresh monitoring data: {error}",
+    "processKilled": "Process {id} terminated successfully",
+    "killFailed": "Failed to kill process: {error}"
+  },
   "status": {
     "connected": "Connected to {name}",
     "disconnected": "Not connected"
