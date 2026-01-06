@@ -107,6 +107,19 @@
     "exportedSVG": "ERD diagram exported to {path}",
     "exportedPNG": "ERD diagram exported to {path}"
   },
+  "compare": {
+    "notSupported": "Schema comparison is not supported for this database type",
+    "noOtherTables": "No other tables to compare with",
+    "selectTarget": "Select a table to compare with",
+    "failed": "Failed to compare schemas: {error}",
+    "exported": "Comparison report exported to {path}"
+  },
+  "mockData": {
+    "notSupported": "Mock data generation is not supported for this database type",
+    "loadFailed": "Failed to load table schema: {error}",
+    "copied": "SQL copied to clipboard",
+    "exported": "SQL exported to {path}"
+  },
   "status": {
     "connected": "Connected to {name}",
     "disconnected": "Not connected"

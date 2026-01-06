@@ -107,6 +107,19 @@
     "exportedSVG": "ERD 다이어그램이 {path}에 저장되었습니다",
     "exportedPNG": "ERD 다이어그램이 {path}에 저장되었습니다"
   },
+  "compare": {
+    "notSupported": "이 데이터베이스 유형에서는 스키마 비교를 지원하지 않습니다",
+    "noOtherTables": "비교할 다른 테이블이 없습니다",
+    "selectTarget": "비교할 테이블을 선택하세요",
+    "failed": "스키마 비교 실패: {error}",
+    "exported": "비교 리포트가 {path}에 저장되었습니다"
+  },
+  "mockData": {
+    "notSupported": "이 데이터베이스 유형에서는 Mock 데이터 생성을 지원하지 않습니다",
+    "loadFailed": "테이블 스키마 로드 실패: {error}",
+    "copied": "SQL이 클립보드에 복사되었습니다",
+    "exported": "SQL이 {path}에 저장되었습니다"
+  },
   "status": {
     "connected": "{name}에 연결됨",
     "disconnected": "연결 안됨"

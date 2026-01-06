@@ -8,6 +8,8 @@ import { ConnectionFormPanel } from '../webview/ConnectionFormPanel';
 import { QueryResultPanel } from '../webview/QueryResultPanel';
 import { TableEditorPanel } from '../webview/TableEditorPanel';
 import { ERDPanel } from '../webview/ERDPanel';
+import { SchemaComparePanel, TableCompareInfo } from '../webview/SchemaComparePanel';
+import { MockDataPanel } from '../webview/MockDataPanel';
 import { TableERDInfo } from '../types/database';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
@@ -912,6 +914,95 @@ db.collectionName.find({})
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unknown error';
                 vscode.window.showErrorMessage(i18n.t('erd.loadFailed', { error: message }));
+            }
+        })
+    );
+
+    // Compare Schema
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.compareSchema', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('compare.notSupported'));
+                return;
+            }
+
+            const sourceTable = item?.label?.toString() || '';
+            if (!sourceTable) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            // Get all tables for selection
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
+            const tables = await activeConnection.getTables(databaseName);
+            const otherTables = tables.filter(t => t !== sourceTable);
+
+            if (otherTables.length === 0) {
+                vscode.window.showWarningMessage(i18n.t('compare.noOtherTables'));
+                return;
+            }
+
+            const targetTable = await vscode.window.showQuickPick(otherTables, {
+                placeHolder: i18n.t('compare.selectTarget')
+            });
+
+            if (!targetTable) { return; }
+
+            const comparePanel = SchemaComparePanel.createOrShow(context.extensionUri, i18n);
+            comparePanel.showLoading();
+
+            try {
+                const sourceColumns = await activeConnection.getTableSchema(sourceTable);
+                const targetColumns = await activeConnection.getTableSchema(targetTable);
+
+                const leftTable: TableCompareInfo = { name: sourceTable, columns: sourceColumns };
+                const rightTable: TableCompareInfo = { name: targetTable, columns: targetColumns };
+
+                comparePanel.showComparison(leftTable, rightTable, databaseName, databaseName);
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('compare.failed', { error: message }));
+            }
+        })
+    );
+
+    // Generate Mock Data
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.generateMockData', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('mockData.notSupported'));
+                return;
+            }
+
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            try {
+                const columns = await activeConnection.getTableSchema(tableName);
+                const mockPanel = MockDataPanel.createOrShow(context.extensionUri, i18n);
+                mockPanel.showGenerator(tableName, columns, dbType);
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('mockData.loadFailed', { error: message }));
             }
         })
     );

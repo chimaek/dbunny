@@ -233,6 +233,18 @@
         "title": "Show ERD Diagram",
         "category": "DBunny",
         "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "dbunny.compareSchema",
+        "title": "Compare Schema",
+        "category": "DBunny",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "dbunny.generateMockData",
+        "title": "Generate Mock Data",
+        "category": "DBunny",
+        "icon": "$(beaker)"
       }
     ],
     "menus": {
@@ -313,6 +325,16 @@
           "command": "dbunny.copyTableSchema",
           "when": "view == dbunny.explorer && viewItem == table-sql",
           "group": "inline@2"
+        },
+        {
+          "command": "dbunny.compareSchema",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dbunny.generateMockData",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@2"
         },
         {
           "command": "dbunny.viewKeyData",

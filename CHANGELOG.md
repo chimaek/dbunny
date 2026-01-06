@@ -5,9 +5,10 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-01-05
+## [1.1.0] - 2025-01-06
 
 ### Added
+
 - **Query Bookmark**: Save and organize frequently used queries with categories
   - Save queries with name, description, and category
   - Quick access from sidebar
@@ -34,14 +35,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zoom and pan controls
   - Export to SVG and PNG formats
   - Auto layout feature
+- **Schema Compare**: Compare table schemas side by side
+  - Visual diff with left-only, right-only, modified columns
+  - Difference highlighting
+  - Export comparison report to Markdown
+- **Mock Data Generator**: Generate test data for tables
+  - Multiple generators (names, emails, dates, numbers, etc.)
+  - Customizable options per column
+  - Preview data before generating
+  - Export to SQL INSERT statements
 
 ### Changed
+
 - Tree view now displays groups at root level
 - Improved connection tooltips with group information
 
-## [1.0.0] - 2025-01-06
+## [1.0.0] - 2025-01-05
 
 ### Added
+
 - Initial release
 - Multi-database support (MySQL, PostgreSQL, SQLite, MongoDB, Redis)
 - Connection management with encrypted password storage
