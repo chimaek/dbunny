@@ -138,6 +138,15 @@
     "processKilled": "프로세스 {id}이(가) 종료되었습니다",
     "killFailed": "프로세스 종료 실패: {error}"
   },
+  "queryTabs": {
+    "noConnectionSelected": "이 탭에 연결을 선택해주세요",
+    "newTab": "새 탭",
+    "closeTab": "탭 닫기",
+    "renameTab": "탭 이름 변경",
+    "executeQuery": "쿼리 실행",
+    "formatQuery": "쿼리 포맷",
+    "clearResults": "결과 지우기"
+  },
   "status": {
     "connected": "{name}에 연결됨",
     "disconnected": "연결 안됨"

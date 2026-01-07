@@ -89,8 +89,12 @@ export class MySQLProvider implements DatabaseConnection {
         return result.rows.map((row) => row[key] as string);
     }
 
-    async getTableSchema(table: string): Promise<ColumnInfo[]> {
-        const result = await this.executeQuery(`DESCRIBE \`${table}\``);
+    async getTableSchema(table: string, database?: string): Promise<ColumnInfo[]> {
+        const db = database || this.config.database;
+        const safeTable = table.replace(/`/g, '``');
+        const result = await this.executeQuery(
+            db ? `DESCRIBE \`${db}\`.\`${safeTable}\`` : `DESCRIBE \`${safeTable}\``
+        );
         return result.rows.map((row) => ({
             name: row['Field'] as string,
             type: row['Type'] as string,
@@ -104,19 +108,22 @@ export class MySQLProvider implements DatabaseConnection {
         return this.connection !== null;
     }
 
-    async getCreateTableStatement(table: string): Promise<string> {
+    async getCreateTableStatement(table: string, database?: string): Promise<string> {
+        const db = database || this.config.database;
         const safeTable = table.replace(/`/g, '``');
-        const result = await this.executeQuery(`SHOW CREATE TABLE \`${safeTable}\``);
+        const result = await this.executeQuery(
+            db ? `SHOW CREATE TABLE \`${db}\`.\`${safeTable}\`` : `SHOW CREATE TABLE \`${safeTable}\``
+        );
         if (result.rows.length > 0) {
             return result.rows[0]['Create Table'] as string;
         }
         throw new Error(`Could not get CREATE TABLE statement for ${table}`);
     }
 
-    async getForeignKeys(table: string): Promise<ForeignKeyInfo[]> {
+    async getForeignKeys(table: string, database?: string): Promise<ForeignKeyInfo[]> {
         const safeTable = table.replace(/'/g, "''");
-        const database = this.config.database || '';
-        const safeDatabase = database.replace(/'/g, "''");
+        const db = database || this.config.database || '';
+        const safeDatabase = db.replace(/'/g, "''");
 
         const result = await this.executeQuery(`
             SELECT

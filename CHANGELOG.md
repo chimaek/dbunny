@@ -5,6 +5,19 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-08
+
+### Added
+
+- **Multi-Tab Query Editor**: Open multiple query editors simultaneously
+  - Tab-based query editor interface
+  - Per-tab connection assignment
+  - Switch between tabs easily (Ctrl+T to create, Ctrl+W to close)
+  - Tab renaming with double-click
+  - Keyboard shortcuts (Ctrl+Enter to execute)
+  - SQL formatting per tab
+  - Query results displayed inline
+
 ## [1.2.0] - 2026-01-07
 
 ### Added

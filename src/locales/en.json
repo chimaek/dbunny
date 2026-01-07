@@ -138,6 +138,15 @@
     "processKilled": "Process {id} terminated successfully",
     "killFailed": "Failed to kill process: {error}"
   },
+  "queryTabs": {
+    "noConnectionSelected": "Please select a connection for this tab",
+    "newTab": "New Tab",
+    "closeTab": "Close Tab",
+    "renameTab": "Rename Tab",
+    "executeQuery": "Execute Query",
+    "formatQuery": "Format Query",
+    "clearResults": "Clear Results"
+  },
   "status": {
     "connected": "Connected to {name}",
     "disconnected": "Not connected"

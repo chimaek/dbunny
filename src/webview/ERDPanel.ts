@@ -235,6 +235,26 @@ export class ERDPanel {
             text-align: center;
         }
 
+        .layout-select {
+            padding: 6px 10px;
+            background: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
+            border: 1px solid var(--vscode-dropdown-border);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .layout-select:hover {
+            border-color: var(--vscode-focusBorder);
+        }
+
+        .layout-select:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+        }
+
         .canvas-container {
             position: absolute;
             top: 48px;
@@ -355,11 +375,24 @@ export class ERDPanel {
         .relation-line {
             fill: none;
             stroke: var(--relation-color);
-            stroke-width: 2;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            transition: stroke-width 0.2s, stroke 0.2s;
+        }
+
+        .relation-line:hover {
+            stroke-width: 4;
+            stroke: #4caf50;
         }
 
         .relation-marker {
             fill: var(--relation-color);
+        }
+
+        .relation-label {
+            font-size: 10px;
+            fill: var(--vscode-descriptionForeground);
+            pointer-events: none;
         }
 
         /* Legend */
@@ -455,9 +488,12 @@ export class ERDPanel {
             <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
             <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">↺</button>
         </div>
-        <button class="toolbar-btn" onclick="autoLayout()" title="Auto arrange tables">
-            <span>📐</span> Auto Layout
-        </button>
+        <select id="layoutSelect" class="layout-select" onchange="applyLayout(this.value)" title="Select layout style">
+            <option value="grid">📐 Grid Layout</option>
+            <option value="relationship">🔗 Relationship</option>
+            <option value="hierarchical">📊 Hierarchical</option>
+            <option value="circular">⭕ Circular</option>
+        </select>
         <button class="toolbar-btn" onclick="exportSVG()" title="Export as SVG">
             <span>📄</span> SVG
         </button>
@@ -547,9 +583,9 @@ export class ERDPanel {
         function calculateGridLayout(tables) {
             const positions = {};
             const cols = Math.ceil(Math.sqrt(tables.length));
-            const cellWidth = 280;
-            const cellHeight = 350;
-            const padding = 50;
+            const cellWidth = 320;  // Increased spacing
+            const cellHeight = 400; // Increased spacing
+            const padding = 80;
 
             tables.forEach((table, index) => {
                 const col = index % cols;
@@ -622,45 +658,202 @@ export class ERDPanel {
         function drawRelations() {
             const svg = document.getElementById('relationsSvg');
             svg.innerHTML = '';
+            svg.style.pointerEvents = 'auto';
 
-            // Create marker for arrow
+            // Create markers for arrows
             const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
             defs.innerHTML = \`
-                <marker id="arrowhead" markerWidth="10" markerHeight="7"
-                        refX="9" refY="3.5" orient="auto" class="relation-marker">
-                    <polygon points="0 0, 10 3.5, 0 7" />
+                <marker id="arrowhead" markerWidth="12" markerHeight="8"
+                        refX="10" refY="4" orient="auto" class="relation-marker">
+                    <polygon points="0 0, 12 4, 0 8" fill="#28a745" />
+                </marker>
+                <marker id="arrowhead-hover" markerWidth="12" markerHeight="8"
+                        refX="10" refY="4" orient="auto">
+                    <polygon points="0 0, 12 4, 0 8" fill="#4caf50" />
+                </marker>
+                <marker id="circle-start" markerWidth="8" markerHeight="8"
+                        refX="4" refY="4" orient="auto">
+                    <circle cx="4" cy="4" r="3" fill="#28a745" />
                 </marker>
             \`;
             svg.appendChild(defs);
 
+            // Get all table rectangles for collision detection
+            const tableRects = [];
+            document.querySelectorAll('.table-node').forEach(node => {
+                tableRects.push({
+                    left: parseInt(node.style.left),
+                    top: parseInt(node.style.top),
+                    right: parseInt(node.style.left) + node.offsetWidth,
+                    bottom: parseInt(node.style.top) + node.offsetHeight,
+                    id: node.id
+                });
+            });
+
+            // Group relations by source-target pair to handle multiple FKs
+            const relationGroups = {};
             tables.forEach(table => {
                 table.foreignKeys.forEach(fk => {
-                    const fromNode = document.getElementById('table-' + table.name);
-                    const toNode = document.getElementById('table-' + fk.referencedTable);
-
-                    if (!fromNode || !toNode) return;
-
-                    const fromRect = fromNode.getBoundingClientRect();
-                    const toRect = toNode.getBoundingClientRect();
-                    const canvasRect = document.getElementById('erdCanvas').getBoundingClientRect();
-
-                    // Calculate connection points
-                    const fromX = parseInt(fromNode.style.left) + fromNode.offsetWidth;
-                    const fromY = parseInt(fromNode.style.top) + fromNode.offsetHeight / 2;
-                    const toX = parseInt(toNode.style.left);
-                    const toY = parseInt(toNode.style.top) + toNode.offsetHeight / 2;
-
-                    // Create path
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    const midX = (fromX + toX) / 2;
-
-                    const d = \`M \${fromX} \${fromY} C \${midX} \${fromY}, \${midX} \${toY}, \${toX} \${toY}\`;
-                    path.setAttribute('d', d);
-                    path.setAttribute('class', 'relation-line');
-                    path.setAttribute('marker-end', 'url(#arrowhead)');
-
-                    svg.appendChild(path);
+                    const key = table.name + '->' + fk.referencedTable;
+                    if (!relationGroups[key]) {
+                        relationGroups[key] = {
+                            from: table.name,
+                            to: fk.referencedTable,
+                            columns: []
+                        };
+                    }
+                    relationGroups[key].columns.push({
+                        fromCol: fk.columnName,
+                        toCol: fk.referencedColumn
+                    });
                 });
+            });
+
+            Object.values(relationGroups).forEach((rel, relIndex) => {
+                const fromNode = document.getElementById('table-' + rel.from);
+                const toNode = document.getElementById('table-' + rel.to);
+
+                if (!fromNode || !toNode) return;
+
+                const fromLeft = parseInt(fromNode.style.left);
+                const fromTop = parseInt(fromNode.style.top);
+                const fromWidth = fromNode.offsetWidth;
+                const fromHeight = fromNode.offsetHeight;
+                const fromRight = fromLeft + fromWidth;
+                const fromBottom = fromTop + fromHeight;
+
+                const toLeft = parseInt(toNode.style.left);
+                const toTop = parseInt(toNode.style.top);
+                const toWidth = toNode.offsetWidth;
+                const toHeight = toNode.offsetHeight;
+                const toRight = toLeft + toWidth;
+                const toBottom = toTop + toHeight;
+
+                const fromCenterX = fromLeft + fromWidth / 2;
+                const fromCenterY = fromTop + fromHeight / 2;
+                const toCenterX = toLeft + toWidth / 2;
+                const toCenterY = toTop + toHeight / 2;
+
+                const dx = toCenterX - fromCenterX;
+                const dy = toCenterY - fromCenterY;
+
+                // Determine connection points and routing
+                let fromX, fromY, toX, toY, fromSide, toSide;
+                const margin = 30; // Space for routing
+
+                // Determine which sides to connect based on positions
+                if (Math.abs(dx) > Math.abs(dy) * 0.5) {
+                    // Primarily horizontal - connect left/right
+                    if (dx > 0) {
+                        fromX = fromRight;
+                        fromY = fromCenterY;
+                        toX = toLeft;
+                        toY = toCenterY;
+                        fromSide = 'right';
+                        toSide = 'left';
+                    } else {
+                        fromX = fromLeft;
+                        fromY = fromCenterY;
+                        toX = toRight;
+                        toY = toCenterY;
+                        fromSide = 'left';
+                        toSide = 'right';
+                    }
+                } else {
+                    // Primarily vertical - connect top/bottom
+                    if (dy > 0) {
+                        fromX = fromCenterX;
+                        fromY = fromBottom;
+                        toX = toCenterX;
+                        toY = toTop;
+                        fromSide = 'bottom';
+                        toSide = 'top';
+                    } else {
+                        fromX = fromCenterX;
+                        fromY = fromTop;
+                        toX = toCenterX;
+                        toY = toBottom;
+                        fromSide = 'top';
+                        toSide = 'bottom';
+                    }
+                }
+
+                // Create orthogonal path with waypoints
+                let d;
+                const offset = 40 + relIndex * 8; // Offset for multiple relations
+
+                if (fromSide === 'right' && toSide === 'left') {
+                    const midX = (fromX + toX) / 2;
+                    if (midX > fromX + margin && midX < toX - margin) {
+                        // Simple horizontal-vertical-horizontal path
+                        d = \`M \${fromX} \${fromY} L \${midX} \${fromY} L \${midX} \${toY} L \${toX} \${toY}\`;
+                    } else {
+                        // Need to go around
+                        const routeY = Math.min(fromTop, toTop) - offset;
+                        d = \`M \${fromX} \${fromY} L \${fromX + margin} \${fromY} L \${fromX + margin} \${routeY} L \${toX - margin} \${routeY} L \${toX - margin} \${toY} L \${toX} \${toY}\`;
+                    }
+                } else if (fromSide === 'left' && toSide === 'right') {
+                    const midX = (fromX + toX) / 2;
+                    if (midX < fromX - margin && midX > toX + margin) {
+                        d = \`M \${fromX} \${fromY} L \${midX} \${fromY} L \${midX} \${toY} L \${toX} \${toY}\`;
+                    } else {
+                        const routeY = Math.min(fromTop, toTop) - offset;
+                        d = \`M \${fromX} \${fromY} L \${fromX - margin} \${fromY} L \${fromX - margin} \${routeY} L \${toX + margin} \${routeY} L \${toX + margin} \${toY} L \${toX} \${toY}\`;
+                    }
+                } else if (fromSide === 'bottom' && toSide === 'top') {
+                    const midY = (fromY + toY) / 2;
+                    if (midY > fromY + margin && midY < toY - margin) {
+                        d = \`M \${fromX} \${fromY} L \${fromX} \${midY} L \${toX} \${midY} L \${toX} \${toY}\`;
+                    } else {
+                        const routeX = Math.max(fromRight, toRight) + offset;
+                        d = \`M \${fromX} \${fromY} L \${fromX} \${fromY + margin} L \${routeX} \${fromY + margin} L \${routeX} \${toY - margin} L \${toX} \${toY - margin} L \${toX} \${toY}\`;
+                    }
+                } else if (fromSide === 'top' && toSide === 'bottom') {
+                    const midY = (fromY + toY) / 2;
+                    if (midY < fromY - margin && midY > toY + margin) {
+                        d = \`M \${fromX} \${fromY} L \${fromX} \${midY} L \${toX} \${midY} L \${toX} \${toY}\`;
+                    } else {
+                        const routeX = Math.max(fromRight, toRight) + offset;
+                        d = \`M \${fromX} \${fromY} L \${fromX} \${fromY - margin} L \${routeX} \${fromY - margin} L \${routeX} \${toY + margin} L \${toX} \${toY + margin} L \${toX} \${toY}\`;
+                    }
+                } else {
+                    // Fallback to simple bezier
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const curvature = Math.min(distance * 0.3, 100);
+                    d = \`M \${fromX} \${fromY} C \${fromX + dx * 0.3} \${fromY}, \${toX - dx * 0.3} \${toY}, \${toX} \${toY}\`;
+                }
+
+                // Create group for the relation
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.style.cursor = 'pointer';
+
+                // Create path
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'relation-line');
+                path.setAttribute('marker-start', 'url(#circle-start)');
+                path.setAttribute('marker-end', 'url(#arrowhead)');
+
+                // Add hover effect
+                path.addEventListener('mouseenter', () => {
+                    path.style.strokeWidth = '4';
+                    path.style.stroke = '#4caf50';
+                    path.setAttribute('marker-end', 'url(#arrowhead-hover)');
+                });
+                path.addEventListener('mouseleave', () => {
+                    path.style.strokeWidth = '';
+                    path.style.stroke = '';
+                    path.setAttribute('marker-end', 'url(#arrowhead)');
+                });
+
+                // Add tooltip with column info
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                const colInfo = rel.columns.map(c => c.fromCol + ' → ' + c.toCol).join('\\n');
+                title.textContent = rel.from + ' → ' + rel.to + '\\n' + colInfo;
+                path.appendChild(title);
+
+                g.appendChild(path);
+                svg.appendChild(g);
             });
 
             updateSvgSize();
@@ -758,21 +951,261 @@ export class ERDPanel {
             document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
         }
 
-        // Auto layout
-        function autoLayout() {
-            const positions = calculateGridLayout(tables);
-            tablePositions = positions;
+        // Layout algorithms
+        let currentLayout = 'grid';
 
+        function applyLayout(layoutType) {
+            currentLayout = layoutType;
+            let positions;
+
+            switch (layoutType) {
+                case 'relationship':
+                    positions = calculateRelationshipLayout(tables);
+                    break;
+                case 'hierarchical':
+                    positions = calculateHierarchicalLayout(tables);
+                    break;
+                case 'circular':
+                    positions = calculateCircularLayout(tables);
+                    break;
+                case 'grid':
+                default:
+                    positions = calculateGridLayout(tables);
+                    break;
+            }
+
+            tablePositions = positions;
+            animateToPositions(positions);
+        }
+
+        function animateToPositions(positions) {
             tables.forEach(table => {
                 const node = document.getElementById('table-' + table.name);
-                if (node) {
+                if (node && positions[table.name]) {
+                    node.style.transition = 'left 0.4s ease, top 0.4s ease';
                     node.style.left = positions[table.name].x + 'px';
                     node.style.top = positions[table.name].y + 'px';
+                    setTimeout(() => {
+                        node.style.transition = '';
+                    }, 400);
                 }
             });
 
-            drawRelations();
-            updateCanvasSize();
+            setTimeout(() => {
+                drawRelations();
+                updateCanvasSize();
+            }, 50);
+        }
+
+        // Relationship-based layout: tables connected by FK are placed closer
+        function calculateRelationshipLayout(tables) {
+            const positions = {};
+            const visited = new Set();
+            const padding = 100;
+            const tableWidth = 220;
+            const tableHeight = 250;
+            const horizontalGap = 150;
+            const verticalGap = 180;
+
+            // Build adjacency map
+            const connections = {};
+            tables.forEach(t => {
+                connections[t.name] = new Set();
+            });
+            tables.forEach(t => {
+                t.foreignKeys.forEach(fk => {
+                    if (connections[t.name]) connections[t.name].add(fk.referencedTable);
+                    if (connections[fk.referencedTable]) connections[fk.referencedTable].add(t.name);
+                });
+            });
+
+            // Find table with most connections as center
+            let centerTable = tables[0]?.name;
+            let maxConnections = 0;
+            tables.forEach(t => {
+                const connCount = connections[t.name]?.size || 0;
+                if (connCount > maxConnections) {
+                    maxConnections = connCount;
+                    centerTable = t.name;
+                }
+            });
+
+            // BFS from center table - place in concentric rings
+            const queue = [centerTable];
+            visited.add(centerTable);
+            let level = 0;
+            const levels = [[centerTable]];
+
+            while (queue.length > 0) {
+                const nextLevel = [];
+                const currentLevelSize = queue.length;
+
+                for (let i = 0; i < currentLevelSize; i++) {
+                    const current = queue.shift();
+                    const connected = connections[current] || new Set();
+
+                    connected.forEach(neighbor => {
+                        if (!visited.has(neighbor)) {
+                            visited.add(neighbor);
+                            nextLevel.push(neighbor);
+                            queue.push(neighbor);
+                        }
+                    });
+                }
+
+                if (nextLevel.length > 0) {
+                    levels.push(nextLevel);
+                    level++;
+                }
+            }
+
+            // Place tables in levels - use grid within each level
+            const canvasWidth = Math.max(800, levels.reduce((max, l) => Math.max(max, l.length), 0) * (tableWidth + horizontalGap));
+
+            levels.forEach((levelTables, lvlIdx) => {
+                const totalWidth = levelTables.length * (tableWidth + horizontalGap) - horizontalGap;
+                const startX = padding + (canvasWidth - totalWidth) / 2;
+
+                levelTables.forEach((tableName, idx) => {
+                    positions[tableName] = {
+                        x: startX + idx * (tableWidth + horizontalGap),
+                        y: padding + lvlIdx * (tableHeight + verticalGap)
+                    };
+                });
+            });
+
+            // Place unvisited tables at the bottom
+            const unvisited = tables.filter(t => !visited.has(t.name));
+            const unvisitedCols = Math.ceil(Math.sqrt(unvisited.length)) || 1;
+            unvisited.forEach((t, idx) => {
+                const col = idx % unvisitedCols;
+                const row = Math.floor(idx / unvisitedCols);
+                positions[t.name] = {
+                    x: padding + col * (tableWidth + horizontalGap),
+                    y: padding + (levels.length) * (tableHeight + verticalGap) + row * (tableHeight + verticalGap)
+                };
+            });
+
+            return positions;
+        }
+
+        // Hierarchical layout: parent tables at top, child tables below
+        function calculateHierarchicalLayout(tables) {
+            const positions = {};
+            const padding = 100;
+            const tableWidth = 220;
+            const tableHeight = 250;
+            const horizontalGap = 150;
+            const verticalGap = 200;
+
+            // Build parent-child relationships
+            const parents = {}; // table -> tables it references (parents)
+            const children = {}; // table -> tables that reference it (children)
+            tables.forEach(t => {
+                parents[t.name] = new Set();
+                children[t.name] = new Set();
+            });
+            tables.forEach(t => {
+                t.foreignKeys.forEach(fk => {
+                    parents[t.name].add(fk.referencedTable);
+                    if (children[fk.referencedTable]) {
+                        children[fk.referencedTable].add(t.name);
+                    }
+                });
+            });
+
+            // Find root tables (no parents)
+            const roots = tables.filter(t => parents[t.name].size === 0).map(t => t.name);
+            if (roots.length === 0 && tables.length > 0) {
+                roots.push(tables[0].name);
+            }
+
+            // Assign levels using BFS
+            const tableLevels = {};
+            const visited = new Set();
+            let currentLevel = 0;
+            let queue = [...roots];
+            roots.forEach(r => visited.add(r));
+
+            while (queue.length > 0) {
+                const nextQueue = [];
+                queue.forEach(tableName => {
+                    tableLevels[tableName] = currentLevel;
+                    const tableChildren = children[tableName] || new Set();
+                    tableChildren.forEach(child => {
+                        if (!visited.has(child)) {
+                            visited.add(child);
+                            nextQueue.push(child);
+                        }
+                    });
+                });
+                queue = nextQueue;
+                currentLevel++;
+            }
+
+            // Place unvisited tables
+            tables.forEach(t => {
+                if (!visited.has(t.name)) {
+                    tableLevels[t.name] = currentLevel;
+                }
+            });
+
+            // Group by level
+            const levelGroups = {};
+            Object.keys(tableLevels).forEach(tableName => {
+                const lvl = tableLevels[tableName];
+                if (!levelGroups[lvl]) levelGroups[lvl] = [];
+                levelGroups[lvl].push(tableName);
+            });
+
+            // Calculate canvas width based on widest level
+            const maxTablesInLevel = Math.max(...Object.values(levelGroups).map(g => g.length));
+            const canvasWidth = Math.max(800, maxTablesInLevel * (tableWidth + horizontalGap));
+
+            // Position tables - center each level
+            Object.keys(levelGroups).forEach(lvl => {
+                const tablesInLevel = levelGroups[lvl];
+                const totalWidth = tablesInLevel.length * (tableWidth + horizontalGap) - horizontalGap;
+                const startX = padding + (canvasWidth - totalWidth) / 2;
+
+                tablesInLevel.forEach((tableName, idx) => {
+                    positions[tableName] = {
+                        x: startX + idx * (tableWidth + horizontalGap),
+                        y: padding + parseInt(lvl) * (tableHeight + verticalGap)
+                    };
+                });
+            });
+
+            return positions;
+        }
+
+        // Circular layout: tables arranged in a circle
+        function calculateCircularLayout(tables) {
+            const positions = {};
+            const padding = 150;
+            const count = tables.length;
+            if (count === 0) return positions;
+
+            // Calculate radius based on number of tables - ensure enough space
+            const tableSize = 220;
+            const minRadius = 300;
+            // Each table needs at least tableSize + gap on the circumference
+            const circumferenceNeeded = count * (tableSize + 80);
+            const radiusFromCircumference = circumferenceNeeded / (2 * Math.PI);
+            const radius = Math.max(minRadius, radiusFromCircumference);
+
+            const centerX = padding + radius + tableSize / 2;
+            const centerY = padding + radius + tableSize / 2;
+
+            tables.forEach((table, index) => {
+                const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
+                positions[table.name] = {
+                    x: centerX + Math.cos(angle) * radius - tableSize / 2,
+                    y: centerY + Math.sin(angle) * radius - tableSize / 2
+                };
+            });
+
+            return positions;
         }
 
         // Export functions

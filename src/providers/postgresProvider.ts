@@ -8,6 +8,7 @@ import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignK
 export class PostgresProvider implements DatabaseConnection {
     private client: Client | null = null;
     private sshClient: SSHClient | null = null;
+    private currentDatabase: string = 'postgres';
 
     constructor(public config: ConnectionConfig) {}
 
@@ -19,12 +20,13 @@ export class PostgresProvider implements DatabaseConnection {
             }
 
             // Create PostgreSQL client
+            this.currentDatabase = this.config.database || 'postgres';
             this.client = new Client({
                 host: this.config.host,
                 port: this.config.port || 5432,
                 user: this.config.username,
                 password: this.config.password,
-                database: this.config.database || 'postgres',
+                database: this.currentDatabase,
                 connectionTimeoutMillis: 10000
             });
 
@@ -72,6 +74,47 @@ export class PostgresProvider implements DatabaseConnection {
         }
     }
 
+    /**
+     * Execute a query on a specific database
+     * Creates a temporary connection if the target database differs from the current one
+     */
+    private async executeQueryOnDatabase(database: string, query: string): Promise<QueryResult> {
+        // If same database or no specific database requested, use current connection
+        if (!database || database === this.currentDatabase) {
+            return this.executeQuery(query);
+        }
+
+        // Create a temporary connection to the target database
+        const tempClient = new Client({
+            host: this.config.host,
+            port: this.config.port || 5432,
+            user: this.config.username,
+            password: this.config.password,
+            database: database,
+            connectionTimeoutMillis: 10000
+        });
+
+        try {
+            await tempClient.connect();
+            const startTime = Date.now();
+            const result = await tempClient.query(query);
+            const executionTime = Date.now() - startTime;
+
+            return {
+                rows: result.rows,
+                fields: result.fields.map(f => ({
+                    name: f.name,
+                    type: String(f.dataTypeID),
+                    table: f.tableID ? String(f.tableID) : undefined
+                })),
+                rowCount: result.rowCount || 0,
+                executionTime
+            };
+        } finally {
+            await tempClient.end();
+        }
+    }
+
     async getDatabases(): Promise<string[]> {
         const result = await this.executeQuery(
             `SELECT datname FROM pg_database WHERE datistemplate = false`
@@ -79,43 +122,56 @@ export class PostgresProvider implements DatabaseConnection {
         return result.rows.map((row) => row.datname as string);
     }
 
-    async getTables(_database: string): Promise<string[]> {
-        // Note: In PostgreSQL, we query from the current database's schema
-        const result = await this.executeQuery(`
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-            AND table_type = 'BASE TABLE'
+    async getTables(database: string): Promise<string[]> {
+        // Use pg_catalog for more reliable table listing
+        // Query tables from all non-system schemas
+        // Use executeQueryOnDatabase to query the correct database
+        const result = await this.executeQueryOnDatabase(database, `
+            SELECT c.relname as table_name
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'r'  -- 'r' = ordinary table
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            AND n.nspname NOT LIKE 'pg_temp_%'
+            AND n.nspname NOT LIKE 'pg_toast_temp_%'
+            ORDER BY n.nspname, c.relname
         `);
         return result.rows.map((row) => row.table_name as string);
     }
 
-    async getTableSchema(table: string): Promise<ColumnInfo[]> {
+    async getTableSchema(table: string, database?: string): Promise<ColumnInfo[]> {
         const safeTable = table.replace(/'/g, "''");
-        const result = await this.executeQuery(`
+        // Use pg_catalog for more reliable schema query
+        const result = await this.executeQueryOnDatabase(database || this.currentDatabase, `
             SELECT
-                c.column_name,
-                c.data_type,
-                c.is_nullable,
-                c.column_default,
-                CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary
-            FROM information_schema.columns c
+                a.attname as column_name,
+                pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
+                NOT a.attnotnull as is_nullable,
+                pg_catalog.pg_get_expr(d.adbin, d.adrelid) as column_default,
+                COALESCE(pk.is_primary, false) as is_primary
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
             LEFT JOIN (
-                SELECT ku.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage ku
-                    ON tc.constraint_name = ku.constraint_name
-                WHERE tc.constraint_type = 'PRIMARY KEY'
-                    AND tc.table_name = '${safeTable}'
-            ) pk ON c.column_name = pk.column_name
-            WHERE c.table_name = '${safeTable}'
-            AND c.table_schema = 'public'
+                SELECT
+                    unnest(con.conkey) as attnum,
+                    con.conrelid,
+                    true as is_primary
+                FROM pg_catalog.pg_constraint con
+                WHERE con.contype = 'p'
+            ) pk ON pk.conrelid = c.oid AND pk.attnum = a.attnum
+            WHERE c.relname = '${safeTable}'
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            ORDER BY a.attnum
         `);
 
         return result.rows.map((row) => ({
             name: row.column_name as string,
             type: row.data_type as string,
-            nullable: row.is_nullable === 'YES',
+            nullable: row.is_nullable as boolean,
             primaryKey: row.is_primary as boolean,
             defaultValue: row.column_default as string | undefined
         }));
@@ -125,8 +181,8 @@ export class PostgresProvider implements DatabaseConnection {
         return this.client !== null;
     }
 
-    async getCreateTableStatement(table: string): Promise<string> {
-        const schema = await this.getTableSchema(table);
+    async getCreateTableStatement(table: string, database?: string): Promise<string> {
+        const schema = await this.getTableSchema(table, database);
         const safeTable = table.replace(/"/g, '""');
 
         const columns = schema.map(col => {
@@ -148,25 +204,27 @@ export class PostgresProvider implements DatabaseConnection {
         return `CREATE TABLE "${safeTable}" (\n${columns.join(',\n')}\n);`;
     }
 
-    async getForeignKeys(table: string): Promise<ForeignKeyInfo[]> {
+    async getForeignKeys(table: string, database?: string): Promise<ForeignKeyInfo[]> {
         const safeTable = table.replace(/'/g, "''");
 
-        const result = await this.executeQuery(`
+        // Use pg_catalog for more reliable foreign key detection
+        // Use unnest with ordinality to properly match composite key columns
+        const result = await this.executeQueryOnDatabase(database || this.currentDatabase, `
             SELECT
-                tc.constraint_name as "constraintName",
-                kcu.column_name as "columnName",
-                ccu.table_name as "referencedTable",
-                ccu.column_name as "referencedColumn"
-            FROM information_schema.table_constraints AS tc
-            JOIN information_schema.key_column_usage AS kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage AS ccu
-                ON ccu.constraint_name = tc.constraint_name
-                AND ccu.table_schema = tc.table_schema
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND tc.table_name = '${safeTable}'
-                AND tc.table_schema = 'public'
+                con.conname as "constraintName",
+                att.attname as "columnName",
+                ref_class.relname as "referencedTable",
+                ref_att.attname as "referencedColumn"
+            FROM pg_catalog.pg_constraint con
+            JOIN pg_catalog.pg_class c ON c.oid = con.conrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_catalog.pg_class ref_class ON ref_class.oid = con.confrelid
+            CROSS JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS cols(conkey, confkey, ord)
+            JOIN pg_catalog.pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = cols.conkey
+            JOIN pg_catalog.pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = cols.confkey
+            WHERE con.contype = 'f'
+                AND c.relname = '${safeTable}'
+                AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
         `);
 
         return result.rows.map(row => ({

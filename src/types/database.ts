@@ -61,9 +61,9 @@ export interface DatabaseConnection {
     executeQuery(query: string): Promise<QueryResult>;
     getDatabases(): Promise<string[]>;
     getTables(database: string): Promise<string[]>;
-    getTableSchema(table: string): Promise<ColumnInfo[]>;
-    getCreateTableStatement?(table: string): Promise<string>;
-    getForeignKeys?(table: string): Promise<ForeignKeyInfo[]>;
+    getTableSchema(table: string, database?: string): Promise<ColumnInfo[]>;
+    getCreateTableStatement?(table: string, database?: string): Promise<string>;
+    getForeignKeys?(table: string, database?: string): Promise<ForeignKeyInfo[]>;
     isConnected(): boolean;
 }
 

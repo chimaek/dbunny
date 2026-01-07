@@ -12,6 +12,7 @@ import { SchemaComparePanel, TableCompareInfo } from '../webview/SchemaComparePa
 import { MockDataPanel } from '../webview/MockDataPanel';
 import { MigrationPanel } from '../webview/MigrationPanel';
 import { MonitoringPanel } from '../webview/MonitoringPanel';
+import { QueryTabPanel } from '../webview/QueryTabPanel';
 import { TableERDInfo } from '../types/database';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
@@ -897,11 +898,11 @@ db.collectionName.find({})
 
                 // Get schema and foreign keys for each table
                 for (const tableName of tables) {
-                    const columns = await activeConnection.getTableSchema(tableName);
+                    const columns = await activeConnection.getTableSchema(tableName, databaseName);
                     let foreignKeys: { constraintName: string; columnName: string; referencedTable: string; referencedColumn: string }[] = [];
 
                     if (activeConnection.getForeignKeys) {
-                        foreignKeys = await activeConnection.getForeignKeys(tableName);
+                        foreignKeys = await activeConnection.getForeignKeys(tableName, databaseName);
                     }
 
                     tableInfos.push({
@@ -1052,6 +1053,18 @@ db.collectionName.find({})
                 activeConnection,
                 activeConnection.config,
                 i18n
+            );
+        })
+    );
+
+    // Open Query Tabs (Multi-Tab Query Editor)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.openQueryTabs', () => {
+            QueryTabPanel.createOrShow(
+                context.extensionUri,
+                connectionManager,
+                i18n,
+                queryHistoryProvider
             );
         })
     );
