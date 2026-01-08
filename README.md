@@ -4,7 +4,7 @@
 
 A fast and friendly database management extension for VS Code.
 
-![DBunny](https://files.chimaek.net/api/publaic/dl/wcwMPDWj?inline=true)
+![DBunny](https://files.chimaek.net/api/public/dl/wcwMPDWj?inline=true)
 
 ## Supported Databases
 
