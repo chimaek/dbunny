@@ -5,6 +5,47 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-01-08
+
+### Added
+
+- README에 실행 gif 추가
+
+## [1.5.0] - 2026-01-08
+
+### Added
+
+- **ERD Multiple Layouts**: Choose from 4 different layout styles
+  - Grid Layout: Simple grid arrangement
+  - Relationship Layout: Connected tables placed closer together
+  - Hierarchical Layout: Parent tables at top, child tables below
+  - Circular Layout: Tables arranged in a circle
+- **ERD Orthogonal Line Routing**: Relationship lines avoid overlapping with tables
+  - Smart path calculation based on table positions
+  - Multiple relations offset to prevent line overlap
+- **ERD Animations**: Smooth transition when switching layouts
+- **ERD Line Hover Effects**: Highlight relationship lines on hover with tooltip
+
+### Changed
+
+- Improved table spacing in all ERD layouts
+- Enhanced relationship line visibility with start/end markers
+
+## [1.4.0] - 2026-01-08
+
+### Fixed
+
+- **PostgreSQL Dynamic Database Support**: ERD now works correctly with any selected database
+  - Fixed issue where ERD only queried the initially connected database
+  - Added temporary connection creation for cross-database queries
+  - Updated `getTables`, `getTableSchema`, `getForeignKeys` to use correct database
+- **MySQL Dynamic Database Support**: Improved database-aware schema queries
+
+### Changed
+
+- Database interface updated to support optional database parameter
+- Improved PostgreSQL queries using `pg_catalog` for better reliability
+
 ## [1.3.0] - 2026-01-08
 
 ### Added
