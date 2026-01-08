@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- README에 실행 gif 추가
+- ADDED execute example gif
 
 ## [1.5.0] - 2026-01-08
 
