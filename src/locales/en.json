@@ -138,6 +138,14 @@
     "processKilled": "Process {id} terminated successfully",
     "killFailed": "Failed to kill process: {error}"
   },
+  "favorites": {
+    "added": "'{table}' added to favorites",
+    "removed": "'{table}' removed from favorites",
+    "toggleFailed": "Failed to toggle favorite: {error}"
+  },
+  "copiedToClipboard": "Copied to clipboard",
+  "changesRecorded": "{count} change(s) recorded. Note: Inline editing preview - changes are not persisted to database.",
+  "rowsMarkedForDeletion": "{count} row(s) marked for deletion. Note: Inline editing preview - changes are not persisted to database.",
   "queryTabs": {
     "noConnectionSelected": "Please select a connection for this tab",
     "newTab": "New Tab",

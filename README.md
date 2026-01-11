@@ -31,6 +31,8 @@ A fast and friendly database management extension for VS Code.
 - **Query Bookmarks**: Save frequently used queries with categories
 - **SQL Formatter**: Auto-format SQL (Shift+Alt+F)
 - **Execution Plan**: View EXPLAIN results (Ctrl+Shift+E)
+- **Result Filtering**: Search and filter query results (Ctrl+F)
+- **Column Management**: Hide, show, and reorder result columns
 
 ### Visualization
 
@@ -70,6 +72,7 @@ A fast and friendly database management extension for VS Code.
 | Format SQL | `Shift+Alt+F` | `Shift+Option+F` |
 | Execution Plan | `Ctrl+Shift+E` | `Cmd+Shift+E` |
 | Save Query | `Ctrl+Shift+S` | `Cmd+Shift+S` |
+| Search Results | `Ctrl+F` | `Cmd+F` |
 
 ## Context Menu
 
@@ -103,7 +106,7 @@ Right-click on connections:
 
 ## License
 
-See [LICENSE](LICENSE) file.
+See [LICENSE](https://files.chimaek.net/api/public/dl/53IQI0eG?inline=true) file.
 
 ---
 

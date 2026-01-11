@@ -109,12 +109,13 @@ export class TableEditorPanel {
             // Get database type for proper identifier escaping
             this._dbType = connection.config.type;
 
-            // Get schema
-            const schema = await connection.getTableSchema(this._tableName);
+            // Get schema with database context
+            const schema = await connection.getTableSchema(this._tableName, this._databaseName);
 
-            // Get data (limited to 100 rows for performance)
+            // Get data (limited to 100 rows for performance) with database context
             const result = await connection.executeQuery(
-                `SELECT * FROM ${this._escapeIdentifier(this._tableName)} LIMIT 100`
+                `SELECT * FROM ${this._escapeIdentifier(this._tableName)} LIMIT 100`,
+                this._databaseName
             );
 
             this._panel.title = `Table: ${this._tableName}`;
@@ -128,14 +129,14 @@ export class TableEditorPanel {
     private async _handleInsert(data: Record<string, unknown>): Promise<void> {
         try {
             const connection = this.connectionManager.getActiveConnection();
-            if (!connection) {throw new Error('No active connection');}
+            if (!connection) { throw new Error('No active connection'); }
 
             const columns = Object.keys(data).filter(k => data[k] !== undefined && data[k] !== '');
             const values = columns.map(k => this._escapeValue(data[k]));
 
             const query = `INSERT INTO ${this._escapeIdentifier(this._tableName)} (${columns.map(c => this._escapeIdentifier(c)).join(', ')}) VALUES (${values.join(', ')})`;
 
-            await connection.executeQuery(query);
+            await connection.executeQuery(query, this._databaseName);
             vscode.window.showInformationMessage('Row inserted successfully');
             await this._loadData();
         } catch (error) {
@@ -147,7 +148,7 @@ export class TableEditorPanel {
     private async _handleUpdate(data: { where: Record<string, unknown>; set: Record<string, unknown> }): Promise<void> {
         try {
             const connection = this.connectionManager.getActiveConnection();
-            if (!connection) {throw new Error('No active connection');}
+            if (!connection) { throw new Error('No active connection'); }
 
             const setClauses = Object.entries(data.set)
                 .map(([k, v]) => `${this._escapeIdentifier(k)} = ${this._escapeValue(v)}`)
@@ -159,7 +160,7 @@ export class TableEditorPanel {
 
             const query = `UPDATE ${this._escapeIdentifier(this._tableName)} SET ${setClauses} WHERE ${whereClauses}`;
 
-            await connection.executeQuery(query);
+            await connection.executeQuery(query, this._databaseName);
             vscode.window.showInformationMessage('Row updated successfully');
             await this._loadData();
         } catch (error) {
@@ -171,7 +172,7 @@ export class TableEditorPanel {
     private async _handleDelete(where: Record<string, unknown>): Promise<void> {
         try {
             const connection = this.connectionManager.getActiveConnection();
-            if (!connection) {throw new Error('No active connection');}
+            if (!connection) { throw new Error('No active connection'); }
 
             const whereClauses = Object.entries(where)
                 .map(([k, v]) => `${this._escapeIdentifier(k)} = ${this._escapeValue(v)}`)
@@ -179,7 +180,7 @@ export class TableEditorPanel {
 
             const query = `DELETE FROM ${this._escapeIdentifier(this._tableName)} WHERE ${whereClauses}`;
 
-            await connection.executeQuery(query);
+            await connection.executeQuery(query, this._databaseName);
             vscode.window.showInformationMessage('Row deleted successfully');
             await this._loadData();
         } catch (error) {
@@ -191,9 +192,9 @@ export class TableEditorPanel {
     private async _handleCustomQuery(query: string): Promise<void> {
         try {
             const connection = this.connectionManager.getActiveConnection();
-            if (!connection) {throw new Error('No active connection');}
+            if (!connection) { throw new Error('No active connection'); }
 
-            await connection.executeQuery(query);
+            await connection.executeQuery(query, this._databaseName);
             vscode.window.showInformationMessage('Query executed successfully');
             await this._loadData();
         } catch (error) {
@@ -207,6 +208,11 @@ export class TableEditorPanel {
         switch (this._dbType) {
             case 'postgres':
                 // PostgreSQL uses double quotes
+                // Handle schema.table format
+                if (name.includes('.')) {
+                    const parts = name.split('.');
+                    return parts.map(p => `"${p.replace(/"/g, '""')}"`).join('.');
+                }
                 return `"${name.replace(/"/g, '""')}"`;
             case 'mysql':
                 // MySQL uses backticks

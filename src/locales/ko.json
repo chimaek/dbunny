@@ -138,6 +138,14 @@
     "processKilled": "프로세스 {id}이(가) 종료되었습니다",
     "killFailed": "프로세스 종료 실패: {error}"
   },
+  "favorites": {
+    "added": "'{table}'이(가) 즐겨찾기에 추가되었습니다",
+    "removed": "'{table}'이(가) 즐겨찾기에서 제거되었습니다",
+    "toggleFailed": "즐겨찾기 전환 실패: {error}"
+  },
+  "copiedToClipboard": "클립보드에 복사되었습니다",
+  "changesRecorded": "{count}개의 변경사항이 기록되었습니다. 참고: 인라인 편집 미리보기 - 변경사항은 데이터베이스에 저장되지 않습니다.",
+  "rowsMarkedForDeletion": "{count}개 행이 삭제 표시되었습니다. 참고: 인라인 편집 미리보기 - 변경사항은 데이터베이스에 저장되지 않습니다.",
   "queryTabs": {
     "noConnectionSelected": "이 탭에 연결을 선택해주세요",
     "newTab": "새 탭",

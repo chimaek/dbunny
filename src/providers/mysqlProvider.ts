@@ -49,12 +49,17 @@ export class MySQLProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string): Promise<QueryResult> {
         if (!this.connection) {
             throw new Error('Not connected to database');
         }
 
         try {
+            // Switch database if specified
+            if (database) {
+                await this.connection.execute(`USE \`${database}\``);
+            }
+
             const startTime = Date.now();
             const [rows, fields] = await this.connection.execute(query);
             const executionTime = Date.now() - startTime;

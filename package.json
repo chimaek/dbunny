@@ -2,10 +2,10 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "publisher": "chimaek",
   "author": "chimaek",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "icon": "resources/bunny-icon.png",
   "repository": {
     "type": "git",
@@ -263,6 +263,12 @@
         "title": "Open Query Editor (Multi-Tab)",
         "category": "DBunny",
         "icon": "$(multiple-windows)"
+      },
+      {
+        "command": "dbunny.toggleFavorite",
+        "title": "Toggle Favorite",
+        "category": "DBunny",
+        "icon": "$(star)"
       }
     ],
     "menus": {
@@ -367,6 +373,36 @@
         {
           "command": "dbunny.generateMockData",
           "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dbunny.toggleFavorite",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "inline@3"
+        },
+        {
+          "command": "dbunny.editTableData",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "inline@1"
+        },
+        {
+          "command": "dbunny.copyTableSchema",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "inline@2"
+        },
+        {
+          "command": "dbunny.toggleFavorite",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "inline@3"
+        },
+        {
+          "command": "dbunny.compareSchema",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dbunny.generateMockData",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
           "group": "navigation@2"
         },
         {
@@ -481,19 +517,19 @@
     "publish-extension": "vsce publish"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
     "mongodb": "^6.10.0",
     "mysql2": "^3.11.0",
     "pg": "^8.13.1",
     "redis": "^4.7.0",
     "sql-formatter": "^15.4.0",
+    "sql.js": "^1.13.0",
     "ssh2": "^1.16.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.17.0",
     "@types/pg": "^8.16.0",
+    "@types/sql.js": "^1.4.9",
     "@types/ssh2": "^1.15.1",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",

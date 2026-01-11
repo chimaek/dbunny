@@ -601,6 +601,99 @@ export class QueryTabPanel {
             color: var(--vscode-descriptionForeground);
         }
 
+        .results-spacer {
+            flex: 1;
+        }
+
+        .results-search {
+            display: flex;
+            align-items: center;
+        }
+
+        .results-search input {
+            padding: 4px 8px;
+            background: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            color: var(--vscode-input-foreground);
+            font-size: 12px;
+            width: 150px;
+        }
+
+        .results-search input:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+        }
+
+        .results-btn {
+            padding: 4px 8px;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .results-btn:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .column-settings-panel {
+            background: var(--vscode-editorWidget-background);
+            border-bottom: 1px solid var(--vscode-panel-border);
+            padding: 8px 12px;
+        }
+
+        .column-settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .column-settings-header button {
+            padding: 2px 6px;
+            font-size: 10px;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+
+        .column-settings-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .column-setting-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            background: var(--vscode-input-background);
+            border-radius: 3px;
+        }
+
+        .column-setting-item:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        .results-filter-info {
+            display: none;
+            padding: 4px 12px;
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            background: rgba(0, 122, 204, 0.1);
+        }
+
         .results-table-container {
             flex: 1;
             overflow: auto;
@@ -629,10 +722,34 @@ export class QueryTabPanel {
             position: sticky;
             top: 0;
             z-index: 1;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .results-table th:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        .results-table th.sorted-asc,
+        .results-table th.sorted-desc {
+            background: var(--vscode-list-activeSelectionBackground);
+            color: var(--vscode-list-activeSelectionForeground);
+        }
+
+        .results-table th .sort-indicator {
+            margin-left: 4px;
+            font-size: 10px;
         }
 
         .results-table tr:hover td {
             background: var(--vscode-list-hoverBackground);
+        }
+
+        .results-table mark {
+            background: rgba(255, 235, 59, 0.4);
+            color: inherit;
+            padding: 0 2px;
+            border-radius: 2px;
         }
 
         .error-message {
@@ -712,6 +829,10 @@ export class QueryTabPanel {
         function init() {
             renderTabs();
             renderEditor();
+            // Render results body for active tab
+            if (activeTabId && tabColumnState[activeTabId]) {
+                renderResultsBody(activeTabId);
+            }
         }
 
         function renderTabs() {
@@ -768,11 +889,15 @@ export class QueryTabPanel {
                 </div>
             \`;
 
-            // Focus editor
+            // Focus editor and render results body
             setTimeout(() => {
                 const editor = document.getElementById('queryEditor');
                 if (editor) {
                     editor.focus();
+                }
+                // Render results body if tab has results
+                if (tab && tab.results && tabColumnState[tab.id]) {
+                    renderResultsBody(tab.id);
                 }
             }, 0);
         }
@@ -820,28 +945,203 @@ export class QueryTabPanel {
                 \`;
             }
 
+            // Initialize column state for this tab if not exists
+            if (!tabColumnState[tab.id]) {
+                tabColumnState[tab.id] = {
+                    columns: results.columns.map((col, idx) => ({ name: col, visible: true, order: idx })),
+                    sortField: null,
+                    sortDirection: 'asc',
+                    searchTerm: '',
+                    columnFilters: {}
+                };
+            }
+
+            const state = tabColumnState[tab.id];
+            const visibleColumns = state.columns.filter(c => c.visible).sort((a, b) => a.order - b.order);
+            const hiddenCount = state.columns.length - visibleColumns.length;
+
             return \`
                 <div class="results-header">
                     <span class="results-title">Results</span>
-                    <span class="results-stats">\${results.rowCount} rows | \${results.executionTime}ms | \${results.columns.length} columns</span>
+                    <span class="results-stats">\${results.rowCount} rows | \${results.executionTime}ms | \${visibleColumns.length}/\${results.columns.length} columns</span>
+                    <div class="results-spacer"></div>
+                    <div class="results-search">
+                        <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
+                               oninput="handleResultSearch('\${tab.id}', this.value)">
+                    </div>
+                    <button class="results-btn" onclick="toggleResultColumnPanel('\${tab.id}')" title="Column settings">
+                        ⚙️ \${hiddenCount > 0 ? '(' + hiddenCount + ' hidden)' : ''}
+                    </button>
                 </div>
+                <div class="column-settings-panel" id="columnSettings-\${tab.id}" style="display:none;">
+                    <div class="column-settings-header">
+                        <span>Column Settings</span>
+                        <div>
+                            <button onclick="showAllResultColumns('\${tab.id}')">Show All</button>
+                            <button onclick="hideAllResultColumns('\${tab.id}')">Hide All</button>
+                        </div>
+                    </div>
+                    <div class="column-settings-list">
+                        \${state.columns.sort((a,b) => a.order - b.order).map(col => \`
+                            <label class="column-setting-item">
+                                <input type="checkbox" \${col.visible ? 'checked' : ''}
+                                       onchange="toggleResultColumn('\${tab.id}', '\${escapeHtml(col.name)}', this.checked)">
+                                <span>\${escapeHtml(col.name)}</span>
+                            </label>
+                        \`).join('')}
+                    </div>
+                </div>
+                <div class="results-filter-info" id="filterInfo-\${tab.id}"></div>
                 <div class="results-table-container">
-                    <table class="results-table">
+                    <table class="results-table" id="resultsTable-\${tab.id}">
                         <thead>
                             <tr>
-                                \${results.columns.map(col => \`<th>\${escapeHtml(col)}</th>\`).join('')}
+                                \${visibleColumns.map(col => \`
+                                    <th onclick="handleResultSort('\${tab.id}', '\${escapeHtml(col.name)}')"
+                                        class="\${state.sortField === col.name ? 'sorted-' + state.sortDirection : ''}">
+                                        \${escapeHtml(col.name)}
+                                        <span class="sort-indicator">\${state.sortField === col.name ? (state.sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
+                                    </th>
+                                \`).join('')}
                             </tr>
                         </thead>
-                        <tbody>
-                            \${results.rows.slice(0, 1000).map(row => \`
-                                <tr>
-                                    \${results.columns.map(col => \`<td title="\${escapeHtml(String(row[col] ?? ''))}">\${escapeHtml(formatValue(row[col]))}</td>\`).join('')}
-                                </tr>
-                            \`).join('')}
+                        <tbody id="resultsBody-\${tab.id}">
                         </tbody>
                     </table>
                 </div>
             \`;
+        }
+
+        // Tab column state management
+        let tabColumnState = {};
+
+        function renderResultsBody(tabId) {
+            const tab = tabs.find(t => t.id === tabId);
+            if (!tab || !tab.results || !tabColumnState[tabId]) return;
+
+            const state = tabColumnState[tabId];
+            const visibleColumns = state.columns.filter(c => c.visible).sort((a, b) => a.order - b.order);
+            let rows = [...tab.results.rows];
+
+            // Apply search filter
+            if (state.searchTerm) {
+                const term = state.searchTerm.toLowerCase();
+                rows = rows.filter(row => {
+                    return visibleColumns.some(col => {
+                        const val = row[col.name];
+                        return val !== null && val !== undefined && String(val).toLowerCase().includes(term);
+                    });
+                });
+            }
+
+            // Apply sorting
+            if (state.sortField) {
+                rows.sort((a, b) => {
+                    const aVal = a[state.sortField];
+                    const bVal = b[state.sortField];
+                    if (aVal === null && bVal === null) return 0;
+                    if (aVal === null) return 1;
+                    if (bVal === null) return -1;
+                    const aNum = parseFloat(aVal);
+                    const bNum = parseFloat(bVal);
+                    let cmp = 0;
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        cmp = aNum - bNum;
+                    } else {
+                        cmp = String(aVal).localeCompare(String(bVal));
+                    }
+                    return state.sortDirection === 'asc' ? cmp : -cmp;
+                });
+            }
+
+            const tbody = document.getElementById('resultsBody-' + tabId);
+            if (tbody) {
+                tbody.innerHTML = rows.slice(0, 1000).map(row => \`
+                    <tr>
+                        \${visibleColumns.map(col => {
+                            let val = row[col.name];
+                            let display = formatValue(val);
+                            // Highlight search term
+                            if (state.searchTerm && display.toLowerCase().includes(state.searchTerm.toLowerCase())) {
+                                const regex = new RegExp('(' + escapeRegex(state.searchTerm) + ')', 'gi');
+                                display = display.replace(regex, '<mark>' + String.fromCharCode(36) + '1</mark>');
+                            }
+                            return \`<td title="\${escapeHtml(String(val ?? ''))}">\${display}</td>\`;
+                        }).join('')}
+                    </tr>
+                \`).join('');
+            }
+
+            // Update filter info
+            const filterInfo = document.getElementById('filterInfo-' + tabId);
+            if (filterInfo) {
+                const displayedRows = Math.min(rows.length, 1000);
+                const totalRows = tab.results.rows.length;
+                const isFiltered = state.searchTerm || rows.length !== totalRows;
+                const isTruncated = rows.length > 1000;
+
+                if (isFiltered || isTruncated) {
+                    let msg = 'Showing ' + displayedRows + ' of ' + totalRows + ' rows';
+                    if (isTruncated) {
+                        msg += ' (limited to 1000)';
+                    }
+                    filterInfo.textContent = msg;
+                    filterInfo.style.display = 'block';
+                } else {
+                    filterInfo.style.display = 'none';
+                }
+            }
+        }
+
+        function handleResultSearch(tabId, term) {
+            if (tabColumnState[tabId]) {
+                tabColumnState[tabId].searchTerm = term;
+                renderResultsBody(tabId);
+            }
+        }
+
+        function handleResultSort(tabId, field) {
+            if (!tabColumnState[tabId]) return;
+            const state = tabColumnState[tabId];
+            if (state.sortField === field) {
+                state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sortField = field;
+                state.sortDirection = 'asc';
+            }
+            renderEditor();
+        }
+
+        function toggleResultColumnPanel(tabId) {
+            const panel = document.getElementById('columnSettings-' + tabId);
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function toggleResultColumn(tabId, colName, visible) {
+            if (!tabColumnState[tabId]) return;
+            const col = tabColumnState[tabId].columns.find(c => c.name === colName);
+            if (col) {
+                col.visible = visible;
+                renderEditor();
+            }
+        }
+
+        function showAllResultColumns(tabId) {
+            if (!tabColumnState[tabId]) return;
+            tabColumnState[tabId].columns.forEach(c => c.visible = true);
+            renderEditor();
+        }
+
+        function hideAllResultColumns(tabId) {
+            if (!tabColumnState[tabId]) return;
+            tabColumnState[tabId].columns.forEach(c => c.visible = false);
+            renderEditor();
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\$&');
         }
 
         function newTab() {
@@ -849,6 +1149,8 @@ export class QueryTabPanel {
         }
 
         function closeTab(tabId) {
+            // Cleanup column state to prevent memory leak
+            delete tabColumnState[tabId];
             vscode.postMessage({ command: 'closeTab', tabId });
         }
 

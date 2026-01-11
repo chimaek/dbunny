@@ -5,11 +5,54 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-01-11
+
+### Added
+
+- **Inline Cell Editing**: Edit query results directly
+  - Double-click cell to edit value
+  - Tab/Enter to navigate between cells
+  - Escape to cancel edit
+  - Pending changes highlighted in yellow
+  - Save/Discard all changes buttons
+  - Ctrl+S to save, Ctrl+Z to discard changes
+- **Cell Expand View**: View long content in modal
+  - Expand button on cells with long text or JSON
+  - JSON syntax highlighting in expanded view
+  - Copy content from modal
+  - Escape or click overlay to close
+- **Table Favorites**: Star frequently used tables
+  - Click star icon to toggle favorite
+  - Favorites shown at top of table list
+  - Yellow star icon for favorite tables
+  - Favorites saved per connection/database
+- **Multi-Row Selection**: Select multiple rows for operations
+  - Ctrl+Click row number to toggle selection
+  - Delete key to delete selected rows
+  - Ctrl+C to copy selected rows
+- **Result Filtering**: Filter and search query results
+  - Global search across all columns (Ctrl+F)
+  - Per-column filter dropdown with value selection
+  - Search highlighting in results
+  - Filter status indicator showing filtered row count
+- **Column Management**: Control column visibility and order
+  - Hide/show specific columns
+  - Drag-and-drop column reordering
+  - Show All / Hide All quick actions
+  - Column settings saved per query
+- **Extended Sorting**: Enhanced sorting capabilities
+  - Click column header to sort (ascending/descending)
+  - Sort indicator showing current sort state
+  - Null value handling in sort order
+- **Export Improvements**: Export only visible columns
+  - CSV/JSON export respects column visibility
+  - Filtered data export support
+
 ## [1.5.1] - 2026-01-08
 
 ### Added
 
-- ADDED execute example gif
+- execute example gif
 
 ## [1.5.0] - 2026-01-08
 

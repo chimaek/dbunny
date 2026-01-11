@@ -38,6 +38,9 @@ export class ConnectionFormPanel {
                     case 'cancel':
                         this._panel.dispose();
                         break;
+                    case 'browseFile':
+                        await this._handleBrowseFile();
+                        break;
                 }
             },
             null,
@@ -123,6 +126,27 @@ export class ConnectionFormPanel {
             });
         } finally {
             this._panel.webview.postMessage({ command: 'testing', status: false });
+        }
+    }
+
+    private async _handleBrowseFile(): Promise<void> {
+        const result = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: {
+                'SQLite Database': ['db', 'sqlite', 'sqlite3', 'db3'],
+                'All Files': ['*']
+            },
+            title: this.i18n.t('connection.selectSqliteFile') || 'Select SQLite Database File'
+        });
+
+        if (result && result.length > 0) {
+            const filePath = result[0].fsPath;
+            this._panel.webview.postMessage({
+                command: 'fileSelected',
+                path: filePath
+            });
         }
     }
 
@@ -494,6 +518,30 @@ export class ConnectionFormPanel {
             to { transform: rotate(360deg); }
         }
 
+        /* File Input Row */
+        .file-input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .file-input-row input {
+            flex: 1;
+        }
+        .btn-browse {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--vscode-input-border);
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border-radius: 0.4rem;
+            cursor: pointer;
+            font-size: 1rem;
+            white-space: nowrap;
+            transition: var(--transition);
+        }
+        .btn-browse:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+            border-color: var(--db-color, var(--vscode-focusBorder));
+        }
+
         /* Hidden */
         .hidden {
             display: none !important;
@@ -615,7 +663,10 @@ export class ConnectionFormPanel {
                         ${t.filePath}
                         <span class="required">*</span>
                     </label>
-                    <input type="text" id="sqlitePath" name="sqlitePath" value="${config?.database || ''}" placeholder="/path/to/database.db">
+                    <div class="file-input-row">
+                        <input type="text" id="sqlitePath" name="sqlitePath" value="${config?.database || ''}" placeholder="/path/to/database.db">
+                        <button type="button" class="btn-browse" onclick="browseFile()">📂 Browse</button>
+                    </div>
                 </div>
             </div>
 
@@ -782,6 +833,10 @@ export class ConnectionFormPanel {
             vscode.postMessage({ command: 'cancel' });
         }
 
+        function browseFile() {
+            vscode.postMessage({ command: 'browseFile' });
+        }
+
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
@@ -798,6 +853,9 @@ export class ConnectionFormPanel {
                     testMessage.className = 'message ' + (message.success ? 'success' : 'error');
                     testMessage.querySelector('.icon').textContent = message.success ? '✅' : '❌';
                     testMessage.querySelector('.text').textContent = message.message;
+                    break;
+                case 'fileSelected':
+                    document.getElementById('sqlitePath').value = message.path;
                     break;
             }
         });

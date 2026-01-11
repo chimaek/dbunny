@@ -48,9 +48,14 @@ export class PostgresProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string): Promise<QueryResult> {
         if (!this.client) {
             throw new Error('Not connected to database');
+        }
+
+        // If a different database is specified, use temporary connection
+        if (database && database !== this.currentDatabase) {
+            return this.executeQueryOnDatabase(database, query);
         }
 
         try {
@@ -125,9 +130,14 @@ export class PostgresProvider implements DatabaseConnection {
     async getTables(database: string): Promise<string[]> {
         // Use pg_catalog for more reliable table listing
         // Query tables from all non-system schemas
+        // Include schema prefix for non-public schemas
         // Use executeQueryOnDatabase to query the correct database
         const result = await this.executeQueryOnDatabase(database, `
-            SELECT c.relname as table_name
+            SELECT
+                CASE
+                    WHEN n.nspname = 'public' THEN c.relname
+                    ELSE n.nspname || '.' || c.relname
+                END as table_name
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind = 'r'  -- 'r' = ordinary table
@@ -140,7 +150,11 @@ export class PostgresProvider implements DatabaseConnection {
     }
 
     async getTableSchema(table: string, database?: string): Promise<ColumnInfo[]> {
-        const safeTable = table.replace(/'/g, "''");
+        // Parse schema.table format
+        const parts = table.split('.');
+        const schemaName = parts.length > 1 ? parts[0].replace(/'/g, "''") : 'public';
+        const tableName = (parts.length > 1 ? parts[1] : parts[0]).replace(/'/g, "''");
+
         // Use pg_catalog for more reliable schema query
         const result = await this.executeQueryOnDatabase(database || this.currentDatabase, `
             SELECT
@@ -161,8 +175,8 @@ export class PostgresProvider implements DatabaseConnection {
                 FROM pg_catalog.pg_constraint con
                 WHERE con.contype = 'p'
             ) pk ON pk.conrelid = c.oid AND pk.attnum = a.attnum
-            WHERE c.relname = '${safeTable}'
-            AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            WHERE c.relname = '${tableName}'
+            AND n.nspname = '${schemaName}'
             AND a.attnum > 0
             AND NOT a.attisdropped
             ORDER BY a.attnum
@@ -183,7 +197,12 @@ export class PostgresProvider implements DatabaseConnection {
 
     async getCreateTableStatement(table: string, database?: string): Promise<string> {
         const schema = await this.getTableSchema(table, database);
-        const safeTable = table.replace(/"/g, '""');
+
+        // Parse schema.table format for proper quoting
+        const parts = table.split('.');
+        const schemaName = parts.length > 1 ? parts[0].replace(/"/g, '""') : null;
+        const tableName = (parts.length > 1 ? parts[1] : parts[0]).replace(/"/g, '""');
+        const fullTableName = schemaName ? `"${schemaName}"."${tableName}"` : `"${tableName}"`;
 
         const columns = schema.map(col => {
             let def = `    "${col.name}" ${col.type.toUpperCase()}`;
@@ -201,11 +220,14 @@ export class PostgresProvider implements DatabaseConnection {
             columns.push(`    PRIMARY KEY (${primaryKeys.join(', ')})`);
         }
 
-        return `CREATE TABLE "${safeTable}" (\n${columns.join(',\n')}\n);`;
+        return `CREATE TABLE ${fullTableName} (\n${columns.join(',\n')}\n);`;
     }
 
     async getForeignKeys(table: string, database?: string): Promise<ForeignKeyInfo[]> {
-        const safeTable = table.replace(/'/g, "''");
+        // Parse schema.table format
+        const parts = table.split('.');
+        const schemaName = parts.length > 1 ? parts[0].replace(/'/g, "''") : 'public';
+        const tableName = (parts.length > 1 ? parts[1] : parts[0]).replace(/'/g, "''");
 
         // Use pg_catalog for more reliable foreign key detection
         // Use unnest with ordinality to properly match composite key columns
@@ -223,8 +245,8 @@ export class PostgresProvider implements DatabaseConnection {
             JOIN pg_catalog.pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = cols.conkey
             JOIN pg_catalog.pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = cols.confkey
             WHERE con.contype = 'f'
-                AND c.relname = '${safeTable}'
-                AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+                AND c.relname = '${tableName}'
+                AND n.nspname = '${schemaName}'
         `);
 
         return result.rows.map(row => ({

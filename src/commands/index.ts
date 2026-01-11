@@ -287,8 +287,8 @@ db.collectionName.find({})
                 return;
             }
 
-            // Get database name from connection config
-            const databaseName = activeConnection.config.database || '';
+            // Get database name from tree item (not from connection config!)
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
 
             await TableEditorPanel.createOrShow(
                 context.extensionUri,
@@ -679,14 +679,17 @@ db.collectionName.find({})
                 return;
             }
 
+            // Get database name from tree item
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
+
             try {
                 let createStatement: string;
 
                 if (activeConnection.getCreateTableStatement) {
-                    createStatement = await activeConnection.getCreateTableStatement(tableName);
+                    createStatement = await activeConnection.getCreateTableStatement(tableName, databaseName);
                 } else {
                     // Fallback: generate from schema
-                    const schema = await activeConnection.getTableSchema(tableName);
+                    const schema = await activeConnection.getTableSchema(tableName, databaseName);
                     const columns = schema.map(col => {
                         let def = `  ${col.name} ${col.type}`;
                         if (!col.nullable) {def += ' NOT NULL';}
@@ -1066,6 +1069,32 @@ db.collectionName.find({})
                 i18n,
                 queryHistoryProvider
             );
+        })
+    );
+
+    // Toggle Table Favorite
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.toggleFavorite', async (item: ConnectionTreeItem) => {
+            if (!item?.connectionId || !item?.databaseName || !item?.tableName) {
+                return;
+            }
+
+            try {
+                const isFavorite = await connectionManager.toggleFavorite(
+                    item.connectionId,
+                    item.databaseName,
+                    item.tableName
+                );
+                connectionTreeProvider.refresh();
+
+                const message = isFavorite
+                    ? i18n.t('favorites.added', { table: item.tableName })
+                    : i18n.t('favorites.removed', { table: item.tableName });
+                vscode.window.showInformationMessage(message);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('favorites.toggleFailed', { error: message }));
+            }
         })
     );
 

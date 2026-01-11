@@ -58,7 +58,7 @@ export interface DatabaseConnection {
     config: ConnectionConfig;
     connect(): Promise<void>;
     disconnect(): Promise<void>;
-    executeQuery(query: string): Promise<QueryResult>;
+    executeQuery(query: string, database?: string): Promise<QueryResult>;
     getDatabases(): Promise<string[]>;
     getTables(database: string): Promise<string[]>;
     getTableSchema(table: string, database?: string): Promise<ColumnInfo[]>;

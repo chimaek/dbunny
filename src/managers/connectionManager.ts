@@ -144,6 +144,7 @@ export class ConnectionManager {
 
     /**
      * Test a connection configuration
+     * Throws error with details if connection fails
      */
     async testConnection(config: ConnectionConfig): Promise<boolean> {
         const connection = this.createConnection(config);
@@ -151,8 +152,10 @@ export class ConnectionManager {
             await connection.connect();
             await connection.disconnect();
             return true;
-        } catch {
-            return false;
+        } catch (error) {
+            // Re-throw with detailed message
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(message);
         }
     }
 
@@ -330,5 +333,72 @@ export class ConnectionManager {
         }
         await this.saveConnections();
         this._onDidChangeConnections.fire();
+    }
+
+    // ===== Table Favorites =====
+
+    /**
+     * Get favorite tables for a connection/database
+     */
+    getFavorites(connectionId: string, databaseName: string): string[] {
+        const favorites = this.context.globalState.get<Record<string, string[]>>('dbunny.favorites', {});
+        const key = `${connectionId}:${databaseName}`;
+        return favorites[key] || [];
+    }
+
+    /**
+     * Add a table to favorites
+     */
+    async addFavorite(connectionId: string, databaseName: string, tableName: string): Promise<void> {
+        const favorites = this.context.globalState.get<Record<string, string[]>>('dbunny.favorites', {});
+        const key = `${connectionId}:${databaseName}`;
+
+        if (!favorites[key]) {
+            favorites[key] = [];
+        }
+
+        if (!favorites[key].includes(tableName)) {
+            favorites[key].push(tableName);
+            await this.context.globalState.update('dbunny.favorites', favorites);
+            this._onDidChangeConnections.fire();
+        }
+    }
+
+    /**
+     * Remove a table from favorites
+     */
+    async removeFavorite(connectionId: string, databaseName: string, tableName: string): Promise<void> {
+        const favorites = this.context.globalState.get<Record<string, string[]>>('dbunny.favorites', {});
+        const key = `${connectionId}:${databaseName}`;
+
+        if (favorites[key]) {
+            favorites[key] = favorites[key].filter(t => t !== tableName);
+            if (favorites[key].length === 0) {
+                delete favorites[key];
+            }
+            await this.context.globalState.update('dbunny.favorites', favorites);
+            this._onDidChangeConnections.fire();
+        }
+    }
+
+    /**
+     * Check if a table is a favorite
+     */
+    isFavorite(connectionId: string, databaseName: string, tableName: string): boolean {
+        const favorites = this.getFavorites(connectionId, databaseName);
+        return favorites.includes(tableName);
+    }
+
+    /**
+     * Toggle favorite status of a table
+     */
+    async toggleFavorite(connectionId: string, databaseName: string, tableName: string): Promise<boolean> {
+        if (this.isFavorite(connectionId, databaseName, tableName)) {
+            await this.removeFavorite(connectionId, databaseName, tableName);
+            return false;
+        } else {
+            await this.addFavorite(connectionId, databaseName, tableName);
+            return true;
+        }
     }
 }

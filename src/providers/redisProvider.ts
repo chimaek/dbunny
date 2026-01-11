@@ -35,12 +35,20 @@ export class RedisProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string): Promise<QueryResult> {
         if (!this.client) {
             throw new Error('Not connected to database');
         }
 
         try {
+            // Switch database if specified (Redis uses 0-15)
+            if (database) {
+                const dbIndex = parseInt(database);
+                if (!isNaN(dbIndex) && dbIndex >= 0 && dbIndex <= 15) {
+                    await this.client.select(dbIndex);
+                }
+            }
+
             const startTime = Date.now();
             const args = this.parseRedisCommand(query);
             const command = args[0].toUpperCase();

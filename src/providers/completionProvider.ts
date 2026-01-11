@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
+import { DatabaseConnection, ColumnInfo } from '../types/database';
 
 /**
  * SQL keywords for autocomplete
@@ -105,7 +106,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
             });
     }
 
-    private async getTableCompletions(connection: any): Promise<vscode.CompletionItem[]> {
+    private async getTableCompletions(connection: DatabaseConnection): Promise<vscode.CompletionItem[]> {
         const items: vscode.CompletionItem[] = [];
         const connectionId = connection.config.id;
 
@@ -142,7 +143,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
         return items;
     }
 
-    private async getColumnCompletions(connection: any, textBeforeCursor: string): Promise<vscode.CompletionItem[]> {
+    private async getColumnCompletions(connection: DatabaseConnection, textBeforeCursor: string): Promise<vscode.CompletionItem[]> {
         const items: vscode.CompletionItem[] = [];
         const connectionId = connection.config.id;
 
@@ -165,7 +166,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
         if (!columnCache.has(tableName)) {
             try {
                 const schema = await connection.getTableSchema(tableName);
-                columnCache.set(tableName, schema.map((col: any) => col.name));
+                columnCache.set(tableName, schema.map((col: ColumnInfo) => col.name));
             } catch {
                 return items;
             }

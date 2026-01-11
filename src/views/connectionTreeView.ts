@@ -15,13 +15,15 @@ export class ConnectionTreeItem extends vscode.TreeItem {
         public readonly tableName?: string,
         public readonly dbType?: string,
         public readonly groupName?: string,
-        collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.None
+        collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.None,
+        public readonly isFavorite: boolean = false
     ) {
         super(label, collapsibleState);
         // Include database type in contextValue for SQL vs NoSQL distinction
         if (dbType && itemType === 'table') {
             const isSqlDb = ['mysql', 'postgres', 'sqlite'].includes(dbType);
-            this.contextValue = isSqlDb ? 'table-sql' : 'table-nosql';
+            const baseContext = isSqlDb ? 'table-sql' : 'table-nosql';
+            this.contextValue = isFavorite ? `${baseContext}-favorite` : baseContext;
         } else {
             this.contextValue = itemType;
         }
@@ -40,7 +42,11 @@ export class ConnectionTreeItem extends vscode.TreeItem {
                 this.iconPath = new vscode.ThemeIcon('symbol-namespace');
                 break;
             case 'table':
-                this.iconPath = new vscode.ThemeIcon('symbol-class');
+                if (this.isFavorite) {
+                    this.iconPath = new vscode.ThemeIcon('star-full', new vscode.ThemeColor('charts.yellow'));
+                } else {
+                    this.iconPath = new vscode.ThemeIcon('symbol-class');
+                }
                 break;
             case 'column':
                 this.iconPath = new vscode.ThemeIcon('symbol-field');
@@ -92,7 +98,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             case 'database':
                 return this.getTableItems(element.connectionId!, element.databaseName!);
             case 'table':
-                return this.getColumnItems(element.connectionId!, element.tableName!);
+                return this.getColumnItems(element.connectionId!, element.tableName!, element.databaseName);
             default:
                 return [];
         }
@@ -207,17 +213,36 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
 
             const tables = await connection.getTables(databaseName);
             const dbType = connection.config.type;
+            const favorites = this.connectionManager.getFavorites(connectionId, databaseName);
 
-            return tables.map(table => new ConnectionTreeItem(
-                table,
-                'table',
-                connectionId,
-                databaseName,
-                table,
-                dbType,
-                undefined,
-                vscode.TreeItemCollapsibleState.Collapsed
-            ));
+            // Sort tables: favorites first, then alphabetically
+            const sortedTables = [...tables].sort((a, b) => {
+                const aIsFavorite = favorites.includes(a);
+                const bIsFavorite = favorites.includes(b);
+
+                if (aIsFavorite && !bIsFavorite) { return -1; }
+                if (!aIsFavorite && bIsFavorite) { return 1; }
+                return a.localeCompare(b);
+            });
+
+            return sortedTables.map(table => {
+                const isFavorite = favorites.includes(table);
+                const item = new ConnectionTreeItem(
+                    table,
+                    'table',
+                    connectionId,
+                    databaseName,
+                    table,
+                    dbType,
+                    undefined,
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    isFavorite
+                );
+                if (isFavorite) {
+                    item.description = '★';
+                }
+                return item;
+            });
         } catch (error) {
             console.error('Failed to get tables:', error);
             return [];
@@ -227,14 +252,14 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
     /**
      * Get column items for a table
      */
-    private async getColumnItems(connectionId: string, tableName: string): Promise<ConnectionTreeItem[]> {
+    private async getColumnItems(connectionId: string, tableName: string, databaseName?: string): Promise<ConnectionTreeItem[]> {
         try {
             const connection = this.connectionManager.getActiveConnection();
             if (!connection || connection.config.id !== connectionId) {
                 return [];
             }
 
-            const columns = await connection.getTableSchema(tableName);
+            const columns = await connection.getTableSchema(tableName, databaseName);
             const dbType = connection.config.type;
             return columns.map(col => {
                 const item = new ConnectionTreeItem(

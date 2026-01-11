@@ -36,7 +36,6 @@ async function main() {
         external: [
             'vscode',
             // Native modules - must be in node_modules at runtime
-            'better-sqlite3',
             'ssh2',
             'cpu-features',
             // Database drivers - externalized for node_modules
@@ -44,7 +43,9 @@ async function main() {
             'pg-native',
             'mysql2',
             'mongodb',
-            'redis'
+            'redis',
+            // sql.js needs WASM files at runtime
+            'sql.js'
         ],
         logLevel: 'silent',
         plugins: [

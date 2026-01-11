@@ -37,17 +37,23 @@ export class MongoDBProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string): Promise<QueryResult> {
-        if (!this.db) {
+    async executeQuery(query: string, database?: string): Promise<QueryResult> {
+        if (!this.client) {
             throw new Error('Not connected to database');
         }
 
         try {
             const startTime = Date.now();
 
+            // Use specified database or default
+            const targetDb = database ? this.client.db(database) : this.db;
+            if (!targetDb) {
+                throw new Error('No database selected');
+            }
+
             // Parse the query as JSON command
             const command = JSON.parse(query);
-            const result = await this.db.command(command);
+            const result = await targetDb.command(command);
             const executionTime = Date.now() - startTime;
 
             const rows = Array.isArray(result.cursor?.firstBatch)
