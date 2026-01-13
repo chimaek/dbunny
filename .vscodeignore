@@ -26,6 +26,12 @@ eslint.config.mjs
 
 # Build artifacts
 *.vsix
+nul
+
+# Test files
+test.db
+*.db
+tmpclaude-*
 
 # Documentation (except README)
 *.md

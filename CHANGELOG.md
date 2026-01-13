@@ -5,7 +5,7 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.0] - 2026-01-13
+## [1.8.0] - 2026-01-13
 
 ### Added
 
@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Database Modes**:
     - In-Memory (Volatile): Data stored in memory only
     - Embedded (File): Persistent file-based storage
+  - Built-in connection guide with step-by-step instructions
+
+## [1.7.0] - 2026-01-11
+
+### Added
+
 - **SQLite File Picker**: Browse and select SQLite database files
   - File picker dialog for easy database selection
   - Support for both absolute and relative paths
