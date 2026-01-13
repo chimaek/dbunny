@@ -5,6 +5,7 @@ import { PostgresProvider } from '../providers/postgresProvider';
 import { SQLiteProvider } from '../providers/sqliteProvider';
 import { MongoDBProvider } from '../providers/mongoProvider';
 import { RedisProvider } from '../providers/redisProvider';
+import { H2Provider } from '../providers/h2Provider';
 import { EncryptionService } from '../utils/encryption';
 
 /**
@@ -174,6 +175,8 @@ export class ConnectionManager {
                 return new MongoDBProvider(config);
             case 'redis':
                 return new RedisProvider(config);
+            case 'h2':
+                return new H2Provider(config);
             default:
                 throw new Error(`Unsupported database type: ${config.type}`);
         }
@@ -249,7 +252,8 @@ export class ConnectionManager {
             postgres: 5432,
             sqlite: 0,
             mongodb: 27017,
-            redis: 6379
+            redis: 6379,
+            h2: 5435
         };
         return ports[type];
     }

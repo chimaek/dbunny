@@ -11,6 +11,7 @@ A fast and friendly database management extension for VS Code.
 - MySQL
 - PostgreSQL
 - SQLite
+- H2 (via PostgreSQL wire protocol)
 - MongoDB
 - Redis
 

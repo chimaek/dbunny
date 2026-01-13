@@ -38,7 +38,8 @@ suite('Database Types Unit Tests', () => {
             postgres: 5432,
             sqlite: 0,
             mongodb: 27017,
-            redis: 6379
+            redis: 6379,
+            h2: 5435
         };
 
         assert.strictEqual(defaultPorts.mysql, 3306);
@@ -46,6 +47,7 @@ suite('Database Types Unit Tests', () => {
         assert.strictEqual(defaultPorts.sqlite, 0);
         assert.strictEqual(defaultPorts.mongodb, 27017);
         assert.strictEqual(defaultPorts.redis, 6379);
+        assert.strictEqual(defaultPorts.h2, 5435);
     });
 
     test('SSH config should be optional', () => {

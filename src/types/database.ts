@@ -13,12 +13,25 @@ export interface ConnectionConfig {
     ssh?: SSHConfig;
     options?: Record<string, unknown>;
     group?: string;
+    h2Mode?: H2ConnectionMode;
+}
+
+/**
+ * H2 Database connection mode
+ */
+export interface H2ConnectionMode {
+    /** Connection protocol: 'tcp' (default) or 'ssl' */
+    protocol: 'tcp' | 'ssl';
+    /** Database type: 'file' (persistent) or 'mem' (in-memory) */
+    dbType: 'file' | 'mem';
+    /** For file mode: database file path. For mem mode: database name */
+    dbPath?: string;
 }
 
 /**
  * Supported database types
  */
-export type DatabaseType = 'mysql' | 'postgres' | 'sqlite' | 'mongodb' | 'redis';
+export type DatabaseType = 'mysql' | 'postgres' | 'sqlite' | 'mongodb' | 'redis' | 'h2';
 
 /**
  * SSH tunnel configuration

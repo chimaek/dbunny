@@ -197,6 +197,7 @@ export class ConnectionFormPanel {
             --sqlite-color: #003B57;
             --mongodb-color: #47A248;
             --redis-color: #DC382D;
+            --h2-color: #0074BD;
             --border-radius: 0.5rem;
             --transition: all 0.2s ease;
         }
@@ -245,7 +246,7 @@ export class ConnectionFormPanel {
         /* Database Type Selector */
         .db-type-selector {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 0.9rem;
             margin-bottom: 2rem;
         }
@@ -288,6 +289,7 @@ export class ConnectionFormPanel {
         .db-type-card[data-type="sqlite"] { --db-color: var(--sqlite-color); }
         .db-type-card[data-type="mongodb"] { --db-color: var(--mongodb-color); }
         .db-type-card[data-type="redis"] { --db-color: var(--redis-color); }
+        .db-type-card[data-type="h2"] { --db-color: var(--h2-color); }
 
         /* Form Styles */
         .form-section {
@@ -594,6 +596,10 @@ export class ConnectionFormPanel {
                     <div class="icon">⚡</div>
                     <span class="name">Redis</span>
                 </div>
+                <div class="db-type-card ${config?.type === 'h2' ? 'selected' : ''}" data-type="h2" onclick="selectDbType('h2')">
+                    <div class="icon">🗄️</div>
+                    <span class="name">H2</span>
+                </div>
             </div>
             <input type="hidden" id="type" name="type" value="${config?.type || 'mysql'}">
 
@@ -670,6 +676,35 @@ export class ConnectionFormPanel {
                 </div>
             </div>
 
+            <!-- H2 Options -->
+            <div class="form-section hidden" id="h2Fields">
+                <div class="form-section-title">H2 Options</div>
+                <div class="form-group">
+                    <label for="h2DbType">Database Mode</label>
+                    <select id="h2DbType" name="h2DbType" onchange="toggleH2DbPath()">
+                        <option value="mem" ${config?.h2Mode?.dbType === 'mem' || !config?.h2Mode ? 'selected' : ''}>In-Memory (Volatile)</option>
+                        <option value="file" ${config?.h2Mode?.dbType === 'file' ? 'selected' : ''}>Embedded (File)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="h2DbPathGroup">
+                    <label for="h2DbPath">
+                        <span id="h2DbPathLabel">Database Name</span>
+                        <span class="hint">(${t.optional})</span>
+                    </label>
+                    <input type="text" id="h2DbPath" name="h2DbPath" value="${config?.h2Mode?.dbPath || ''}" placeholder="testdb">
+                </div>
+                <div class="form-group">
+                    <div style="font-size: 0.85rem; color: var(--vscode-descriptionForeground); padding: 0.75rem; background: var(--vscode-editor-background); border-radius: 0.4rem; line-height: 1.6;">
+                        <strong style="color: var(--vscode-errorForeground);">⚠️ Important:</strong> H2 must be started via <strong>command line</strong>, not GUI.<br><br>
+                        <strong>Step 1.</strong> Download H2: <a href="https://h2database.com/html/download.html" style="color: var(--vscode-textLink-foreground);">h2database.com</a><br>
+                        <strong>Step 2.</strong> Run in terminal:<br>
+                        <code style="font-family: monospace; background: var(--vscode-textCodeBlock-background); padding: 0.5rem; display: block; margin: 0.5rem 0; border-radius: 0.25rem; font-size: 0.75rem;">java -cp h2*.jar org.h2.tools.Server -tcp -tcpAllowOthers -pg -pgAllowOthers -pgPort 5435 -ifNotExists</code>
+                        <strong>Step 3.</strong> Connect with: Host=localhost, Port=5435, User=sa<br><br>
+                        <span style="color: var(--vscode-descriptionForeground);">❌ H2 Console (GUI/Browser) does not enable PostgreSQL protocol</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- SSH Tunnel -->
             <label class="ssh-toggle ${config?.ssh ? 'active' : ''}" id="sshToggle">
                 <input type="checkbox" id="useSSH" name="useSSH" ${config?.ssh ? 'checked' : ''}>
@@ -728,6 +763,7 @@ export class ConnectionFormPanel {
         const typeInput = document.getElementById('type');
         const connectionFields = document.getElementById('connectionFields');
         const sqliteFields = document.getElementById('sqliteFields');
+        const h2Fields = document.getElementById('h2Fields');
         const useSSHCheckbox = document.getElementById('useSSH');
         const sshToggle = document.getElementById('sshToggle');
         const sshFields = document.getElementById('sshFields');
@@ -739,7 +775,8 @@ export class ConnectionFormPanel {
             postgres: 5432,
             sqlite: 0,
             mongodb: 27017,
-            redis: 6379
+            redis: 6379,
+            h2: 5435
         };
 
         const dbColors = {
@@ -747,7 +784,8 @@ export class ConnectionFormPanel {
             postgres: '#336791',
             sqlite: '#003B57',
             mongodb: '#47A248',
-            redis: '#DC382D'
+            redis: '#DC382D',
+            h2: '#0074BD'
         };
 
         function selectDbType(type) {
@@ -767,16 +805,42 @@ export class ConnectionFormPanel {
             if (type === 'sqlite') {
                 connectionFields.classList.add('hidden');
                 sqliteFields.classList.remove('hidden');
+                h2Fields.classList.add('hidden');
                 sshToggle.classList.add('hidden');
                 sshFields.classList.remove('visible');
+            } else if (type === 'h2') {
+                connectionFields.classList.remove('hidden');
+                sqliteFields.classList.add('hidden');
+                h2Fields.classList.remove('hidden');
+                sshToggle.classList.remove('hidden');
+                // Set default username for H2
+                const usernameField = document.getElementById('username');
+                if (!usernameField.value) {
+                    usernameField.value = 'sa';
+                }
             } else {
                 connectionFields.classList.remove('hidden');
                 sqliteFields.classList.add('hidden');
+                h2Fields.classList.add('hidden');
                 sshToggle.classList.remove('hidden');
             }
 
             // Update CSS variable for theming
             document.documentElement.style.setProperty('--db-color', dbColors[type]);
+        }
+
+        function toggleH2DbPath() {
+            const dbType = document.getElementById('h2DbType').value;
+            const label = document.getElementById('h2DbPathLabel');
+            const input = document.getElementById('h2DbPath');
+
+            if (dbType === 'mem') {
+                label.textContent = 'Database Name';
+                input.placeholder = 'testdb';
+            } else {
+                label.textContent = 'Database File Path';
+                input.placeholder = './data/mydb';
+            }
         }
 
         // SSH Toggle
@@ -818,6 +882,15 @@ export class ConnectionFormPanel {
                     port: parseInt(document.getElementById('sshPort').value) || 22,
                     username: document.getElementById('sshUsername').value,
                     password: document.getElementById('sshPassword').value
+                };
+            }
+
+            // Add H2 mode options
+            if (type === 'h2') {
+                data.h2Mode = {
+                    protocol: 'tcp',
+                    dbType: document.getElementById('h2DbType').value,
+                    dbPath: document.getElementById('h2DbPath').value
                 };
             }
 

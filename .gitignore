@@ -30,10 +30,16 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-
+nul
 # Temporary files
 *.tmp
 *.temp
+
+# H2 Database test files
+h2-*.jar
+h2data/
+test-h2.ps1
+test-h2.sh
 
 # Private keys
 *.pem

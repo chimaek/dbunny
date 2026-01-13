@@ -5,6 +5,38 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-12
+
+### Added
+
+- **H2 Database Support**: Connect to H2 databases via PostgreSQL wire protocol
+  - Requires H2 server mode: `java -cp h2*.jar org.h2.tools.Server -tcp -tcpAllowOthers -pg -pgAllowOthers -pgPort 5435 -ifNotExists`
+  - Default port: 5435
+  - Full support for queries, schema browsing, and table operations
+  - **Database Modes**:
+    - In-Memory (Volatile): Data stored in memory only
+    - Embedded (File): Persistent file-based storage
+- **SQLite File Picker**: Browse and select SQLite database files
+  - File picker dialog for easy database selection
+  - Support for both absolute and relative paths
+- **PostgreSQL Schema Support**: Full support for non-public schemas
+  - Tables from non-public schemas displayed with `schema.table` format
+  - Schema-qualified table names in all operations
+  - Fixed "relation does not exist" error for non-public schemas
+
+### Changed
+
+- **SQLite Provider**: Migrated from better-sqlite3 to sql.js
+  - Pure JavaScript/WebAssembly implementation
+  - Better compatibility with VS Code extension environment
+  - No native module compilation required
+
+### Fixed
+
+- Fixed empty CREATE TABLE statement when copying schema from non-public schemas
+- Fixed column loading for tables in non-public schemas
+- Fixed table data editing for schema-qualified table names
+
 ## [1.6.0] - 2026-01-11
 
 ### Added
