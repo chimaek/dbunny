@@ -30,7 +30,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-nul
+
 # Temporary files
 *.tmp
 *.temp
