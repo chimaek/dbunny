@@ -57,11 +57,13 @@ export class MySQLProvider implements DatabaseConnection {
         try {
             // Switch database if specified
             if (database) {
-                await this.connection.execute(`USE \`${database}\``);
+                await this.connection.query(`USE \`${database}\``);
             }
 
             const startTime = Date.now();
-            const [rows, fields] = await this.connection.execute(query);
+            // Use query() instead of execute() to avoid prepared statement protocol issues
+            // Some commands like SHOW, DESCRIBE are not supported in prepared statements
+            const [rows, fields] = await this.connection.query(query);
             const executionTime = Date.now() - startTime;
 
             const resultRows = Array.isArray(rows) ? rows as Record<string, unknown>[] : [];

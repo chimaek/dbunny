@@ -66,13 +66,13 @@ A fast and friendly database management extension for VS Code.
 
 | Action | Windows/Linux | Mac |
 |--------|---------------|-----|
-| New Query | `Ctrl+Shift+Q` | `Cmd+Shift+Q` |
 | Execute Query | `Ctrl+Enter` / `F5` | `Cmd+Enter` / `F5` |
-| Multi-Tab Query | `Ctrl+Shift+T` | `Cmd+Shift+T` |
-| Add Connection | `Ctrl+Shift+D` | `Cmd+Shift+D` |
+| New Query | `Ctrl+Alt+N` | `Cmd+Option+N` |
+| Multi-Tab Query | `Ctrl+Alt+T` | `Cmd+Option+T` |
+| Add Connection | `Ctrl+Alt+D` | `Cmd+Option+D` |
+| Save Query | `Ctrl+Alt+S` | `Cmd+Option+S` |
+| Execution Plan | `Ctrl+Alt+E` | `Cmd+Option+E` |
 | Format SQL | `Shift+Alt+F` | `Shift+Option+F` |
-| Execution Plan | `Ctrl+Shift+E` | `Cmd+Shift+E` |
-| Save Query | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 | Search Results | `Ctrl+F` | `Cmd+F` |
 
 ## Context Menu

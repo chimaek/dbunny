@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -437,18 +437,18 @@
       },
       {
         "command": "dbunny.newQuery",
-        "key": "ctrl+shift+q",
-        "mac": "cmd+shift+q"
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n"
       },
       {
         "command": "dbunny.addConnection",
-        "key": "ctrl+shift+d",
-        "mac": "cmd+shift+d"
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d"
       },
       {
         "command": "dbunny.saveQueryBookmark",
-        "key": "ctrl+shift+s",
-        "mac": "cmd+shift+s",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
         "when": "editorLangId == sql || editorLangId == plpgsql || editorLangId == mysql"
       },
       {
@@ -459,14 +459,14 @@
       },
       {
         "command": "dbunny.explainQuery",
-        "key": "ctrl+shift+e",
-        "mac": "cmd+shift+e",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
         "when": "editorLangId == sql || editorLangId == plpgsql || editorLangId == mysql"
       },
       {
         "command": "dbunny.openQueryTabs",
-        "key": "ctrl+shift+t",
-        "mac": "cmd+shift+t"
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t"
       }
     ],
     "configuration": {
