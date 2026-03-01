@@ -23,17 +23,24 @@ export class SQLiteProvider implements DatabaseConnection {
                 // Create in-memory database
                 this.db = new SQL.Database();
             } else {
-                // Load database from file
+                // Load database from file or create new one
                 const absolutePath = path.isAbsolute(this.dbPath)
                     ? this.dbPath
                     : path.resolve(this.dbPath);
+                this.dbPath = absolutePath;
 
-                if (!fs.existsSync(absolutePath)) {
-                    throw new Error(`Database file not found: ${absolutePath}`);
+                if (fs.existsSync(absolutePath)) {
+                    const buffer = fs.readFileSync(absolutePath);
+                    this.db = new SQL.Database(buffer);
+                } else {
+                    // Create new empty database file
+                    const dir = path.dirname(absolutePath);
+                    if (!fs.existsSync(dir)) {
+                        fs.mkdirSync(dir, { recursive: true });
+                    }
+                    this.db = new SQL.Database();
+                    this._saveToFile();
                 }
-
-                const buffer = fs.readFileSync(absolutePath);
-                this.db = new SQL.Database(buffer);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
@@ -57,9 +64,19 @@ export class SQLiteProvider implements DatabaseConnection {
             try {
                 const data = this.db.export();
                 const buffer = Buffer.from(data);
-                fs.writeFileSync(this.dbPath, buffer);
+                // Use atomic write: write to temp file then rename
+                const tmpPath = `${this.dbPath}.tmp`;
+                fs.writeFileSync(tmpPath, buffer);
+                fs.renameSync(tmpPath, this.dbPath);
             } catch (error) {
                 console.error('Failed to save SQLite database:', error);
+                // Clean up temp file if it exists
+                try {
+                    const tmpPath = `${this.dbPath}.tmp`;
+                    if (fs.existsSync(tmpPath)) {
+                        fs.unlinkSync(tmpPath);
+                    }
+                } catch { /* ignore cleanup errors */ }
             }
         }
     }
@@ -141,6 +158,10 @@ export class SQLiteProvider implements DatabaseConnection {
     }
 
     async getTableSchema(table: string): Promise<ColumnInfo[]> {
+        // Validate identifier: only allow alphanumeric, underscore, and dot
+        if (!/^[\w.]+$/i.test(table)) {
+            throw new Error(`Invalid table name: ${table}`);
+        }
         const safeTable = table.replace(/'/g, "''");
         const result = await this.executeQuery(`PRAGMA table_info('${safeTable}')`);
         return result.rows.map((row) => ({
@@ -157,6 +178,10 @@ export class SQLiteProvider implements DatabaseConnection {
     }
 
     async getCreateTableStatement(table: string): Promise<string> {
+        // Validate identifier
+        if (!/^[\w.]+$/i.test(table)) {
+            throw new Error(`Invalid table name: ${table}`);
+        }
         const safeTable = table.replace(/'/g, "''");
         const result = await this.executeQuery(
             `SELECT sql FROM sqlite_master WHERE type='table' AND name='${safeTable}'`
@@ -168,6 +193,10 @@ export class SQLiteProvider implements DatabaseConnection {
     }
 
     async getForeignKeys(table: string): Promise<ForeignKeyInfo[]> {
+        // Validate identifier
+        if (!/^[\w.]+$/i.test(table)) {
+            throw new Error(`Invalid table name: ${table}`);
+        }
         const safeTable = table.replace(/'/g, "''");
         const result = await this.executeQuery(`PRAGMA foreign_key_list('${safeTable}')`);
 

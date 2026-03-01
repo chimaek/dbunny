@@ -5,7 +5,7 @@ suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
 
     test('Extension should be present', () => {
-        assert.ok(vscode.extensions.getExtension('your-publisher-name.dbunny'));
+        assert.ok(vscode.extensions.getExtension('chimaek.dbunny'));
     });
 
     test('Commands should be registered', async () => {

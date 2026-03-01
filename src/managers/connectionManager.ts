@@ -240,7 +240,7 @@ export class ConnectionManager {
      * Get supported database types
      */
     getSupportedTypes(): DatabaseType[] {
-        return ['mysql', 'postgres', 'sqlite', 'mongodb', 'redis'];
+        return ['mysql', 'postgres', 'sqlite', 'mongodb', 'redis', 'h2'];
     }
 
     /**
@@ -404,5 +404,22 @@ export class ConnectionManager {
             await this.addFavorite(connectionId, databaseName, tableName);
             return true;
         }
+    }
+
+    /**
+     * Dispose all resources (connections, event emitters)
+     */
+    dispose(): void {
+        // Disconnect active connection
+        if (this.activeConnection) {
+            this.activeConnection.disconnect().catch(err => {
+                console.error('Error disconnecting on dispose:', err);
+            });
+            this.activeConnection = null;
+        }
+
+        // Dispose event emitters
+        this._onDidChangeConnection.dispose();
+        this._onDidChangeConnections.dispose();
     }
 }

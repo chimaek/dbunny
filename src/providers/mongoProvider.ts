@@ -51,8 +51,16 @@ export class MongoDBProvider implements DatabaseConnection {
                 throw new Error('No database selected');
             }
 
-            // Parse the query as JSON command
-            const command = JSON.parse(query);
+            // Try parsing as JSON command first, then fall back to Shell syntax
+            let command: Record<string, unknown>;
+            const trimmed = query.trim();
+
+            if (trimmed.startsWith('{')) {
+                command = JSON.parse(trimmed);
+            } else {
+                command = this.parseShellQuery(trimmed);
+            }
+
             const result = await targetDb.command(command);
             const executionTime = Date.now() - startTime;
 
@@ -78,6 +86,142 @@ export class MongoDBProvider implements DatabaseConnection {
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(`Query execution failed: ${message}`);
         }
+    }
+
+    /**
+     * Parse MongoDB Shell syntax into a runCommand-compatible JSON object.
+     *
+     * Supported patterns:
+     *   db.collection.find({filter})
+     *   db.collection.find({filter}).limit(N)
+     *   db.collection.insertOne({doc})
+     *   db.collection.insertMany([docs])
+     *   db.collection.updateOne({filter}, {update})
+     *   db.collection.updateMany({filter}, {update})
+     *   db.collection.deleteOne({filter})
+     *   db.collection.deleteMany({filter})
+     *   db.collection.countDocuments({filter})
+     *   db.collection.aggregate([pipeline])
+     */
+    private parseShellQuery(query: string): Record<string, unknown> {
+        // Match: db.collectionName.method(args)  with optional .limit(N)/.sort(...)
+        const shellPattern = /^db\.(\w+)\.(\w+)\(([\s\S]*)\)$/;
+        const match = query.replace(/;\s*$/, '').match(shellPattern);
+
+        if (!match) {
+            throw new Error(
+                'Invalid query format. Use JSON: {"find": "collection", "filter": {}} ' +
+                'or Shell: db.collection.find({})'
+            );
+        }
+
+        const collection = match[1];
+        const method = match[2];
+        const argsStr = match[3].trim();
+
+        // Parse chained methods like .limit(100) .sort({...})
+        let mainArgs = argsStr;
+        let limit: number | undefined;
+        let sort: Record<string, unknown> | undefined;
+
+        // Extract .limit(N) and .sort({...}) if chained after the closing paren
+        const chainPattern = /\)\s*\.(limit|sort)\(([^)]+)\)/g;
+        const fullQuery = query.replace(/;\s*$/, '');
+        let chainMatch;
+        while ((chainMatch = chainPattern.exec(fullQuery)) !== null) {
+            if (chainMatch[1] === 'limit') {
+                limit = parseInt(chainMatch[2].trim(), 10);
+            } else if (chainMatch[1] === 'sort') {
+                try { sort = JSON.parse(chainMatch[2].trim()); } catch { /* ignore */ }
+            }
+        }
+
+        // If chained methods exist, extract just the main method args
+        const mainMethodMatch = fullQuery.match(/^db\.\w+\.\w+\(([\s\S]*?)\)(?:\s*\.(?:limit|sort)\()?/);
+        if (mainMethodMatch) {
+            mainArgs = mainMethodMatch[1].trim();
+        }
+
+        switch (method) {
+            case 'find': {
+                const cmd: Record<string, unknown> = { find: collection };
+                if (mainArgs) {
+                    // find({filter}, {projection}) — split on top-level comma between objects
+                    const parts = this.splitTopLevelArgs(mainArgs);
+                    if (parts[0]) { try { cmd.filter = JSON.parse(parts[0]); } catch { cmd.filter = {}; } }
+                    if (parts[1]) { try { cmd.projection = JSON.parse(parts[1]); } catch { /* ignore */ } }
+                } else {
+                    cmd.filter = {};
+                }
+                if (limit !== undefined) { cmd.limit = limit; }
+                if (sort) { cmd.sort = sort; }
+                return cmd;
+            }
+            case 'findOne': {
+                const cmd: Record<string, unknown> = { find: collection, limit: 1 };
+                if (mainArgs) { try { cmd.filter = JSON.parse(mainArgs); } catch { cmd.filter = {}; } }
+                else { cmd.filter = {}; }
+                return cmd;
+            }
+            case 'insertOne': {
+                const doc = mainArgs ? JSON.parse(mainArgs) : {};
+                return { insert: collection, documents: [doc] };
+            }
+            case 'insertMany': {
+                const docs = mainArgs ? JSON.parse(mainArgs) : [];
+                return { insert: collection, documents: docs };
+            }
+            case 'updateOne':
+            case 'updateMany': {
+                const parts = this.splitTopLevelArgs(mainArgs);
+                const filter = parts[0] ? JSON.parse(parts[0]) : {};
+                const update = parts[1] ? JSON.parse(parts[1]) : {};
+                const multi = method === 'updateMany';
+                return { update: collection, updates: [{ q: filter, u: update, multi }] };
+            }
+            case 'deleteOne':
+            case 'deleteMany': {
+                const filter = mainArgs ? JSON.parse(mainArgs) : {};
+                const limitVal = method === 'deleteOne' ? 1 : 0;
+                return { delete: collection, deletes: [{ q: filter, limit: limitVal }] };
+            }
+            case 'countDocuments':
+            case 'count': {
+                const filter = mainArgs ? JSON.parse(mainArgs) : {};
+                return { count: collection, query: filter };
+            }
+            case 'aggregate': {
+                const pipeline = mainArgs ? JSON.parse(mainArgs) : [];
+                return { aggregate: collection, pipeline, cursor: {} };
+            }
+            case 'drop': {
+                return { drop: collection };
+            }
+            default:
+                throw new Error(`Unsupported MongoDB method: ${method}. Supported: find, findOne, insertOne, insertMany, updateOne, updateMany, deleteOne, deleteMany, countDocuments, aggregate, drop`);
+        }
+    }
+
+    /**
+     * Split arguments at top-level commas (not inside braces/brackets).
+     */
+    private splitTopLevelArgs(str: string): string[] {
+        const parts: string[] = [];
+        let depth = 0;
+        let current = '';
+
+        for (const ch of str) {
+            if (ch === '{' || ch === '[') { depth++; }
+            else if (ch === '}' || ch === ']') { depth--; }
+            else if (ch === ',' && depth === 0) {
+                parts.push(current.trim());
+                current = '';
+                continue;
+            }
+            current += ch;
+        }
+        if (current.trim()) { parts.push(current.trim()); }
+        return parts;
     }
 
     async getDatabases(): Promise<string[]> {
@@ -127,12 +271,15 @@ export class MongoDBProvider implements DatabaseConnection {
     }
 
     private buildConnectionUri(): string {
-        const { host, port, username, password, database } = this.config;
+        const { host, port, username, password, database, options } = this.config;
         const auth = username && password
             ? `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`
             : '';
 
-        return `mongodb://${auth}${host}:${port || 27017}/${database || 'admin'}`;
+        const authSource = (options?.authSource as string) || (auth ? 'admin' : '');
+        const query = authSource ? `?authSource=${encodeURIComponent(authSource)}` : '';
+
+        return `mongodb://${auth}${host}:${port || 27017}/${database || 'admin'}${query}`;
     }
 
     private getMongoType(value: unknown): string {

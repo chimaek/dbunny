@@ -1,4 +1,5 @@
 import * as mysql from 'mysql2/promise';
+import * as net from 'net';
 import { Client as SSHClient } from 'ssh2';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
 
@@ -8,20 +9,26 @@ import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignK
 export class MySQLProvider implements DatabaseConnection {
     private connection: mysql.Connection | null = null;
     private sshClient: SSHClient | null = null;
+    private sshServer: net.Server | null = null;
 
     constructor(public config: ConnectionConfig) {}
 
     async connect(): Promise<void> {
         try {
+            let connectHost = this.config.host;
+            let connectPort = this.config.port || 3306;
+
             // Establish SSH tunnel if configured
             if (this.config.ssh) {
-                await this.establishSSHTunnel();
+                const tunnel = await this.establishSSHTunnel();
+                connectHost = tunnel.host;
+                connectPort = tunnel.port;
             }
 
             // Create MySQL connection
             this.connection = await mysql.createConnection({
-                host: this.config.host,
-                port: this.config.port || 3306,
+                host: connectHost,
+                port: connectPort,
                 user: this.config.username,
                 password: this.config.password,
                 database: this.config.database,
@@ -39,12 +46,27 @@ export class MySQLProvider implements DatabaseConnection {
     }
 
     async disconnect(): Promise<void> {
-        if (this.connection) {
-            await this.connection.end();
+        try {
+            if (this.connection) {
+                await this.connection.end();
+                this.connection = null;
+            }
+        } catch (error) {
+            console.error('Error closing MySQL connection:', error);
             this.connection = null;
         }
-        if (this.sshClient) {
-            this.sshClient.end();
+        try {
+            if (this.sshServer) {
+                this.sshServer.close();
+                this.sshServer = null;
+            }
+            if (this.sshClient) {
+                this.sshClient.end();
+                this.sshClient = null;
+            }
+        } catch (error) {
+            console.error('Error closing SSH tunnel:', error);
+            this.sshServer = null;
             this.sshClient = null;
         }
     }
@@ -128,23 +150,27 @@ export class MySQLProvider implements DatabaseConnection {
     }
 
     async getForeignKeys(table: string, database?: string): Promise<ForeignKeyInfo[]> {
-        const safeTable = table.replace(/'/g, "''");
-        const db = database || this.config.database || '';
-        const safeDatabase = db.replace(/'/g, "''");
+        if (!this.connection) {
+            throw new Error('Not connected to database');
+        }
 
-        const result = await this.executeQuery(`
-            SELECT
+        const db = database || this.config.database || '';
+
+        const [rows] = await this.connection.execute(
+            `SELECT
                 CONSTRAINT_NAME as constraintName,
                 COLUMN_NAME as columnName,
                 REFERENCED_TABLE_NAME as referencedTable,
                 REFERENCED_COLUMN_NAME as referencedColumn
             FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = '${safeDatabase}'
-                AND TABLE_NAME = '${safeTable}'
-                AND REFERENCED_TABLE_NAME IS NOT NULL
-        `);
+            WHERE TABLE_SCHEMA = ?
+                AND TABLE_NAME = ?
+                AND REFERENCED_TABLE_NAME IS NOT NULL`,
+            [db, table]
+        );
 
-        return result.rows.map(row => ({
+        const resultRows = Array.isArray(rows) ? rows as Record<string, unknown>[] : [];
+        return resultRows.map(row => ({
             constraintName: row.constraintName as string,
             columnName: row.columnName as string,
             referencedTable: row.referencedTable as string,
@@ -152,24 +178,36 @@ export class MySQLProvider implements DatabaseConnection {
         }));
     }
 
-    private async establishSSHTunnel(): Promise<void> {
+    private async establishSSHTunnel(): Promise<{ host: string; port: number }> {
         return new Promise((resolve, reject) => {
             this.sshClient = new SSHClient();
 
             this.sshClient.on('ready', () => {
-                this.sshClient!.forwardOut(
-                    '127.0.0.1',
-                    0,
-                    this.config.host,
-                    this.config.port || 3306,
-                    (err) => {
-                        if (err) {
-                            reject(new Error(`SSH tunnel failed: ${err.message}`));
-                            return;
+                // Create a local TCP server that forwards to the remote DB via SSH
+                this.sshServer = net.createServer((sock) => {
+                    this.sshClient!.forwardOut(
+                        sock.remoteAddress || '127.0.0.1',
+                        sock.remotePort || 0,
+                        this.config.host,
+                        this.config.port || 3306,
+                        (err, stream) => {
+                            if (err) {
+                                sock.end();
+                                return;
+                            }
+                            sock.pipe(stream).pipe(sock);
                         }
-                        resolve();
-                    }
-                );
+                    );
+                });
+
+                this.sshServer!.listen(0, '127.0.0.1', () => {
+                    const addr = this.sshServer!.address() as net.AddressInfo;
+                    resolve({ host: '127.0.0.1', port: addr.port });
+                });
+
+                this.sshServer!.on('error', (err) => {
+                    reject(new Error(`SSH tunnel server failed: ${err.message}`));
+                });
             });
 
             this.sshClient.on('error', (err) => {

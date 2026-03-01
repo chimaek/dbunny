@@ -2,15 +2,16 @@ import * as assert from 'assert';
 import { ConnectionConfig, DatabaseType } from '../../types/database';
 
 suite('Database Types Unit Tests', () => {
-    const supportedTypes: DatabaseType[] = ['mysql', 'postgres', 'sqlite', 'mongodb', 'redis'];
+    const supportedTypes: DatabaseType[] = ['mysql', 'postgres', 'sqlite', 'mongodb', 'redis', 'h2'];
 
     test('Should have all supported database types', () => {
-        assert.strictEqual(supportedTypes.length, 5);
+        assert.strictEqual(supportedTypes.length, 6);
         assert.ok(supportedTypes.includes('mysql'));
         assert.ok(supportedTypes.includes('postgres'));
         assert.ok(supportedTypes.includes('sqlite'));
         assert.ok(supportedTypes.includes('mongodb'));
         assert.ok(supportedTypes.includes('redis'));
+        assert.ok(supportedTypes.includes('h2'));
     });
 
     test('ConnectionConfig should have required fields', () => {

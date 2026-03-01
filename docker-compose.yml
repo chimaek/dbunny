@@ -1,0 +1,72 @@
+# DBunny 테스트용 데이터베이스 환경
+# 사용법: docker compose up -d
+# 초기화: docker compose down -v && docker compose up -d (볼륨 초기화 후 init 스크립트 재실행)
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dbunny-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbunny-mysql-data:/var/lib/mysql
+      - ./docker-init/mysql:/docker-entrypoint-initdb.d
+
+  postgres:
+    image: postgres:16
+    container_name: dbunny-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres1234
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbunny-postgres-data:/var/lib/postgresql/data
+      - ./docker-init/postgres:/docker-entrypoint-initdb.d
+
+  mongodb:
+    image: mongo:7
+    container_name: dbunny-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: mongo1234
+      MONGO_INITDB_DATABASE: mydb
+    ports:
+      - "27017:27017"
+    volumes:
+      - dbunny-mongo-data:/data/db
+      - ./docker-init/mongo:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7
+    container_name: dbunny-redis
+    command: redis-server --requirepass redis1234
+    ports:
+      - "6379:6379"
+    volumes:
+      - dbunny-redis-data:/data
+
+  h2:
+    image: oscarfonts/h2:latest
+    container_name: dbunny-h2
+    environment:
+      H2_OPTIONS: -tcp -tcpAllowOthers -tcpPort 9092 -pg -pgAllowOthers -pgPort 5435 -ifNotExists -baseDir /h2-data
+    ports:
+      - "9092:9092"
+      - "5435:5435"
+      - "8082:81"
+    volumes:
+      - dbunny-h2-data:/h2-data
+
+volumes:
+  dbunny-mysql-data:
+  dbunny-postgres-data:
+  dbunny-mongo-data:
+  dbunny-redis-data:
+  dbunny-h2-data:

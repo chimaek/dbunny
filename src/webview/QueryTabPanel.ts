@@ -1196,8 +1196,8 @@ export class QueryTabPanel {
         function formatValue(value) {
             if (value === null) return 'NULL';
             if (value === undefined) return '';
-            if (typeof value === 'object') return JSON.stringify(value);
-            return String(value);
+            if (typeof value === 'object') return escapeHtml(JSON.stringify(value));
+            return escapeHtml(String(value));
         }
 
         function escapeHtml(text) {

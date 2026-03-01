@@ -1,4 +1,5 @@
 import { Client } from 'pg';
+import * as net from 'net';
 import { Client as SSHClient } from 'ssh2';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
 
@@ -8,22 +9,28 @@ import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignK
 export class PostgresProvider implements DatabaseConnection {
     private client: Client | null = null;
     private sshClient: SSHClient | null = null;
+    private sshServer: net.Server | null = null;
     private currentDatabase: string = 'postgres';
 
     constructor(public config: ConnectionConfig) {}
 
     async connect(): Promise<void> {
         try {
+            let connectHost = this.config.host;
+            let connectPort = this.config.port || 5432;
+
             // Establish SSH tunnel if configured
             if (this.config.ssh) {
-                await this.establishSSHTunnel();
+                const tunnel = await this.establishSSHTunnel();
+                connectHost = tunnel.host;
+                connectPort = tunnel.port;
             }
 
             // Create PostgreSQL client
             this.currentDatabase = this.config.database || 'postgres';
             this.client = new Client({
-                host: this.config.host,
-                port: this.config.port || 5432,
+                host: connectHost,
+                port: connectPort,
                 user: this.config.username,
                 password: this.config.password,
                 database: this.currentDatabase,
@@ -38,12 +45,27 @@ export class PostgresProvider implements DatabaseConnection {
     }
 
     async disconnect(): Promise<void> {
-        if (this.client) {
-            await this.client.end();
+        try {
+            if (this.client) {
+                await this.client.end();
+                this.client = null;
+            }
+        } catch (error) {
+            console.error('Error closing PostgreSQL connection:', error);
             this.client = null;
         }
-        if (this.sshClient) {
-            this.sshClient.end();
+        try {
+            if (this.sshServer) {
+                this.sshServer.close();
+                this.sshServer = null;
+            }
+            if (this.sshClient) {
+                this.sshClient.end();
+                this.sshClient = null;
+            }
+        } catch (error) {
+            console.error('Error closing SSH tunnel:', error);
+            this.sshServer = null;
             this.sshClient = null;
         }
     }
@@ -152,12 +174,12 @@ export class PostgresProvider implements DatabaseConnection {
     async getTableSchema(table: string, database?: string): Promise<ColumnInfo[]> {
         // Parse schema.table format
         const parts = table.split('.');
-        const schemaName = parts.length > 1 ? parts[0].replace(/'/g, "''") : 'public';
-        const tableName = (parts.length > 1 ? parts[1] : parts[0]).replace(/'/g, "''");
+        const schemaName = parts.length > 1 ? parts[0] : 'public';
+        const tableName = parts.length > 1 ? parts[1] : parts[0];
 
-        // Use pg_catalog for more reliable schema query
-        const result = await this.executeQueryOnDatabase(database || this.currentDatabase, `
-            SELECT
+        // Use parameterized query to prevent SQL injection
+        const result = await this.executeQueryOnDatabaseParameterized(database || this.currentDatabase,
+            `SELECT
                 a.attname as column_name,
                 pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
                 NOT a.attnotnull as is_nullable,
@@ -175,12 +197,13 @@ export class PostgresProvider implements DatabaseConnection {
                 FROM pg_catalog.pg_constraint con
                 WHERE con.contype = 'p'
             ) pk ON pk.conrelid = c.oid AND pk.attnum = a.attnum
-            WHERE c.relname = '${tableName}'
-            AND n.nspname = '${schemaName}'
+            WHERE c.relname = $1
+            AND n.nspname = $2
             AND a.attnum > 0
             AND NOT a.attisdropped
-            ORDER BY a.attnum
-        `);
+            ORDER BY a.attnum`,
+            [tableName, schemaName]
+        );
 
         return result.rows.map((row) => ({
             name: row.column_name as string,
@@ -226,12 +249,11 @@ export class PostgresProvider implements DatabaseConnection {
     async getForeignKeys(table: string, database?: string): Promise<ForeignKeyInfo[]> {
         // Parse schema.table format
         const parts = table.split('.');
-        const schemaName = parts.length > 1 ? parts[0].replace(/'/g, "''") : 'public';
-        const tableName = (parts.length > 1 ? parts[1] : parts[0]).replace(/'/g, "''");
+        const schemaName = parts.length > 1 ? parts[0] : 'public';
+        const tableName = parts.length > 1 ? parts[1] : parts[0];
 
-        // Use pg_catalog for more reliable foreign key detection
-        // Use unnest with ordinality to properly match composite key columns
-        const result = await this.executeQueryOnDatabase(database || this.currentDatabase, `
+        // Use parameterized query to prevent SQL injection
+        const result = await this.executeQueryOnDatabaseParameterized(database || this.currentDatabase, `
             SELECT
                 con.conname as "constraintName",
                 att.attname as "columnName",
@@ -245,9 +267,10 @@ export class PostgresProvider implements DatabaseConnection {
             JOIN pg_catalog.pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = cols.conkey
             JOIN pg_catalog.pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = cols.confkey
             WHERE con.contype = 'f'
-                AND c.relname = '${tableName}'
-                AND n.nspname = '${schemaName}'
-        `);
+                AND c.relname = $1
+                AND n.nspname = $2`,
+            [tableName, schemaName]
+        );
 
         return result.rows.map(row => ({
             constraintName: row.constraintName as string,
@@ -257,24 +280,88 @@ export class PostgresProvider implements DatabaseConnection {
         }));
     }
 
-    private async establishSSHTunnel(): Promise<void> {
+    /**
+     * Execute a parameterized query on a specific database
+     */
+    private async executeQueryOnDatabaseParameterized(database: string, query: string, params: unknown[]): Promise<QueryResult> {
+        if (!database || database === this.currentDatabase) {
+            if (!this.client) {
+                throw new Error('Not connected to database');
+            }
+            const startTime = Date.now();
+            const result = await this.client.query(query, params);
+            const executionTime = Date.now() - startTime;
+            return {
+                rows: result.rows,
+                fields: result.fields.map(f => ({
+                    name: f.name,
+                    type: String(f.dataTypeID),
+                    table: f.tableID ? String(f.tableID) : undefined
+                })),
+                rowCount: result.rowCount || 0,
+                executionTime
+            };
+        }
+
+        const tempClient = new Client({
+            host: this.config.host,
+            port: this.config.port || 5432,
+            user: this.config.username,
+            password: this.config.password,
+            database: database,
+            connectionTimeoutMillis: 10000
+        });
+
+        try {
+            await tempClient.connect();
+            const startTime = Date.now();
+            const result = await tempClient.query(query, params);
+            const executionTime = Date.now() - startTime;
+            return {
+                rows: result.rows,
+                fields: result.fields.map(f => ({
+                    name: f.name,
+                    type: String(f.dataTypeID),
+                    table: f.tableID ? String(f.tableID) : undefined
+                })),
+                rowCount: result.rowCount || 0,
+                executionTime
+            };
+        } finally {
+            await tempClient.end();
+        }
+    }
+
+    private async establishSSHTunnel(): Promise<{ host: string; port: number }> {
         return new Promise((resolve, reject) => {
             this.sshClient = new SSHClient();
 
             this.sshClient.on('ready', () => {
-                this.sshClient!.forwardOut(
-                    '127.0.0.1',
-                    0,
-                    this.config.host,
-                    this.config.port || 5432,
-                    (err) => {
-                        if (err) {
-                            reject(new Error(`SSH tunnel failed: ${err.message}`));
-                            return;
+                // Create a local TCP server that forwards to the remote DB via SSH
+                this.sshServer = net.createServer((sock) => {
+                    this.sshClient!.forwardOut(
+                        sock.remoteAddress || '127.0.0.1',
+                        sock.remotePort || 0,
+                        this.config.host,
+                        this.config.port || 5432,
+                        (err, stream) => {
+                            if (err) {
+                                sock.end();
+                                return;
+                            }
+                            sock.pipe(stream).pipe(sock);
                         }
-                        resolve();
-                    }
-                );
+                    );
+                });
+
+                this.sshServer!.listen(0, '127.0.0.1', () => {
+                    const addr = this.sshServer!.address() as net.AddressInfo;
+                    resolve({ host: '127.0.0.1', port: addr.port });
+                });
+
+                this.sshServer!.on('error', (err) => {
+                    reject(new Error(`SSH tunnel server failed: ${err.message}`));
+                });
             });
 
             this.sshClient.on('error', (err) => {

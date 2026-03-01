@@ -9,9 +9,10 @@ export async function run(): Promise<void> {
         timeout: 10000
     });
 
-    const testsRoot = path.resolve(__dirname, '.');
+    // Use parent directory to include both suite/ and unit/ test directories
+    const testsRoot = path.resolve(__dirname, '..');
 
-    const files = await glob('**/**.test.js', { cwd: testsRoot });
+    const files = await glob('**/*.test.js', { cwd: testsRoot });
 
     files.forEach((f: string) => mocha.addFile(path.resolve(testsRoot, f)));
 

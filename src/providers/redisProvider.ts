@@ -183,11 +183,9 @@ export class RedisProvider implements DatabaseConnection {
                     result = await this.client.dbSize();
                     break;
                 case 'FLUSHDB':
-                    result = await this.client.flushDb();
-                    break;
+                    throw new Error('FLUSHDB is a destructive command that deletes all keys in the current database. Use the Redis CLI directly if you intend to execute this command.');
                 case 'FLUSHALL':
-                    result = await this.client.flushAll();
-                    break;
+                    throw new Error('FLUSHALL is a destructive command that deletes all keys in all databases. Use the Redis CLI directly if you intend to execute this command.');
                 case 'TTL':
                     result = await this.client.ttl(commandArgs[0]);
                     break;
@@ -291,7 +289,9 @@ export class RedisProvider implements DatabaseConnection {
     private buildConnectionUrl(): string {
         const { host, port, username, password, database } = this.config;
         const auth = password
-            ? (username ? `${username}:${password}@` : `:${password}@`)
+            ? (username
+                ? `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`
+                : `:${encodeURIComponent(password)}@`)
             : '';
         const db = database ? `/${database}` : '';
 

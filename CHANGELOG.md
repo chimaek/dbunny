@@ -5,6 +5,54 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-01
+
+### Security
+
+- **SQL Injection Prevention**: All SQL providers now use parameterized queries or validated identifiers
+  - MySQL: `getForeignKeys` uses `execute()` with `?` placeholders instead of string interpolation
+  - PostgreSQL: `getTableSchema`, `getForeignKeys` use `$1` parameterized queries via new `executeQueryOnDatabaseParameterized` method
+  - H2: `getTables`, `getTableSchema`, `getForeignKeys` use validated string interpolation with `UPPER()` for case-insensitive matching (H2's PG protocol does not support `$1` parameterized queries for INFORMATION_SCHEMA)
+  - SQLite: Added identifier validation (`/^[\w.]+$/`) for `getTableSchema`, `getCreateTableStatement`, `getForeignKeys`
+- **SSH Tunnel Fix**: Completely rewritten SSH tunnel implementation for MySQL and PostgreSQL
+  - Previous implementation was non-functional (forwarded stream was discarded)
+  - Now creates a local TCP server that properly bridges traffic through the SSH tunnel
+  - DB client connects to `127.0.0.1:<dynamic_port>` which tunnels through SSH to the remote DB
+- **XSS Prevention**: Fixed cross-site scripting vulnerabilities in webview panels
+  - `ConnectionFormPanel`: Added `_escapeHtml` method; all config values (`name`, `host`, `username`, `database`, `id`, `type`, SSH fields, H2 fields) are now properly escaped before HTML insertion
+  - `QueryTabPanel`: `formatValue()` now escapes HTML via `escapeHtml()` to prevent malicious DB content from executing scripts
+- **Redis**: Blocked destructive `FLUSHDB` and `FLUSHALL` commands with descriptive error messages
+- **Redis**: Fixed URL credential encoding using `encodeURIComponent()` to handle special characters in passwords
+
+### Fixed
+
+- **Extension Lifecycle**: `deactivate()` now properly cleans up active database connections and disposes event emitters
+  - Added `dispose()` method to `ConnectionManager` for proper resource cleanup
+  - Event listener disposables are now tracked in `context.subscriptions`
+- **SQLite**: Database file writes now use atomic write pattern (temp file + rename) to prevent corruption on crash
+- **SQLite**: `connect()` now creates new database files when the specified path doesn't exist
+- **MySQL/PostgreSQL/H2**: `disconnect()` now wraps close operations in try/catch to prevent unhandled errors
+- **H2Provider**: Now properly exported from `providers/index.ts`
+- **H2Provider**: Fixed `getTableSchema` query — H2 v2.x uses `INDEXES` + `INDEX_COLUMNS` instead of `PRIMARY_KEY` column
+- **H2Provider**: Fixed `getForeignKeys` — H2 v2.x uses `REFERENTIAL_CONSTRAINTS` + `KEY_COLUMN_USAGE` instead of `CROSS_REFERENCES`
+- **H2Provider**: Fixed metadata queries for PG protocol mode (lowercase schema/table names, `BASE TABLE` type)
+- **H2Provider**: Added `error` event handler to PG client to prevent uncaught exceptions
+- **MongoDB**: Added `authSource=admin` to connection URI for proper authentication when connecting to non-admin databases
+- **MongoDB**: Fixed tree view collection preview not showing data — `executeQuery` now receives `databaseName` from tree item context
+- **ConnectionManager**: `getSupportedTypes()` now includes `'h2'`
+
+### Added
+
+- **MongoDB Shell Syntax**: `db.collection.method()` 형식의 MongoDB Shell 구문 지원
+  - `find`, `findOne`, `insertOne`, `insertMany`, `updateOne`, `updateMany`, `deleteOne`, `deleteMany`, `countDocuments`, `aggregate`, `drop` 메서드 지원
+  - `.limit(N)`, `.sort({...})` 체인 메서드 지원
+  - 기존 JSON runCommand 형식도 그대로 사용 가능
+- **Docker Test Environment**: 테스트용 Docker Compose 환경 구축
+  - MySQL 8.0, PostgreSQL 16, MongoDB 7, Redis 7, H2 컨테이너 구성
+  - 초기 시드 데이터 스크립트 (`docker-init/`) — MySQL, PostgreSQL, MongoDB 각각 users, posts 등 테이블/컬렉션 자동 생성
+- Comprehensive unit test suite covering all database providers, connection manager, and encryption service
+- Integration test suite (`src/test/integration/run-all.ts`) — 6개 DB 프로바이더 대상 121개 테스트 케이스 (실제 Docker 컨테이너 연동)
+
 ## [1.8.1] - 2026-01-15
 
 ### Fixed

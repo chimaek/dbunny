@@ -349,10 +349,10 @@ db.collectionName.find({})
                     }
                 } else if (dbType === 'mongodb') {
                     // For MongoDB, query the collection
-                    query = `db.${keyName}.find({}).limit(100)`;
+                    query = `db.${keyName}.find({}).limit(50)`;
                 }
 
-                const result = await activeConnection.executeQuery(query);
+                const result = await activeConnection.executeQuery(query, item.databaseName);
                 resultPanel.updateResults(query, result);
 
             } catch (error) {

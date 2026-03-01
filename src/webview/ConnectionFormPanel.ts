@@ -601,7 +601,7 @@ export class ConnectionFormPanel {
                     <span class="name">H2</span>
                 </div>
             </div>
-            <input type="hidden" id="type" name="type" value="${config?.type || 'mysql'}">
+            <input type="hidden" id="type" name="type" value="${this._escapeHtml(config?.type || 'mysql')}">
 
             <!-- Basic Info -->
             <div class="form-section">
@@ -611,7 +611,7 @@ export class ConnectionFormPanel {
                         ${t.connectionName}
                         <span class="required">*</span>
                     </label>
-                    <input type="text" id="name" name="name" required value="${config?.name || ''}" placeholder="${t.connectionNamePlaceholder}">
+                    <input type="text" id="name" name="name" required value="${this._escapeHtml(config?.name || '')}" placeholder="${t.connectionNamePlaceholder}">
                 </div>
             </div>
 
@@ -624,7 +624,7 @@ export class ConnectionFormPanel {
                             ${t.host}
                             <span class="required">*</span>
                         </label>
-                        <input type="text" id="host" name="host" value="${config?.host || 'localhost'}" placeholder="localhost">
+                        <input type="text" id="host" name="host" value="${this._escapeHtml(config?.host || 'localhost')}" placeholder="localhost">
                     </div>
                     <div class="form-group">
                         <label for="port">
@@ -641,7 +641,7 @@ export class ConnectionFormPanel {
                             ${t.username}
                             <span class="hint">(${t.optional})</span>
                         </label>
-                        <input type="text" id="username" name="username" value="${config?.username || ''}" placeholder="root">
+                        <input type="text" id="username" name="username" value="${this._escapeHtml(config?.username || '')}" placeholder="root">
                     </div>
                     <div class="form-group">
                         <label for="password">
@@ -657,7 +657,7 @@ export class ConnectionFormPanel {
                         ${t.database}
                         <span class="hint">(${t.optional})</span>
                     </label>
-                    <input type="text" id="database" name="database" value="${config?.database || ''}" placeholder="mydb">
+                    <input type="text" id="database" name="database" value="${this._escapeHtml(config?.database || '')}" placeholder="mydb">
                 </div>
             </div>
 
@@ -670,7 +670,7 @@ export class ConnectionFormPanel {
                         <span class="required">*</span>
                     </label>
                     <div class="file-input-row">
-                        <input type="text" id="sqlitePath" name="sqlitePath" value="${config?.database || ''}" placeholder="/path/to/database.db">
+                        <input type="text" id="sqlitePath" name="sqlitePath" value="${this._escapeHtml(config?.database || '')}" placeholder="/path/to/database.db">
                         <button type="button" class="btn-browse" onclick="browseFile()">📂 Browse</button>
                     </div>
                 </div>
@@ -691,7 +691,7 @@ export class ConnectionFormPanel {
                         <span id="h2DbPathLabel">Database Name</span>
                         <span class="hint">(${t.optional})</span>
                     </label>
-                    <input type="text" id="h2DbPath" name="h2DbPath" value="${config?.h2Mode?.dbPath || ''}" placeholder="testdb">
+                    <input type="text" id="h2DbPath" name="h2DbPath" value="${this._escapeHtml(config?.h2Mode?.dbPath || '')}" placeholder="testdb">
                 </div>
                 <div class="form-group">
                     <div style="font-size: 0.85rem; color: var(--vscode-descriptionForeground); padding: 0.75rem; background: var(--vscode-editor-background); border-radius: 0.4rem; line-height: 1.6;">
@@ -719,7 +719,7 @@ export class ConnectionFormPanel {
                 <div class="row">
                     <div class="form-group">
                         <label for="sshHost">${t.sshHost}</label>
-                        <input type="text" id="sshHost" name="sshHost" value="${config?.ssh?.host || ''}" placeholder="bastion.example.com">
+                        <input type="text" id="sshHost" name="sshHost" value="${this._escapeHtml(config?.ssh?.host || '')}" placeholder="bastion.example.com">
                     </div>
                     <div class="form-group">
                         <label for="sshPort">${t.sshPort}</label>
@@ -729,7 +729,7 @@ export class ConnectionFormPanel {
                 <div class="row equal">
                     <div class="form-group">
                         <label for="sshUsername">${t.sshUsername}</label>
-                        <input type="text" id="sshUsername" name="sshUsername" value="${config?.ssh?.username || ''}" placeholder="ubuntu">
+                        <input type="text" id="sshUsername" name="sshUsername" value="${this._escapeHtml(config?.ssh?.username || '')}" placeholder="ubuntu">
                     </div>
                     <div class="form-group">
                         <label for="sshPassword">${t.sshPassword}</label>
@@ -864,7 +864,7 @@ export class ConnectionFormPanel {
         function getFormData() {
             const type = typeInput.value;
             const data = {
-                id: '${config?.id || ''}',
+                id: '${this._escapeHtml(config?.id || '')}',
                 name: document.getElementById('name').value,
                 type: type,
                 host: type === 'sqlite' ? 'localhost' : document.getElementById('host').value,
@@ -934,10 +934,19 @@ export class ConnectionFormPanel {
         });
 
         // Initialize with current type
-        selectDbType('${config?.type || 'mysql'}');
+        selectDbType('${this._escapeHtml(config?.type || 'mysql')}');
     </script>
 </body>
 </html>`;
+    }
+
+    private _escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     public dispose(): void {

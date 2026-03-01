@@ -103,7 +103,25 @@ Right-click on connections:
 
 - Passwords encrypted with AES-256-GCM
 - Encryption keys stored in VS Code secure storage
+- SQL injection prevention with parameterized queries and validated identifiers
+- XSS prevention in all WebView panels (HTML escaping)
+- Redis destructive commands (`FLUSHDB`, `FLUSHALL`) blocked
 - No data sent to external servers
+
+## Testing
+
+Docker Compose를 이용한 통합 테스트 환경을 제공합니다.
+
+```bash
+# 테스트용 DB 컨테이너 실행 (MySQL, PostgreSQL, MongoDB, Redis, H2)
+docker compose up -d
+
+# 통합 테스트 실행 (6개 DB 대상 121개 테스트)
+npx tsx src/test/integration/run-all.ts
+```
+
+- 초기 시드 데이터 자동 생성 (`docker-init/`)
+- 단위 테스트: `npm test`
 
 ## License
 

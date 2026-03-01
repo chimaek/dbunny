@@ -7,6 +7,8 @@ import { I18n } from './utils/i18n';
 import { registerCommands } from './commands';
 import { registerCompletionProvider } from './providers/completionProvider';
 
+let connectionManagerInstance: ConnectionManager | null = null;
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     console.log('DBunny extension is now active!');
 
@@ -16,6 +18,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Initialize connection manager
     const connectionManager = new ConnectionManager(context);
+    connectionManagerInstance = connectionManager;
 
     // Register tree view providers
     const connectionTreeProvider = new ConnectionTreeProvider(connectionManager, i18n);
@@ -45,8 +48,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     statusBarItem.show();
     context.subscriptions.push(statusBarItem);
 
-    // Listen for connection changes
-    connectionManager.onDidChangeConnection((connection) => {
+    // Listen for connection changes and track disposable
+    const connectionChangeDisposable = connectionManager.onDidChangeConnection((connection) => {
         if (connection) {
             statusBarItem.text = `$(database) DBunny: ${connection.config.name}`;
             statusBarItem.tooltip = i18n.t('status.connected', { name: connection.config.name });
@@ -56,11 +59,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
         connectionTreeProvider.refresh();
     });
+    context.subscriptions.push(connectionChangeDisposable);
+
+    // Register cleanup on deactivation
+    context.subscriptions.push({
+        dispose: () => {
+            connectionManager.dispose();
+            connectionManagerInstance = null;
+        }
+    });
 
     // Show welcome message
     vscode.window.showInformationMessage(i18n.t('messages.welcome'));
 }
 
 export function deactivate(): void {
+    if (connectionManagerInstance) {
+        connectionManagerInstance.dispose();
+        connectionManagerInstance = null;
+    }
     console.log('DBunny extension is now deactivated. Goodbye!');
 }
