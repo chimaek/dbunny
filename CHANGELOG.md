@@ -43,15 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **MongoDB Shell Syntax**: `db.collection.method()` 형식의 MongoDB Shell 구문 지원
-  - `find`, `findOne`, `insertOne`, `insertMany`, `updateOne`, `updateMany`, `deleteOne`, `deleteMany`, `countDocuments`, `aggregate`, `drop` 메서드 지원
-  - `.limit(N)`, `.sort({...})` 체인 메서드 지원
-  - 기존 JSON runCommand 형식도 그대로 사용 가능
-- **Docker Test Environment**: 테스트용 Docker Compose 환경 구축
-  - MySQL 8.0, PostgreSQL 16, MongoDB 7, Redis 7, H2 컨테이너 구성
-  - 초기 시드 데이터 스크립트 (`docker-init/`) — MySQL, PostgreSQL, MongoDB 각각 users, posts 등 테이블/컬렉션 자동 생성
+- **MongoDB Shell Syntax**: Support for `db.collection.method()` style MongoDB Shell commands
+  - Supported methods: `find`, `findOne`, `insertOne`, `insertMany`, `updateOne`, `updateMany`, `deleteOne`, `deleteMany`, `countDocuments`, `aggregate`, `drop`
+  - Chaining methods: `.limit(N)`, `.sort({...})`
+  - Existing JSON runCommand format remains supported
+- **Docker Test Environment**: Docker Compose environment for testing
+  - MySQL 8.0, PostgreSQL 16, MongoDB 7, Redis 7, H2 containers
+  - Seed data scripts (`docker-init/`) — auto-creates tables/collections (users, posts, etc.) for MySQL, PostgreSQL, MongoDB
 - Comprehensive unit test suite covering all database providers, connection manager, and encryption service
-- Integration test suite (`src/test/integration/run-all.ts`) — 6개 DB 프로바이더 대상 121개 테스트 케이스 (실제 Docker 컨테이너 연동)
+- Integration test suite (`src/test/integration/run-all.ts`) — 121 test cases across 6 DB providers with live Docker containers
 
 ## [1.8.1] - 2026-01-15
 
