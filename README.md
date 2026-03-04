@@ -2,163 +2,291 @@
 
 > "Hop into your databases!"
 
-A fast and friendly database management extension for VS Code.
-빠르고 친근한 VS Code 데이터베이스 관리 확장 프로그램입니다.
-
 ![DBunny](https://files.chimaek.net/api/public/dl/wcwMPDWj?inline=true)
 
-## Supported Databases / 지원 데이터베이스
+**[English](#english)** | **[한국어](#한국어)**
 
-- MySQL
-- PostgreSQL
-- SQLite
-- H2 (via PostgreSQL wire protocol)
-- MongoDB
-- Redis
+---
 
-## Key Features / 주요 기능
+## English
 
-### Database Management / 데이터베이스 관리
+A fast and friendly database management extension for VS Code. Connect to 6 different databases, write queries, visualize schemas, and manage your data — all without leaving the editor.
 
-- **Connection Manager**: Add, edit, delete connections with encrypted passwords
-  커넥션 매니저: 암호화된 비밀번호로 연결 추가, 수정, 삭제
-- **Connection Grouping**: Organize connections into folders (dev/staging/prod)
-  커넥션 그룹: 폴더별 연결 정리 (dev/staging/prod)
-- **SSH Tunneling**: Secure remote database connections
-  SSH 터널링: 안전한 원격 데이터베이스 연결
-- **Schema Explorer**: Browse databases, tables, and columns in tree view
-  스키마 탐색기: 트리 뷰로 데이터베이스, 테이블, 컬럼 탐색
+### Supported Databases
 
-### Query Tools / 쿼리 도구
+| Database | Port | Driver |
+|----------|------|--------|
+| MySQL | 3306 | mysql2 |
+| PostgreSQL | 5432 | pg |
+| SQLite | - | sql.js (WebAssembly) |
+| H2 | 5435 | pg (PostgreSQL wire protocol) |
+| MongoDB | 27017 | mongodb |
+| Redis | 6379 | redis |
 
-- **Query Editor**: Write and execute SQL with syntax highlighting
-  쿼리 편집기: 구문 강조 기능으로 SQL 작성 및 실행
-- **Multi-Tab Query**: Work with multiple query tabs simultaneously
-  멀티탭 쿼리: 여러 쿼리 탭을 동시에 사용
-- **Query History**: Track and reuse previously executed queries
-  쿼리 히스토리: 이전 실행 쿼리 추적 및 재사용
-- **Query Bookmarks**: Save frequently used queries with categories
-  쿼리 북마크: 카테고리별 자주 사용하는 쿼리 저장
-- **SQL Formatter**: Auto-format SQL (Shift+Alt+F)
-  SQL 포매터: SQL 자동 정렬 (Shift+Alt+F)
-- **Execution Plan**: View EXPLAIN results (Ctrl+Shift+E)
-  실행 계획: EXPLAIN 결과 확인 (Ctrl+Shift+E)
-- **Result Filtering**: Search and filter query results (Ctrl+F)
-  결과 필터링: 쿼리 결과 검색 및 필터 (Ctrl+F)
-- **Column Management**: Hide, show, and reorder result columns
-  컬럼 관리: 결과 컬럼 숨기기, 표시, 순서 변경
+### Features
 
-### Visualization / 시각화
+#### Connection Management
 
-- **ERD Diagram**: Visualize table relationships
-  ERD 다이어그램: 테이블 관계 시각화
-  - Multiple layouts: Grid, Relationship, Hierarchical, Circular
-    다양한 레이아웃: 그리드, 관계형, 계층형, 원형
-  - Drag & drop positioning / 드래그 앤 드롭 배치
-  - Export to SVG/PNG / SVG/PNG 내보내기
-- **Visual Table Editor**: Edit data directly with GUI
-  비주얼 테이블 편집기: GUI로 데이터 직접 편집
+- **Encrypted Storage** — Passwords secured with AES-256-GCM, keys stored in VS Code SecretStorage
+- **Connection Grouping** — Organize into folders (dev / staging / prod)
+- **SSH Tunneling** — Connect to remote databases through SSH tunnel (local TCP server based)
+- **Schema Explorer** — Browse databases, tables, and columns in a tree view
+- **Table Favorites** — Star frequently used tables for quick access
 
-### Development Tools / 개발 도구
+#### Query Editor
 
-- **Schema Compare**: Compare schemas between databases with diff view
-  스키마 비교: 데이터베이스 간 스키마 차이점 비교
-- **Mock Data Generator**: Generate test data with various data types
-  목 데이터 생성기: 다양한 데이터 타입의 테스트 데이터 생성
-- **DB Migration**: Create and manage database migrations
-  DB 마이그레이션: 데이터베이스 마이그레이션 생성 및 관리
-- **Copy Table Schema**: Copy CREATE TABLE statement
-  테이블 스키마 복사: CREATE TABLE 구문 복사
+- **Multi-Tab Query Editor** — Open multiple query tabs with per-tab connection assignment (Ctrl+Alt+T)
+- **SQL Autocomplete** — Schema-aware suggestions for tables, columns, and keywords
+- **SQL CodeLens** — Inline "Run Query" button above each SQL statement
+- **SQL Formatter** — Auto-format SQL with keyword uppercase and proper indentation (Shift+Alt+F)
+- **Query Execution Plan** — EXPLAIN support for MySQL, PostgreSQL, SQLite (Ctrl+Alt+E)
+- **Query History** — Track and reuse previously executed queries
+- **Query Bookmarks** — Save frequently used queries with categories
+- **MongoDB Shell Syntax** — `db.collection.find()` style commands with chaining (`.limit()`, `.sort()`)
 
-### Monitoring / 모니터링
+#### Query Results
 
-- **Real-time Monitor**: View active processes and server status (MySQL/PostgreSQL)
-  실시간 모니터: 활성 프로세스 및 서버 상태 확인 (MySQL/PostgreSQL)
-- **Process Management**: Kill long-running queries
-  프로세스 관리: 장시간 실행 쿼리 종료
+- **Inline Cell Editing** — Double-click to edit, Tab/Enter to navigate, Ctrl+S to save
+- **Cell Expand View** — View long text and JSON with syntax highlighting in a modal
+- **Multi-Row Selection** — Ctrl+Click to select, Delete to remove, Ctrl+C to copy
+- **Result Filtering** — Global search (Ctrl+F) and per-column filter with value selection
+- **Column Management** — Hide/show columns, drag-and-drop reorder, settings saved per query
+- **Sorting** — Click column header for ascending/descending, NULL value handling
+- **Export** — CSV and JSON export respecting column visibility and filters
 
-## Quick Start / 빠른 시작
+#### Visualization
 
-1. Click **DBunny** icon in Activity Bar
-   Activity Bar에서 **DBunny** 아이콘 클릭
-2. Click **+** to add connection
-   **+** 버튼으로 연결 추가
-3. Select database type and enter credentials
-   데이터베이스 유형 선택 후 인증 정보 입력
-4. Click **Save & Connect**
-   **Save & Connect** 클릭
+- **ERD Diagram** — Visualize table relationships with foreign key connections
+  - 4 layouts: Grid, Relationship, Hierarchical, Circular
+  - Orthogonal line routing to prevent overlapping
+  - Drag & drop positioning with smooth animations
+  - Export to SVG and PNG
+- **Visual Table Editor** — GUI-based data editing with pending changes highlight
+- **Schema Compare** — Side-by-side schema diff with Markdown report export
 
-## Keyboard Shortcuts / 키보드 단축키
+#### Development Tools
 
-| Action | Windows/Linux | Mac |
-|--------|---------------|-----|
-| Execute Query / 쿼리 실행 | `Ctrl+Enter` / `F5` | `Cmd+Enter` / `F5` |
-| New Query / 새 쿼리 | `Ctrl+Alt+N` | `Cmd+Option+N` |
-| Multi-Tab Query / 멀티탭 쿼리 | `Ctrl+Alt+T` | `Cmd+Option+T` |
-| Add Connection / 연결 추가 | `Ctrl+Alt+D` | `Cmd+Option+D` |
-| Save Query / 쿼리 저장 | `Ctrl+Alt+S` | `Cmd+Option+S` |
-| Execution Plan / 실행 계획 | `Ctrl+Alt+E` | `Cmd+Option+E` |
-| Format SQL / SQL 정렬 | `Shift+Alt+F` | `Shift+Option+F` |
-| Search Results / 결과 검색 | `Ctrl+F` | `Cmd+F` |
+- **Mock Data Generator** — Generate test data with various types (names, emails, dates, numbers, etc.)
+- **DB Migration** — Version-managed UP/DOWN scripts with rollback and SQL export
+- **Copy Table Schema** — Copy CREATE TABLE statement to clipboard
 
-## Context Menu / 컨텍스트 메뉴
+#### Monitoring
 
-Right-click on tables: / 테이블 우클릭:
+- **Real-time Monitor** — View active processes and server status dashboard (MySQL / PostgreSQL)
+- **Process Management** — Kill long-running queries directly from the monitor
+- **Auto-refresh** — Configurable refresh intervals
 
-- Edit Table Data / 테이블 데이터 편집
-- Copy Table Schema / 테이블 스키마 복사
-- Show ERD Diagram / ERD 다이어그램 표시
-- Generate Mock Data / 목 데이터 생성
-- Query Execution Plan / 쿼리 실행 계획
+#### Security
 
-Right-click on connections: / 연결 우클릭:
-
-- Show Real-time Monitor / 실시간 모니터 표시
-- Compare Schema / 스키마 비교
-- DB Migration / DB 마이그레이션
-
-## Settings / 설정
-
-| Setting | Default | Description / 설명 |
-|---------|---------|-------------|
-| `dbunny.queryTimeout` | 30000 | Query timeout (ms) / 쿼리 타임아웃 (ms) |
-| `dbunny.maxResults` | 1000 | Max result rows / 최대 결과 행 수 |
-| `dbunny.language` | auto | UI language (auto/en/ko) / UI 언어 (auto/en/ko) |
-
-## Security / 보안
-
-- Passwords encrypted with AES-256-GCM
-  AES-256-GCM으로 비밀번호 암호화
-- Encryption keys stored in VS Code secure storage
-  VS Code 보안 저장소에 암호화 키 저장
+- AES-256-GCM password encryption
 - SQL injection prevention with parameterized queries and validated identifiers
-  파라미터화된 쿼리와 식별자 검증으로 SQL 인젝션 방지
-- XSS prevention in all WebView panels (HTML escaping)
-  모든 WebView 패널에서 XSS 방지 (HTML 이스케이핑)
+- XSS prevention with HTML escaping in all WebView panels
+- Content Security Policy headers on all WebViews
 - Redis destructive commands (`FLUSHDB`, `FLUSHALL`) blocked
-  Redis 파괴적 명령어 (`FLUSHDB`, `FLUSHALL`) 차단
 - No data sent to external servers
-  외부 서버로 데이터 전송 없음
 
-## Testing / 테스트
+### Quick Start
 
-Integration test environment using Docker Compose.
-Docker Compose를 이용한 통합 테스트 환경을 제공합니다.
+1. Click the **DBunny** icon in the Activity Bar
+2. Click **+** to add a new connection
+3. Select database type and enter credentials
+4. Click **Save & Connect**
+
+### Keyboard Shortcuts
+
+| Action | Windows / Linux | Mac |
+|--------|-----------------|-----|
+| Execute Query | `Ctrl+Enter` / `F5` | `Cmd+Enter` / `F5` |
+| New Query | `Ctrl+Alt+N` | `Cmd+Option+N` |
+| Multi-Tab Query | `Ctrl+Alt+T` | `Cmd+Option+T` |
+| Add Connection | `Ctrl+Alt+D` | `Cmd+Option+D` |
+| Save Query | `Ctrl+Alt+S` | `Cmd+Option+S` |
+| Execution Plan | `Ctrl+Alt+E` | `Cmd+Option+E` |
+| Format SQL | `Shift+Alt+F` | `Shift+Option+F` |
+| Search Results | `Ctrl+F` | `Cmd+F` |
+
+### Context Menu
+
+**Right-click on tables:**
+
+- Edit Table Data
+- Copy Table Schema
+- Show ERD Diagram
+- Generate Mock Data
+- Query Execution Plan
+
+**Right-click on connections:**
+
+- Show Real-time Monitor
+- Compare Schema
+- DB Migration
+
+### Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `dbunny.queryTimeout` | 30000 | Query timeout in milliseconds |
+| `dbunny.maxResults` | 1000 | Maximum result rows returned |
+| `dbunny.language` | auto | UI language (auto / en / ko) |
+
+### Testing
 
 ```bash
 # Start test DB containers (MySQL, PostgreSQL, MongoDB, Redis, H2)
-# 테스트용 DB 컨테이너 실행 (MySQL, PostgreSQL, MongoDB, Redis, H2)
 docker compose up -d
 
 # Run integration tests (121 tests across 6 DBs)
-# 통합 테스트 실행 (6개 DB 대상 121개 테스트)
 npx tsx src/test/integration/run-all.ts
+
+# Unit tests
+npm test
 ```
 
-- Seed data auto-generated (`docker-init/`)
-  초기 시드 데이터 자동 생성 (`docker-init/`)
-- Unit tests: `npm test`
-  단위 테스트: `npm test`
+### Upcoming Features
+
+See [ROADMAP.md](ROADMAP.md) for the full version-by-version plan.
+
+---
+
+## 한국어
+
+VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고, 스키마를 시각화하고, 데이터를 관리할 수 있는 빠르고 친근한 확장 프로그램입니다.
+
+### 지원 데이터베이스
+
+| 데이터베이스 | 포트 | 드라이버 |
+|-------------|------|----------|
+| MySQL | 3306 | mysql2 |
+| PostgreSQL | 5432 | pg |
+| SQLite | - | sql.js (WebAssembly) |
+| H2 | 5435 | pg (PostgreSQL 와이어 프로토콜) |
+| MongoDB | 27017 | mongodb |
+| Redis | 6379 | redis |
+
+### 기능
+
+#### 연결 관리
+
+- **암호화 저장** — AES-256-GCM으로 비밀번호 암호화, VS Code SecretStorage에 키 저장
+- **연결 그룹화** — 폴더별 정리 (dev / staging / prod)
+- **SSH 터널링** — SSH 터널을 통한 원격 데이터베이스 연결 (로컬 TCP 서버 기반)
+- **스키마 탐색기** — 트리 뷰로 데이터베이스, 테이블, 컬럼 탐색
+- **테이블 즐겨찾기** — 별표로 자주 사용하는 테이블 상단 고정
+
+#### 쿼리 편집기
+
+- **멀티탭 쿼리 에디터** — 탭별 연결 할당, 여러 쿼리를 동시에 작업 (Ctrl+Alt+T)
+- **SQL 자동완성** — 스키마 인식 기반 테이블, 컬럼, 키워드 자동 제안
+- **SQL CodeLens** — 각 SQL 구문 위에 인라인 "Run Query" 버튼 표시
+- **SQL 포매터** — 키워드 대문자화, 자동 들여쓰기 (Shift+Alt+F)
+- **쿼리 실행 계획** — MySQL, PostgreSQL, SQLite EXPLAIN 지원 (Ctrl+Alt+E)
+- **쿼리 히스토리** — 이전 실행 쿼리 추적 및 재사용
+- **쿼리 북마크** — 카테고리별 자주 사용하는 쿼리 저장
+- **MongoDB Shell 문법** — `db.collection.find()` 스타일 명령어, 체이닝 지원 (`.limit()`, `.sort()`)
+
+#### 쿼리 결과
+
+- **인라인 셀 편집** — 더블클릭으로 수정, Tab/Enter로 이동, Ctrl+S로 저장
+- **셀 확장 뷰** — 긴 텍스트와 JSON을 구문 강조 모달로 표시
+- **멀티행 선택** — Ctrl+Click으로 선택, Delete로 삭제, Ctrl+C로 복사
+- **결과 필터링** — 전체 검색 (Ctrl+F) 및 컬럼별 값 선택 필터
+- **컬럼 관리** — 숨기기/표시, 드래그앤드롭 순서 변경, 쿼리별 설정 저장
+- **정렬** — 컬럼 헤더 클릭으로 오름/내림차순, NULL 값 처리
+- **내보내기** — 컬럼 가시성과 필터를 반영한 CSV, JSON 내보내기
+
+#### 시각화
+
+- **ERD 다이어그램** — FK 기반 테이블 관계 시각화
+  - 4가지 레이아웃: Grid, Relationship, Hierarchical, Circular
+  - 직교선 라우팅으로 테이블 겹침 방지
+  - 드래그앤드롭 배치, 부드러운 애니메이션
+  - SVG, PNG 내보내기
+- **비주얼 테이블 편집기** — 변경 사항 하이라이트가 있는 GUI 기반 데이터 편집
+- **스키마 비교** — 나란히 비교하는 스키마 Diff 뷰, Markdown 리포트 내보내기
+
+#### 개발 도구
+
+- **목 데이터 생성기** — 이름, 이메일, 날짜, 숫자 등 다양한 타입의 테스트 데이터 생성
+- **DB 마이그레이션** — 버전 관리 기반 UP/DOWN 스크립트, 롤백 및 SQL 내보내기
+- **테이블 스키마 복사** — CREATE TABLE 구문을 클립보드에 복사
+
+#### 모니터링
+
+- **실시간 모니터** — 활성 프로세스 및 서버 상태 대시보드 (MySQL / PostgreSQL)
+- **프로세스 관리** — 모니터에서 장시간 실행 쿼리 직접 종료
+- **자동 새로고침** — 설정 가능한 갱신 주기
+
+#### 보안
+
+- AES-256-GCM 비밀번호 암호화
+- 파라미터화된 쿼리 및 식별자 검증으로 SQL 인젝션 방지
+- 모든 WebView 패널에서 HTML 이스케이핑으로 XSS 방지
+- 모든 WebView에 Content Security Policy 헤더 적용
+- Redis 파괴적 명령어 (`FLUSHDB`, `FLUSHALL`) 차단
+- 외부 서버로 데이터 전송 없음
+
+### 빠른 시작
+
+1. Activity Bar에서 **DBunny** 아이콘 클릭
+2. **+** 버튼으로 새 연결 추가
+3. 데이터베이스 유형 선택 후 인증 정보 입력
+4. **Save & Connect** 클릭
+
+### 키보드 단축키
+
+| 동작 | Windows / Linux | Mac |
+|------|-----------------|-----|
+| 쿼리 실행 | `Ctrl+Enter` / `F5` | `Cmd+Enter` / `F5` |
+| 새 쿼리 | `Ctrl+Alt+N` | `Cmd+Option+N` |
+| 멀티탭 쿼리 | `Ctrl+Alt+T` | `Cmd+Option+T` |
+| 연결 추가 | `Ctrl+Alt+D` | `Cmd+Option+D` |
+| 쿼리 저장 | `Ctrl+Alt+S` | `Cmd+Option+S` |
+| 실행 계획 | `Ctrl+Alt+E` | `Cmd+Option+E` |
+| SQL 정렬 | `Shift+Alt+F` | `Shift+Option+F` |
+| 결과 검색 | `Ctrl+F` | `Cmd+F` |
+
+### 컨텍스트 메뉴
+
+**테이블 우클릭:**
+
+- 테이블 데이터 편집
+- 테이블 스키마 복사
+- ERD 다이어그램 표시
+- 목 데이터 생성
+- 쿼리 실행 계획
+
+**연결 우클릭:**
+
+- 실시간 모니터 표시
+- 스키마 비교
+- DB 마이그레이션
+
+### 설정
+
+| 설정 | 기본값 | 설명 |
+|------|--------|------|
+| `dbunny.queryTimeout` | 30000 | 쿼리 타임아웃 (밀리초) |
+| `dbunny.maxResults` | 1000 | 최대 결과 행 수 |
+| `dbunny.language` | auto | UI 언어 (auto / en / ko) |
+
+### 테스트
+
+```bash
+# 테스트용 DB 컨테이너 실행 (MySQL, PostgreSQL, MongoDB, Redis, H2)
+docker compose up -d
+
+# 통합 테스트 실행 (6개 DB 대상 121개 테스트)
+npx tsx src/test/integration/run-all.ts
+
+# 단위 테스트
+npm test
+```
+
+### 추가 예정 기능
+
+버전별 상세 계획은 [ROADMAP.md](ROADMAP.md)를 참조하세요.
+
+---
 
 ## License / 라이선스
 
