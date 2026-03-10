@@ -42,8 +42,10 @@ export class RedisProvider implements DatabaseConnection {
 
         try {
             // Switch database if specified (Redis uses 0-15)
+            // getDatabases()가 'db0'~'db15' 형식으로 반환하므로 'db' 접두사 처리
             if (database) {
-                const dbIndex = parseInt(database);
+                const cleaned = database.replace(/^db/i, '');
+                const dbIndex = parseInt(cleaned);
                 if (!isNaN(dbIndex) && dbIndex >= 0 && dbIndex <= 15) {
                     await this.client.select(dbIndex);
                 }

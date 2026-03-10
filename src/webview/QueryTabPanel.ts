@@ -2,6 +2,16 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
 import { QueryHistoryProvider } from '../views/queryHistoryView';
+import {
+    extractParameters,
+    hasParameters,
+    substituteParameters,
+    getUniqueParameterNames,
+    createEmptyConnectionData,
+    ConnectionVariableData,
+    VariableSet,
+    EnvironmentProfile
+} from '../utils/queryParameter';
 
 interface QueryTab {
     id: string;
@@ -9,6 +19,8 @@ interface QueryTab {
     query: string;
     connectionId: string | null;
     connectionName: string;
+    databaseName: string | null;
+    databases: string[];
     results: QueryResult | null;
     isExecuting: boolean;
     error: string | null;
@@ -72,8 +84,49 @@ export class QueryTabPanel {
                         await this._setTabConnection(message.tabId, message.connectionId);
                         break;
                     }
+                    case 'setDatabase': {
+                        const dbTab = this._tabs.find(t => t.id === message.tabId);
+                        if (dbTab) {
+                            dbTab.databaseName = message.databaseName || null;
+                            this._update();
+                        }
+                        break;
+                    }
                     case 'executeQuery': {
                         await this._executeQuery(message.tabId);
+                        break;
+                    }
+                    case 'executeWithParams': {
+                        // 파라미터 값이 제공된 쿼리 실행
+                        await this._executeQuery(message.tabId, message.values);
+                        break;
+                    }
+                    case 'saveVariableSet': {
+                        const tab = this._tabs.find(t => t.id === message.tabId);
+                        if (tab?.connectionId) {
+                            await this._saveVariableSet(tab.connectionId, message.setName, message.variables);
+                        }
+                        break;
+                    }
+                    case 'deleteVariableSet': {
+                        const delTab = this._tabs.find(t => t.id === message.tabId);
+                        if (delTab?.connectionId) {
+                            await this._deleteVariableSet(delTab.connectionId, message.setName);
+                            const connData = this._getConnectionVariableData(delTab.connectionId);
+                            this._panel.webview.postMessage({
+                                command: 'variableDataUpdated',
+                                connectionData: connData
+                            });
+                        }
+                        break;
+                    }
+                    case 'saveProfileVariables': {
+                        const profTab = this._tabs.find(t => t.id === message.tabId);
+                        if (profTab?.connectionId) {
+                            await this._saveProfileVariables(
+                                profTab.connectionId, message.profileName, message.variables
+                            );
+                        }
                         break;
                     }
                     case 'getConnections': {
@@ -143,6 +196,8 @@ export class QueryTabPanel {
             query: '-- Write your SQL query here\n\n',
             connectionId: null,
             connectionName: 'No Connection',
+            databaseName: null,
+            databases: [],
             results: null,
             isExecuting: false,
             error: null
@@ -153,6 +208,18 @@ export class QueryTabPanel {
         if (activeConnection) {
             tab.connectionId = activeConnection.config.id;
             tab.connectionName = activeConnection.config.name;
+            tab.databaseName = activeConnection.config.database || null;
+
+            // 데이터베이스 목록 비동기 로드
+            if (activeConnection.isConnected()) {
+                activeConnection.getDatabases().then(dbs => {
+                    tab.databases = dbs;
+                    if (!tab.databaseName && dbs.length > 0) {
+                        tab.databaseName = dbs[0];
+                    }
+                    this._update();
+                }).catch(() => { /* 무시 */ });
+            }
         }
 
         this._tabs.push(tab);
@@ -204,6 +271,8 @@ export class QueryTabPanel {
         if (!connectionId) {
             tab.connectionId = null;
             tab.connectionName = 'No Connection';
+            tab.databaseName = null;
+            tab.databases = [];
         } else {
             const connection = this._connectionManager.getConnection(connectionId);
             if (connection) {
@@ -222,12 +291,25 @@ export class QueryTabPanel {
                         );
                     }
                 }
+
+                // connect() 후 activeConnection을 사용 (connect가 새 객체를 생성하므로)
+                const activeConn = this._connectionManager.getActiveConnection();
+                if (activeConn && activeConn.config.id === connectionId) {
+                    // 데이터베이스 목록 로드 및 기본 데이터베이스 설정
+                    try {
+                        tab.databases = await activeConn.getDatabases();
+                        tab.databaseName = activeConn.config.database || tab.databases[0] || null;
+                    } catch {
+                        tab.databases = [];
+                        tab.databaseName = activeConn.config.database || null;
+                    }
+                }
             }
         }
         this._update();
     }
 
-    private async _executeQuery(tabId: string): Promise<void> {
+    private async _executeQuery(tabId: string, paramValues?: Record<string, string>): Promise<void> {
         const tab = this._tabs.find(t => t.id === tabId);
         if (!tab) { return; }
 
@@ -242,18 +324,44 @@ export class QueryTabPanel {
             return;
         }
 
+        // 파라미터가 있으면 입력 다이얼로그 표시 (값이 아직 제공되지 않은 경우)
+        if (hasParameters(query) && !paramValues) {
+            const paramNames = getUniqueParameterNames(query);
+            const connData = this._getConnectionVariableData(tab.connectionId);
+            this._panel.webview.postMessage({
+                command: 'showParameterDialog',
+                tabId,
+                paramNames,
+                connectionData: connData
+            });
+            return;
+        }
+
+        // 파라미터 치환
+        let finalQuery = query;
+        if (paramValues) {
+            finalQuery = substituteParameters(query, paramValues);
+        }
+
         tab.isExecuting = true;
         tab.error = null;
         this._update();
 
         try {
-            const connection = this._connectionManager.getConnection(tab.connectionId);
+            // getConnection()은 Map에서 가져오므로 연결되지 않은 객체일 수 있음
+            // activeConnection을 우선 사용하고 fallback으로 getConnection 사용
+            const activeConn = this._connectionManager.getActiveConnection();
+            const connection = (activeConn && activeConn.config.id === tab.connectionId)
+                ? activeConn
+                : this._connectionManager.getConnection(tab.connectionId);
             if (!connection || !connection.isConnected()) {
                 throw new Error('Connection not available');
             }
 
             const startTime = Date.now();
-            const result = await connection.executeQuery(query);
+            // 탭에서 선택된 데이터베이스를 전달하여 "No database selected" 에러 방지
+            const database = tab.databaseName || connection.config.database;
+            const result = await connection.executeQuery(finalQuery, database || undefined);
             const executionTime = Date.now() - startTime;
 
             tab.results = {
@@ -263,9 +371,9 @@ export class QueryTabPanel {
                 executionTime
             };
 
-            // Add to history
+            // Add to history (원본 쿼리 + 치환된 쿼리 둘 다 기록)
             await this._queryHistoryProvider.addQuery({
-                query,
+                query: paramValues ? `${finalQuery}\n-- Original: ${query}` : query,
                 connectionId: tab.connectionId,
                 connectionName: tab.connectionName,
                 executedAt: new Date(),
@@ -280,7 +388,7 @@ export class QueryTabPanel {
             tab.results = null;
 
             await this._queryHistoryProvider.addQuery({
-                query,
+                query: paramValues ? finalQuery : query,
                 connectionId: tab.connectionId || '',
                 connectionName: tab.connectionName,
                 executedAt: new Date(),
@@ -293,6 +401,64 @@ export class QueryTabPanel {
 
         tab.isExecuting = false;
         this._update();
+    }
+
+    // ===== 변수 세트 / 환경 프로필 관리 =====
+
+    /** 연결별 변수 데이터 로드 */
+    private _getConnectionVariableData(connectionId: string): ConnectionVariableData {
+        const allData = this._connectionManager.context.globalState.get<Record<string, ConnectionVariableData>>(
+            'dbunny.queryParameters', {}
+        );
+        return allData[connectionId] || createEmptyConnectionData();
+    }
+
+    /** 연결별 변수 데이터 저장 */
+    private async _saveConnectionVariableData(connectionId: string, data: ConnectionVariableData): Promise<void> {
+        const allData = this._connectionManager.context.globalState.get<Record<string, ConnectionVariableData>>(
+            'dbunny.queryParameters', {}
+        );
+        allData[connectionId] = data;
+        await this._connectionManager.context.globalState.update('dbunny.queryParameters', allData);
+    }
+
+    /** 변수 세트 저장 */
+    private async _saveVariableSet(connectionId: string, name: string, variables: Record<string, string>): Promise<void> {
+        const data = this._getConnectionVariableData(connectionId);
+        const existingIndex = data.variableSets.findIndex(s => s.name === name);
+
+        if (existingIndex >= 0) {
+            data.variableSets[existingIndex].variables = variables;
+        } else {
+            data.variableSets.push({ name, variables });
+        }
+        data.lastUsedSet = name;
+        await this._saveConnectionVariableData(connectionId, data);
+    }
+
+    /** 변수 세트 삭제 */
+    private async _deleteVariableSet(connectionId: string, name: string): Promise<void> {
+        const data = this._getConnectionVariableData(connectionId);
+        data.variableSets = data.variableSets.filter(s => s.name !== name);
+        if (data.lastUsedSet === name) {
+            data.lastUsedSet = undefined;
+        }
+        await this._saveConnectionVariableData(connectionId, data);
+    }
+
+    /** 환경 프로필 변수 저장 */
+    private async _saveProfileVariables(
+        connectionId: string, profileName: string, variables: Record<string, string>
+    ): Promise<void> {
+        const data = this._getConnectionVariableData(connectionId);
+        const profile = data.profiles.find(p => p.name === profileName);
+        if (profile) {
+            profile.variables = { ...profile.variables, ...variables };
+        } else {
+            data.profiles.push({ name: profileName, variables });
+        }
+        data.lastUsedProfile = profileName;
+        await this._saveConnectionVariableData(connectionId, data);
     }
 
     private async _formatQuery(tabId: string): Promise<void> {
@@ -807,6 +973,164 @@ export class QueryTabPanel {
             padding: 2px 6px;
             border-radius: 3px;
         }
+        /* === 파라미터 다이얼로그 스타일 === */
+        .param-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .param-dialog {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border, #454545));
+            border-radius: 8px;
+            padding: 20px;
+            min-width: 420px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .param-dialog h3 {
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: var(--vscode-foreground);
+        }
+        .param-dialog .param-section {
+            margin-bottom: 16px;
+        }
+        .param-dialog .param-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .param-dialog .param-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .param-dialog .param-label {
+            min-width: 120px;
+            font-size: 12px;
+            color: var(--vscode-foreground);
+            font-family: var(--vscode-editor-font-family, monospace);
+        }
+        .param-dialog .param-input {
+            flex: 1;
+            padding: 4px 8px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border, transparent);
+            border-radius: 3px;
+            font-size: 12px;
+            outline: none;
+        }
+        .param-dialog .param-input:focus {
+            border-color: var(--vscode-focusBorder);
+        }
+        .param-dialog .param-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .param-dialog .param-btn {
+            padding: 5px 14px;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .param-dialog .param-btn.primary {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        .param-dialog .param-btn.primary:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        .param-dialog .param-btn.secondary {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+        .param-dialog .param-btn.secondary:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+        .param-dialog .param-presets {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .param-dialog .preset-chip {
+            padding: 2px 8px;
+            background: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            border-radius: 10px;
+            font-size: 11px;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .param-dialog .preset-chip:hover {
+            opacity: 0.8;
+        }
+        .param-dialog .preset-chip.active {
+            outline: 1px solid var(--vscode-focusBorder);
+        }
+        .param-dialog .preset-chip .delete-preset {
+            font-size: 10px;
+            opacity: 0.6;
+            cursor: pointer;
+        }
+        .param-dialog .preset-chip .delete-preset:hover {
+            opacity: 1;
+        }
+        .param-dialog .profile-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--vscode-widget-border, #454545);
+            padding-bottom: 4px;
+        }
+        .param-dialog .profile-tab {
+            padding: 3px 10px;
+            font-size: 11px;
+            background: none;
+            border: none;
+            color: var(--vscode-descriptionForeground);
+            cursor: pointer;
+            border-radius: 3px 3px 0 0;
+        }
+        .param-dialog .profile-tab.active {
+            background: var(--vscode-tab-activeBackground, var(--vscode-editor-background));
+            color: var(--vscode-foreground);
+            border-bottom: 2px solid var(--vscode-focusBorder);
+        }
+        .param-dialog .save-set-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .param-dialog .save-set-input {
+            flex: 1;
+            padding: 3px 8px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border, transparent);
+            border-radius: 3px;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -816,6 +1140,7 @@ export class QueryTabPanel {
     </div>
 
     <div class="editor-container" id="editorContainer"></div>
+    <div id="paramDialogContainer"></div>
 
     <script>
         const vscode = acquireVsCodeApi();
@@ -866,6 +1191,15 @@ export class QueryTabPanel {
                             </option>
                         \`).join('')}
                     </select>
+                    \${tab.databases && tab.databases.length > 0 ? \`
+                        <select class="connection-select" onchange="setDatabase('\${tab.id}', this.value)">
+                            \${tab.databases.map(db => \`
+                                <option value="\${escapeHtml(db)}" \${db === tab.databaseName ? 'selected' : ''}>
+                                    \${escapeHtml(db)}
+                                </option>
+                            \`).join('')}
+                        </select>
+                    \` : ''}
                     <span class="connection-badge \${tab.connectionId ? 'connected' : ''}">\${escapeHtml(tab.connectionName)}</span>
                     <div class="toolbar-spacer"></div>
                     <span class="keyboard-hint">Ctrl+Enter to execute</span>
@@ -1174,6 +1508,10 @@ export class QueryTabPanel {
             vscode.postMessage({ command: 'setConnection', tabId, connectionId });
         }
 
+        function setDatabase(tabId, databaseName) {
+            vscode.postMessage({ command: 'setDatabase', tabId, databaseName });
+        }
+
         function executeQuery(tabId) {
             vscode.postMessage({ command: 'executeQuery', tabId });
         }
@@ -1206,12 +1544,254 @@ export class QueryTabPanel {
             return div.innerHTML;
         }
 
+        // ===== 파라미터 다이얼로그 =====
+        let currentParamTabId = null;
+        let currentParamNames = [];
+        let currentConnectionData = null;
+        let currentActiveProfile = null;
+
+        function showParameterDialog(tabId, paramNames, connectionData) {
+            currentParamTabId = tabId;
+            currentParamNames = paramNames;
+            currentConnectionData = connectionData;
+            currentActiveProfile = connectionData.lastUsedProfile || null;
+
+            renderParameterDialog();
+        }
+
+        function renderParameterDialog() {
+            const container = document.getElementById('paramDialogContainer');
+            if (!currentParamTabId || !currentParamNames.length) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const data = currentConnectionData;
+            const lastSet = data.lastUsedSet;
+
+            // 활성 프로필에서 변수 값 가져오기
+            let prefillValues = {};
+            if (currentActiveProfile) {
+                const profile = data.profiles.find(p => p.name === currentActiveProfile);
+                if (profile) prefillValues = { ...profile.variables };
+            }
+            // 마지막 사용 변수 세트에서 값 가져오기 (프로필보다 우선)
+            if (lastSet) {
+                const set = data.variableSets.find(s => s.name === lastSet);
+                if (set) prefillValues = { ...prefillValues, ...set.variables };
+            }
+
+            container.innerHTML = \`
+                <div class="param-overlay" onclick="if(event.target===this)closeParamDialog()">
+                    <div class="param-dialog">
+                        <h3>Query Parameters</h3>
+
+                        \${data.profiles.length > 0 ? \`
+                            <div class="param-section">
+                                <div class="param-section-title">Environment Profile</div>
+                                <div class="profile-tabs">
+                                    <button class="profile-tab \${!currentActiveProfile ? 'active' : ''}"
+                                            onclick="selectProfile(null)">None</button>
+                                    \${data.profiles.map(p => \`
+                                        <button class="profile-tab \${currentActiveProfile === p.name ? 'active' : ''}"
+                                                onclick="selectProfile('\${escapeHtml(p.name)}')">\${escapeHtml(p.name)}</button>
+                                    \`).join('')}
+                                </div>
+                            </div>
+                        \` : ''}
+
+                        \${data.variableSets.length > 0 ? \`
+                            <div class="param-section">
+                                <div class="param-section-title">Saved Variable Sets</div>
+                                <div class="param-presets">
+                                    \${data.variableSets.map(s => \`
+                                        <button class="preset-chip \${lastSet === s.name ? 'active' : ''}"
+                                                onclick="loadVariableSet('\${escapeHtml(s.name)}')">
+                                            \${escapeHtml(s.name)}
+                                            <span class="delete-preset" onclick="event.stopPropagation();deleteVariableSet('\${escapeHtml(s.name)}')">&times;</span>
+                                        </button>
+                                    \`).join('')}
+                                </div>
+                            </div>
+                        \` : ''}
+
+                        <div class="param-section">
+                            <div class="param-section-title">Variables</div>
+                            \${currentParamNames.map(name => \`
+                                <div class="param-row">
+                                    <label class="param-label">{{\${escapeHtml(name)}}}</label>
+                                    <input class="param-input" id="param-\${escapeHtml(name)}"
+                                           value="\${escapeHtml(prefillValues[name] || '')}"
+                                           placeholder="Enter value..."
+                                           onkeydown="if(event.key==='Enter')submitParams()">
+                                </div>
+                            \`).join('')}
+                        </div>
+
+                        <div class="save-set-row">
+                            <input class="save-set-input" id="saveSetName" placeholder="Save as variable set..."
+                                   onkeydown="if(event.key==='Enter')saveCurrentSet()">
+                            <button class="param-btn secondary" onclick="saveCurrentSet()">Save</button>
+                        </div>
+
+                        \${currentActiveProfile ? \`
+                            <div class="save-set-row" style="margin-top:4px">
+                                <span style="flex:1;font-size:11px;color:var(--vscode-descriptionForeground)">
+                                    Save to profile: \${escapeHtml(currentActiveProfile)}
+                                </span>
+                                <button class="param-btn secondary" onclick="saveToProfile()">Save to Profile</button>
+                            </div>
+                        \` : ''}
+
+                        <div class="param-actions">
+                            <button class="param-btn secondary" onclick="closeParamDialog()">Cancel</button>
+                            <button class="param-btn primary" onclick="submitParams()">Execute</button>
+                        </div>
+                    </div>
+                </div>
+            \`;
+
+            // 첫 번째 입력 필드에 포커스
+            setTimeout(() => {
+                const firstInput = document.getElementById('param-' + currentParamNames[0]);
+                if (firstInput) firstInput.focus();
+            }, 50);
+        }
+
+        function closeParamDialog() {
+            currentParamTabId = null;
+            currentParamNames = [];
+            currentConnectionData = null;
+            currentActiveProfile = null;
+            document.getElementById('paramDialogContainer').innerHTML = '';
+        }
+
+        function submitParams() {
+            const values = {};
+            for (const name of currentParamNames) {
+                const input = document.getElementById('param-' + name);
+                values[name] = input ? input.value : '';
+            }
+            vscode.postMessage({
+                command: 'executeWithParams',
+                tabId: currentParamTabId,
+                values
+            });
+            closeParamDialog();
+        }
+
+        function loadVariableSet(setName) {
+            if (!currentConnectionData) return;
+            const set = currentConnectionData.variableSets.find(s => s.name === setName);
+            if (!set) return;
+            currentConnectionData.lastUsedSet = setName;
+            for (const name of currentParamNames) {
+                const input = document.getElementById('param-' + name);
+                if (input && set.variables[name] !== undefined) {
+                    input.value = set.variables[name];
+                }
+            }
+            renderParameterDialog();
+        }
+
+        function deleteVariableSet(setName) {
+            vscode.postMessage({
+                command: 'deleteVariableSet',
+                tabId: currentParamTabId,
+                setName
+            });
+            if (currentConnectionData) {
+                currentConnectionData.variableSets = currentConnectionData.variableSets.filter(s => s.name !== setName);
+                if (currentConnectionData.lastUsedSet === setName) {
+                    currentConnectionData.lastUsedSet = undefined;
+                }
+                renderParameterDialog();
+            }
+        }
+
+        function saveCurrentSet() {
+            const nameInput = document.getElementById('saveSetName');
+            const setName = nameInput ? nameInput.value.trim() : '';
+            if (!setName) return;
+
+            const variables = {};
+            for (const name of currentParamNames) {
+                const input = document.getElementById('param-' + name);
+                variables[name] = input ? input.value : '';
+            }
+
+            vscode.postMessage({
+                command: 'saveVariableSet',
+                tabId: currentParamTabId,
+                setName,
+                variables
+            });
+
+            // 로컬 상태 업데이트
+            if (currentConnectionData) {
+                const existing = currentConnectionData.variableSets.findIndex(s => s.name === setName);
+                if (existing >= 0) {
+                    currentConnectionData.variableSets[existing].variables = variables;
+                } else {
+                    currentConnectionData.variableSets.push({ name: setName, variables });
+                }
+                currentConnectionData.lastUsedSet = setName;
+                renderParameterDialog();
+            }
+        }
+
+        function selectProfile(profileName) {
+            currentActiveProfile = profileName;
+            // 프로필의 변수 값으로 입력 필드 업데이트
+            if (profileName && currentConnectionData) {
+                const profile = currentConnectionData.profiles.find(p => p.name === profileName);
+                if (profile) {
+                    for (const name of currentParamNames) {
+                        const input = document.getElementById('param-' + name);
+                        if (input && profile.variables[name] !== undefined) {
+                            input.value = profile.variables[name];
+                        }
+                    }
+                }
+            }
+            renderParameterDialog();
+        }
+
+        function saveToProfile() {
+            if (!currentActiveProfile) return;
+            const variables = {};
+            for (const name of currentParamNames) {
+                const input = document.getElementById('param-' + name);
+                variables[name] = input ? input.value : '';
+            }
+
+            vscode.postMessage({
+                command: 'saveProfileVariables',
+                tabId: currentParamTabId,
+                profileName: currentActiveProfile,
+                variables
+            });
+
+            // 로컬 상태 업데이트
+            if (currentConnectionData) {
+                const profile = currentConnectionData.profiles.find(p => p.name === currentActiveProfile);
+                if (profile) {
+                    profile.variables = { ...profile.variables, ...variables };
+                }
+            }
+        }
+
         // Handle messages from extension
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.command === 'connections') {
                 connections = message.connections;
                 renderEditor();
+            } else if (message.command === 'showParameterDialog') {
+                showParameterDialog(message.tabId, message.paramNames, message.connectionData);
+            } else if (message.command === 'variableDataUpdated') {
+                currentConnectionData = message.connectionData;
+                renderParameterDialog();
             }
         });
 

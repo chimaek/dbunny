@@ -5,6 +5,19 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-03-12
+
+### Added
+
+- **Query Parameters**: `{{variable}}` placeholder syntax for parameterized queries
+  - **Placeholder Extraction**: Parse `{{variable_name}}` from SQL, supporting Korean variable names (`{{사용자_ID}}`)
+  - **Variable Input Dialog**: Modal dialog before query execution to enter parameter values
+  - **Variable Set Save/Reuse**: Save named variable sets per connection, load with one click
+  - **Environment Profiles**: dev/staging/prod profiles with per-environment variable values
+  - **String Literal & Comment Awareness**: Placeholders inside quotes (`'{{ignore}}'`) or comments (`-- {{ignore}}`) are ignored
+- **Query Parameter Utility** (`src/utils/queryParameter.ts`): New parser for extracting, validating, and substituting `{{variable}}` placeholders
+- **Tests**: 61 unit tests (query parameter parser) + 30 integration tests (MySQL + PostgreSQL with Docker)
+
 ## [2.0.0] - 2026-03-10
 
 ### Added

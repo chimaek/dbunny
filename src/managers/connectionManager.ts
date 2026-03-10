@@ -22,7 +22,7 @@ export class ConnectionManager {
     private readonly _onDidChangeConnections = new vscode.EventEmitter<void>();
     readonly onDidChangeConnections = this._onDidChangeConnections.event;
 
-    constructor(private context: vscode.ExtensionContext) {
+    constructor(public readonly context: vscode.ExtensionContext) {
         this.encryptionService = new EncryptionService(context);
         this.loadConnections();
     }

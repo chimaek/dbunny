@@ -47,6 +47,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 - **Query History** — Track and reuse previously executed queries
 - **Query Bookmarks** — Save frequently used queries with categories
 - **MongoDB Shell Syntax** — `db.collection.find()` style commands with chaining (`.limit()`, `.sort()`)
+- **Query Parameters** — `{{variable}}` placeholder syntax with pre-execution input dialog
+  - Save/load named variable sets per connection
+  - Environment profiles (dev / staging / prod)
+  - String literal and comment awareness (ignores placeholders inside quotes)
 
 #### Query Results
 
@@ -145,8 +149,14 @@ npx tsx src/test/integration/run-all.ts
 # SQL autocomplete integration tests (MySQL + PostgreSQL)
 npx tsx src/test/integration/completion.test.ts
 
+# Query parameter integration tests (MySQL + PostgreSQL)
+npx tsx src/test/integration/queryParameter.test.ts
+
 # SQL parser unit tests (no DB required)
 npx tsx src/test/unit/sqlParser.standalone.ts
+
+# Query parameter unit tests (no DB required)
+npx tsx src/test/unit/queryParameter.standalone.ts
 
 # Unit tests
 npm test
@@ -197,6 +207,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 - **쿼리 히스토리** — 이전 실행 쿼리 추적 및 재사용
 - **쿼리 북마크** — 카테고리별 자주 사용하는 쿼리 저장
 - **MongoDB Shell 문법** — `db.collection.find()` 스타일 명령어, 체이닝 지원 (`.limit()`, `.sort()`)
+- **쿼리 파라미터** — `{{변수명}}` 플레이스홀더 문법, 실행 전 입력 다이얼로그
+  - 연결별 변수 세트 저장 및 재사용
+  - 환경 프로필 (dev / staging / prod)
+  - 문자열 리터럴/주석 내부 플레이스홀더 무시
 
 #### 쿼리 결과
 
@@ -295,8 +309,14 @@ npx tsx src/test/integration/run-all.ts
 # SQL 자동완성 통합 테스트 (MySQL + PostgreSQL)
 npx tsx src/test/integration/completion.test.ts
 
+# 쿼리 파라미터 통합 테스트 (MySQL + PostgreSQL)
+npx tsx src/test/integration/queryParameter.test.ts
+
 # SQL 파서 유닛 테스트 (DB 불필요)
 npx tsx src/test/unit/sqlParser.standalone.ts
+
+# 쿼리 파라미터 유닛 테스트 (DB 불필요)
+npx tsx src/test/unit/queryParameter.standalone.ts
 
 # 단위 테스트
 npm test

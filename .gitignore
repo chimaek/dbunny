@@ -41,6 +41,9 @@ h2data/
 test-h2.ps1
 test-h2.sh
 
+# Test data
+test-data/
+
 # Private keys
 *.pem
 *.key
@@ -49,3 +52,4 @@ test-h2.sh
 *.md
 !README.md
 !CHANGELOG.md
+!ROADMAP.md
