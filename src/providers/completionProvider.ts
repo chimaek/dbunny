@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
-import { DatabaseConnection, ColumnInfo } from '../types/database';
+import { DatabaseConnection, ColumnInfo, ForeignKeyInfo } from '../types/database';
+import { parseSQL, TableReference, SQLParseResult } from '../utils/sqlParser';
 
 /**
  * SQL keywords for autocomplete
@@ -45,11 +46,17 @@ const SQL_KEYWORDS = [
 ];
 
 /**
- * SQL Completion Provider
+ * SQL Completion Provider — v2.0.0 고도화
+ *
+ * - 별칭(Alias) 인식: `u.` → users 테이블 컬럼 제안
+ * - JOIN ON FK 기반 자동 제안
+ * - 서브쿼리 컨텍스트 인식
+ * - 다중 테이블 참조 시 컬럼 자동 구분
  */
 export class SQLCompletionProvider implements vscode.CompletionItemProvider {
     private cachedTables: Map<string, string[]> = new Map();
-    private cachedColumns: Map<string, Map<string, string[]>> = new Map();
+    private cachedColumns: Map<string, Map<string, ColumnInfo[]>> = new Map();
+    private cachedForeignKeys: Map<string, Map<string, ForeignKeyInfo[]>> = new Map();
 
     constructor(private connectionManager: ConnectionManager) {}
 
@@ -60,35 +67,84 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
         _context: vscode.CompletionContext
     ): Promise<vscode.CompletionItem[]> {
         const items: vscode.CompletionItem[] = [];
+
+        // 전체 문서 텍스트와 커서 위치
+        const fullText = document.getText();
+        const cursorOffset = document.offsetAt(position);
         const lineText = document.lineAt(position).text;
         const textBeforeCursor = lineText.substring(0, position.character);
         const wordRange = document.getWordRangeAtPosition(position);
         const currentWord = wordRange ? document.getText(wordRange).toLowerCase() : '';
 
-        // Add SQL keywords
+        // SQL 파싱
+        const parseResult = parseSQL(fullText, cursorOffset);
+
+        // SQL 키워드 제안
         items.push(...this.getKeywordCompletions(currentWord));
 
-        // Add database objects if connected
+        // DB 연결이 있을 때만 테이블/컬럼 제안
         const activeConnection = this.connectionManager.getActiveConnection();
-        if (activeConnection) {
-            try {
-                // Check context for smarter completions
-                const upperText = textBeforeCursor.toUpperCase();
+        if (!activeConnection) {
+            return items;
+        }
 
-                if (this.isAfterFrom(upperText) || this.isAfterJoin(upperText)) {
-                    // After FROM or JOIN - suggest tables
-                    items.push(...await this.getTableCompletions(activeConnection));
-                } else if (this.isAfterSelect(upperText) || this.isAfterWhere(upperText)) {
-                    // After SELECT or WHERE - suggest columns and tables
-                    items.push(...await this.getTableCompletions(activeConnection));
-                    items.push(...await this.getColumnCompletions(activeConnection, textBeforeCursor));
-                } else {
-                    // Default - suggest tables
-                    items.push(...await this.getTableCompletions(activeConnection));
+        try {
+            const ctx = parseResult.cursorContext;
+
+            switch (ctx.type) {
+                case 'ALIAS_DOT': {
+                    // alias. → 해당 테이블의 컬럼 제안
+                    const tableName = parseResult.aliasMap.get(ctx.alias.toLowerCase());
+                    if (tableName) {
+                        items.push(...await this.getColumnsForTable(activeConnection, tableName, ctx.alias));
+                    }
+                    break;
                 }
-            } catch (error) {
-                console.error('Error getting completions:', error);
+
+                case 'FROM_TABLE':
+                case 'JOIN_TABLE':
+                case 'UPDATE_TABLE':
+                case 'INSERT_INTO':
+                    // 테이블 제안
+                    items.push(...await this.getTableCompletions(activeConnection));
+                    break;
+
+                case 'JOIN_ON': {
+                    // FK 기반 ON 조건 자동 제안
+                    items.push(...await this.getJoinOnSuggestions(
+                        activeConnection, parseResult, ctx.joinTable
+                    ));
+                    // 일반 컬럼도 제안
+                    items.push(...await this.getAllReferencedColumns(activeConnection, parseResult));
+                    break;
+                }
+
+                case 'SELECT_COLUMNS':
+                case 'WHERE':
+                case 'GROUP_BY':
+                case 'ORDER_BY':
+                case 'SET_CLAUSE': {
+                    // 다중 테이블 참조 시 컬럼 자동 구분
+                    if (parseResult.tables.length > 1) {
+                        items.push(...await this.getMultiTableColumns(activeConnection, parseResult));
+                    } else if (parseResult.tables.length === 1) {
+                        items.push(...await this.getColumnsForTable(
+                            activeConnection,
+                            parseResult.tables[0].table,
+                            parseResult.tables[0].alias
+                        ));
+                    }
+                    // 테이블도 제안 (서브쿼리 등에서 쓸 수 있으므로)
+                    items.push(...await this.getTableCompletions(activeConnection));
+                    break;
+                }
+
+                default:
+                    items.push(...await this.getTableCompletions(activeConnection));
+                    break;
             }
+        } catch (error) {
+            console.error('Error getting completions:', error);
         }
 
         return items;
@@ -101,7 +157,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
                 const item = new vscode.CompletionItem(keyword, vscode.CompletionItemKind.Keyword);
                 item.detail = 'SQL Keyword';
                 item.insertText = keyword;
-                item.sortText = '1' + keyword; // Keywords come after tables/columns
+                item.sortText = '1' + keyword;
                 return item;
             });
     }
@@ -110,13 +166,12 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
         const items: vscode.CompletionItem[] = [];
         const connectionId = connection.config.id;
 
-        // Use cached tables if available
         if (!this.cachedTables.has(connectionId)) {
             try {
                 const databases = await connection.getDatabases();
                 const allTables: string[] = [];
 
-                for (const db of databases.slice(0, 5)) { // Limit to first 5 databases
+                for (const db of databases.slice(0, 5)) {
                     try {
                         const tables = await connection.getTables(db);
                         allTables.push(...tables);
@@ -136,84 +191,228 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
             const item = new vscode.CompletionItem(table, vscode.CompletionItemKind.Class);
             item.detail = 'Table';
             item.insertText = table;
-            item.sortText = '0' + table; // Tables come first
+            item.sortText = '0' + table;
             items.push(item);
         }
 
         return items;
     }
 
-    private async getColumnCompletions(connection: DatabaseConnection, textBeforeCursor: string): Promise<vscode.CompletionItem[]> {
-        const items: vscode.CompletionItem[] = [];
-        const connectionId = connection.config.id;
+    /**
+     * 특정 테이블의 컬럼 제안
+     */
+    private async getColumnsForTable(
+        connection: DatabaseConnection,
+        tableName: string,
+        aliasOrTable?: string
+    ): Promise<vscode.CompletionItem[]> {
+        const columns = await this.fetchColumns(connection, tableName);
+        const label = aliasOrTable || tableName;
 
-        // Extract table name from context
-        const tableMatch = textBeforeCursor.match(/(?:FROM|JOIN|UPDATE)\s+(\w+)/i);
-        if (!tableMatch) {
+        return columns.map(col => {
+            const item = new vscode.CompletionItem(col.name, vscode.CompletionItemKind.Field);
+            item.detail = `${col.type} (${tableName})`;
+            item.documentation = this.buildColumnDoc(col, tableName);
+            item.insertText = col.name;
+            item.sortText = '0' + col.name;
+            return item;
+        });
+    }
+
+    /**
+     * 다중 테이블 참조 시 — 테이블/별칭 접두사 포함 컬럼 제안
+     */
+    private async getMultiTableColumns(
+        connection: DatabaseConnection,
+        parseResult: SQLParseResult
+    ): Promise<vscode.CompletionItem[]> {
+        const items: vscode.CompletionItem[] = [];
+
+        for (const ref of parseResult.tables) {
+            const columns = await this.fetchColumns(connection, ref.table);
+            const prefix = ref.alias || ref.table;
+
+            for (const col of columns) {
+                // 접두사 포함 제안: u.name, p.title 등
+                const prefixedItem = new vscode.CompletionItem(
+                    `${prefix}.${col.name}`,
+                    vscode.CompletionItemKind.Field
+                );
+                prefixedItem.detail = `${col.type} (${ref.table}${ref.alias ? ` AS ${ref.alias}` : ''})`;
+                prefixedItem.documentation = this.buildColumnDoc(col, ref.table);
+                prefixedItem.insertText = `${prefix}.${col.name}`;
+                prefixedItem.sortText = '0' + prefix + '.' + col.name;
+                items.push(prefixedItem);
+
+                // 컬럼 이름만으로도 제안 (소속 테이블 표시)
+                const plainItem = new vscode.CompletionItem(col.name, vscode.CompletionItemKind.Field);
+                plainItem.detail = `${col.type} (${ref.table})`;
+                plainItem.documentation = this.buildColumnDoc(col, ref.table);
+                plainItem.insertText = col.name;
+                plainItem.sortText = '0z' + col.name;
+                items.push(plainItem);
+            }
+        }
+
+        return items;
+    }
+
+    /**
+     * 참조된 모든 테이블의 컬럼 제안 (JOIN ON 등에서 사용)
+     */
+    private async getAllReferencedColumns(
+        connection: DatabaseConnection,
+        parseResult: SQLParseResult
+    ): Promise<vscode.CompletionItem[]> {
+        const items: vscode.CompletionItem[] = [];
+
+        for (const ref of parseResult.tables) {
+            const columns = await this.fetchColumns(connection, ref.table);
+            const prefix = ref.alias || ref.table;
+
+            for (const col of columns) {
+                const item = new vscode.CompletionItem(
+                    `${prefix}.${col.name}`,
+                    vscode.CompletionItemKind.Field
+                );
+                item.detail = `${col.type} (${ref.table})`;
+                item.insertText = `${prefix}.${col.name}`;
+                item.sortText = '0' + prefix + '.' + col.name;
+                items.push(item);
+            }
+        }
+
+        return items;
+    }
+
+    /**
+     * JOIN ON 절에서 FK 기반 조건 자동 제안
+     */
+    private async getJoinOnSuggestions(
+        connection: DatabaseConnection,
+        parseResult: SQLParseResult,
+        joinTable: TableReference
+    ): Promise<vscode.CompletionItem[]> {
+        const items: vscode.CompletionItem[] = [];
+
+        if (!connection.getForeignKeys) {
             return items;
         }
 
-        const tableName = tableMatch[1];
+        // JOIN 대상 테이블의 FK 조회
+        const joinFKs = await this.fetchForeignKeys(connection, joinTable.table);
+        const joinAlias = joinTable.alias || joinTable.table;
 
-        // Initialize column cache for this connection if needed
+        // 기존 테이블들 (FROM 절)에서 참조되는 FK 찾기
+        for (const fk of joinFKs) {
+            const referencedRef = parseResult.tables.find(
+                t => t.table.toLowerCase() === fk.referencedTable.toLowerCase()
+            );
+            if (referencedRef) {
+                const refAlias = referencedRef.alias || referencedRef.table;
+                const condition = `${joinAlias}.${fk.columnName} = ${refAlias}.${fk.referencedColumn}`;
+
+                const item = new vscode.CompletionItem(condition, vscode.CompletionItemKind.Snippet);
+                item.detail = `FK: ${fk.constraintName}`;
+                item.documentation = new vscode.MarkdownString(
+                    `**Foreign Key Join**\n\n` +
+                    `\`${joinTable.table}.${fk.columnName}\` → \`${fk.referencedTable}.${fk.referencedColumn}\``
+                );
+                item.insertText = condition;
+                item.sortText = '00' + condition; // FK 제안을 최우선으로
+                items.push(item);
+            }
+        }
+
+        // 역방향: FROM 테이블의 FK가 JOIN 테이블을 참조하는 경우
+        for (const ref of parseResult.tables) {
+            if (ref.table.toLowerCase() === joinTable.table.toLowerCase()) {continue;}
+            const refFKs = await this.fetchForeignKeys(connection, ref.table);
+            const refAlias = ref.alias || ref.table;
+
+            for (const fk of refFKs) {
+                if (fk.referencedTable.toLowerCase() === joinTable.table.toLowerCase()) {
+                    const condition = `${refAlias}.${fk.columnName} = ${joinAlias}.${fk.referencedColumn}`;
+
+                    const item = new vscode.CompletionItem(condition, vscode.CompletionItemKind.Snippet);
+                    item.detail = `FK: ${fk.constraintName}`;
+                    item.documentation = new vscode.MarkdownString(
+                        `**Foreign Key Join**\n\n` +
+                        `\`${ref.table}.${fk.columnName}\` → \`${joinTable.table}.${fk.referencedColumn}\``
+                    );
+                    item.insertText = condition;
+                    item.sortText = '00' + condition;
+                    items.push(item);
+                }
+            }
+        }
+
+        return items;
+    }
+
+    /**
+     * 컬럼 정보 가져오기 (캐시 사용)
+     */
+    private async fetchColumns(connection: DatabaseConnection, tableName: string): Promise<ColumnInfo[]> {
+        const connectionId = connection.config.id;
+
         if (!this.cachedColumns.has(connectionId)) {
             this.cachedColumns.set(connectionId, new Map());
         }
 
         const columnCache = this.cachedColumns.get(connectionId)!;
+        const key = tableName.toLowerCase();
 
-        // Get columns for this table
-        if (!columnCache.has(tableName)) {
+        if (!columnCache.has(key)) {
             try {
                 const schema = await connection.getTableSchema(tableName);
-                columnCache.set(tableName, schema.map((col: ColumnInfo) => col.name));
+                columnCache.set(key, schema);
             } catch {
-                return items;
+                return [];
             }
         }
 
-        const columns = columnCache.get(tableName) || [];
-        for (const column of columns) {
-            const item = new vscode.CompletionItem(column, vscode.CompletionItemKind.Field);
-            item.detail = `Column (${tableName})`;
-            item.insertText = column;
-            item.sortText = '0' + column;
-            items.push(item);
+        return columnCache.get(key) || [];
+    }
+
+    /**
+     * FK 정보 가져오기 (캐시 사용)
+     */
+    private async fetchForeignKeys(connection: DatabaseConnection, tableName: string): Promise<ForeignKeyInfo[]> {
+        if (!connection.getForeignKeys) {
+            return [];
         }
 
-        return items;
+        const connectionId = connection.config.id;
+
+        if (!this.cachedForeignKeys.has(connectionId)) {
+            this.cachedForeignKeys.set(connectionId, new Map());
+        }
+
+        const fkCache = this.cachedForeignKeys.get(connectionId)!;
+        const key = tableName.toLowerCase();
+
+        if (!fkCache.has(key)) {
+            try {
+                const fks = await connection.getForeignKeys(tableName);
+                fkCache.set(key, fks);
+            } catch {
+                return [];
+            }
+        }
+
+        return fkCache.get(key) || [];
     }
 
-    private isAfterFrom(text: string): boolean {
-        const fromIndex = text.lastIndexOf('FROM');
-        if (fromIndex === -1) {return false;}
-        const afterFrom = text.substring(fromIndex + 4);
-        return !afterFrom.includes('WHERE') && !afterFrom.includes('JOIN') && !afterFrom.includes('ORDER');
-    }
-
-    private isAfterJoin(text: string): boolean {
-        const joinIndex = Math.max(
-            text.lastIndexOf('JOIN'),
-            text.lastIndexOf('INNER JOIN'),
-            text.lastIndexOf('LEFT JOIN'),
-            text.lastIndexOf('RIGHT JOIN')
-        );
-        if (joinIndex === -1) {return false;}
-        const afterJoin = text.substring(joinIndex);
-        return !afterJoin.includes(' ON ');
-    }
-
-    private isAfterSelect(text: string): boolean {
-        const selectIndex = text.lastIndexOf('SELECT');
-        if (selectIndex === -1) {return false;}
-        const afterSelect = text.substring(selectIndex + 6);
-        return !afterSelect.includes('FROM');
-    }
-
-    private isAfterWhere(text: string): boolean {
-        const whereIndex = text.lastIndexOf('WHERE');
-        if (whereIndex === -1) {return false;}
-        return true;
+    /**
+     * 컬럼 문서화 문자열 생성
+     */
+    private buildColumnDoc(col: ColumnInfo, tableName: string): vscode.MarkdownString {
+        const lines = [`**${tableName}.${col.name}**`, '', `Type: \`${col.type}\``];
+        if (col.primaryKey) {lines.push('Primary Key');}
+        if (!col.nullable) {lines.push('NOT NULL');}
+        if (col.defaultValue !== undefined) {lines.push(`Default: \`${col.defaultValue}\``);}
+        return new vscode.MarkdownString(lines.join('\n'));
     }
 
     /**
@@ -222,6 +421,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
     clearCache(): void {
         this.cachedTables.clear();
         this.cachedColumns.clear();
+        this.cachedForeignKeys.clear();
     }
 }
 

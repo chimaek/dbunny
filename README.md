@@ -37,6 +37,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 
 - **Multi-Tab Query Editor** — Open multiple query tabs with per-tab connection assignment (Ctrl+Alt+T)
 - **SQL Autocomplete** — Schema-aware suggestions for tables, columns, and keywords
+  - Alias recognition (`SELECT u.` → suggests `users` columns)
+  - FK-based JOIN ON suggestions
+  - Subquery context awareness
+  - Multi-table column disambiguation with prefix (`u.name`, `p.title`)
 - **SQL CodeLens** — Inline "Run Query" button above each SQL statement
 - **SQL Formatter** — Auto-format SQL with keyword uppercase and proper indentation (Shift+Alt+F)
 - **Query Execution Plan** — EXPLAIN support for MySQL, PostgreSQL, SQLite (Ctrl+Alt+E)
@@ -138,6 +142,12 @@ docker compose up -d
 # Run integration tests (121 tests across 6 DBs)
 npx tsx src/test/integration/run-all.ts
 
+# SQL autocomplete integration tests (MySQL + PostgreSQL)
+npx tsx src/test/integration/completion.test.ts
+
+# SQL parser unit tests (no DB required)
+npx tsx src/test/unit/sqlParser.standalone.ts
+
 # Unit tests
 npm test
 ```
@@ -177,6 +187,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 - **멀티탭 쿼리 에디터** — 탭별 연결 할당, 여러 쿼리를 동시에 작업 (Ctrl+Alt+T)
 - **SQL 자동완성** — 스키마 인식 기반 테이블, 컬럼, 키워드 자동 제안
+  - 별칭(Alias) 인식 (`SELECT u.` → `users` 컬럼 제안)
+  - FK 기반 JOIN ON 자동 제안
+  - 서브쿼리 컨텍스트 인식
+  - 다중 테이블 컬럼 구분 (`u.name`, `p.title` 접두사 포함)
 - **SQL CodeLens** — 각 SQL 구문 위에 인라인 "Run Query" 버튼 표시
 - **SQL 포매터** — 키워드 대문자화, 자동 들여쓰기 (Shift+Alt+F)
 - **쿼리 실행 계획** — MySQL, PostgreSQL, SQLite EXPLAIN 지원 (Ctrl+Alt+E)
@@ -277,6 +291,12 @@ docker compose up -d
 
 # 통합 테스트 실행 (6개 DB 대상 121개 테스트)
 npx tsx src/test/integration/run-all.ts
+
+# SQL 자동완성 통합 테스트 (MySQL + PostgreSQL)
+npx tsx src/test/integration/completion.test.ts
+
+# SQL 파서 유닛 테스트 (DB 불필요)
+npx tsx src/test/unit/sqlParser.standalone.ts
 
 # 단위 테스트
 npm test

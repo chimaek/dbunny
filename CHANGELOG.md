@@ -5,6 +5,21 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-10
+
+### Added
+
+- **SQL Autocomplete Enhancement**: Complete rewrite of SQL completion engine
+  - **Alias Recognition**: `SELECT u.` from `users u` → suggests `users` columns (id, name, email, ...)
+  - **FK-based JOIN ON Suggestions**: `JOIN posts p ON ` → suggests `p.user_id = u.id` based on foreign key relationships (both forward and reverse FK lookup)
+  - **Subquery Context Awareness**: Parenthesis depth tracking — autocomplete works correctly inside subqueries
+  - **Multi-table Column Disambiguation**: When multiple tables are referenced, columns are suggested with alias prefix (`u.name`, `p.title`)
+- **SQL Parser Utility** (`src/utils/sqlParser.ts`): New parser that extracts table references, aliases, JOIN clauses, and cursor context from SQL text
+  - Supports: `FROM`, `JOIN` (all types), `UPDATE`, `INSERT INTO`, schema-qualified names, `AS` keyword
+  - String literal stripping to avoid false positives
+  - Reserved keyword filtering
+- **Tests**: 55 unit tests (SQL parser) + 28 integration tests (MySQL + PostgreSQL with Docker)
+
 ## [1.9.0] - 2026-03-01
 
 ### Security
