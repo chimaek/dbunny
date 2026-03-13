@@ -10,7 +10,7 @@
  *   docker compose up -d
  */
 
-import { ConnectionConfig, ColumnInfo, ForeignKeyInfo, DatabaseConnection } from '../../types/database';
+import { ConnectionConfig, DatabaseConnection } from '../../types/database';
 import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
 import { parseSQL } from '../../utils/sqlParser';

@@ -13,7 +13,6 @@ import { ConnectionConfig, DatabaseConnection } from '../../types/database';
 import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
 import {
-    extractParameters,
     hasParameters,
     substituteParameters,
     getUniqueParameterNames

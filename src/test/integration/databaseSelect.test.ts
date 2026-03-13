@@ -371,14 +371,14 @@ async function testEdgeCases() {
 
     // undefined 전달 → config.database 사용
     try {
-        const r = await provider.executeQuery('SELECT DATABASE() as db', undefined);
+        await provider.executeQuery('SELECT DATABASE() as db', undefined);
         // undefined이면 USE 실행 안 함 → 이전 상태(config.database) 유지
         pass('database=undefined 전달 시 에러 없음');
     } catch (e) { fail('database=undefined', e); }
 
     // 빈 문자열 전달 → falsy이므로 USE 실행 안 함
     try {
-        const r = await provider.executeQuery('SELECT DATABASE() as db', '');
+        await provider.executeQuery('SELECT DATABASE() as db', '');
         pass("database='' 전달 시 에러 없음");
     } catch (e) { fail("database=''", e); }
 

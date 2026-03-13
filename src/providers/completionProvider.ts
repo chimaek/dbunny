@@ -72,7 +72,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
         const fullText = document.getText();
         const cursorOffset = document.offsetAt(position);
         const lineText = document.lineAt(position).text;
-        const textBeforeCursor = lineText.substring(0, position.character);
+        const _textBeforeCursor = lineText.substring(0, position.character);
         const wordRange = document.getWordRangeAtPosition(position);
         const currentWord = wordRange ? document.getText(wordRange).toLowerCase() : '';
 
@@ -207,7 +207,7 @@ export class SQLCompletionProvider implements vscode.CompletionItemProvider {
         aliasOrTable?: string
     ): Promise<vscode.CompletionItem[]> {
         const columns = await this.fetchColumns(connection, tableName);
-        const label = aliasOrTable || tableName;
+        const _label = aliasOrTable || tableName;
 
         return columns.map(col => {
             const item = new vscode.CompletionItem(col.name, vscode.CompletionItemKind.Field);

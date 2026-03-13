@@ -145,6 +145,6 @@ export function getPinDisplayName(pin: PinnedResult): string {
 }
 
 /** 모든 핀 결과 삭제 */
-export function clearAllPins(state: TabPinState): TabPinState {
+export function clearAllPins(_state: TabPinState): TabPinState {
     return createDefaultTabPinState();
 }

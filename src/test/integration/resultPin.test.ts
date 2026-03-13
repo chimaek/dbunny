@@ -15,7 +15,6 @@ import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
 import {
     PinnedResult,
-    TabPinState,
     createDefaultTabPinState,
     pinResult,
     unpinResult,

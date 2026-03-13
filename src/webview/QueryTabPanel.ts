@@ -3,29 +3,20 @@ import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
 import { QueryHistoryProvider } from '../views/queryHistoryView';
 import {
-    extractParameters,
     hasParameters,
     substituteParameters,
     getUniqueParameterNames,
     createEmptyConnectionData,
-    ConnectionVariableData,
-    VariableSet,
-    EnvironmentProfile
+    ConnectionVariableData
 } from '../utils/queryParameter';
 import {
-    PinnedResult,
     TabPinState,
-    CompareMode,
-    MAX_PINNED_RESULTS,
-    generatePinId,
     createDefaultTabPinState,
     pinResult,
     unpinResult,
     renamePinLabel,
     selectPinnedResult,
     toggleCompareMode,
-    formatTimestamp,
-    getPinDisplayName,
     clearAllPins
 } from '../utils/resultPin';
 
