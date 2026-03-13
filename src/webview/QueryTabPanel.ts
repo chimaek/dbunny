@@ -12,6 +12,22 @@ import {
     VariableSet,
     EnvironmentProfile
 } from '../utils/queryParameter';
+import {
+    PinnedResult,
+    TabPinState,
+    CompareMode,
+    MAX_PINNED_RESULTS,
+    generatePinId,
+    createDefaultTabPinState,
+    pinResult,
+    unpinResult,
+    renamePinLabel,
+    selectPinnedResult,
+    toggleCompareMode,
+    formatTimestamp,
+    getPinDisplayName,
+    clearAllPins
+} from '../utils/resultPin';
 
 interface QueryTab {
     id: string;
@@ -24,6 +40,8 @@ interface QueryTab {
     results: QueryResult | null;
     isExecuting: boolean;
     error: string | null;
+    /** 고정된 결과 목록 및 상태 */
+    pinState: TabPinState;
 }
 
 interface QueryResult {
@@ -141,6 +159,31 @@ export class QueryTabPanel {
                         this._clearResults(message.tabId);
                         break;
                     }
+                    // ===== 결과 고정(Pin) 메시지 =====
+                    case 'pinResult': {
+                        this._pinCurrentResult(message.tabId);
+                        break;
+                    }
+                    case 'unpinResult': {
+                        this._unpinResult(message.tabId, message.pinId);
+                        break;
+                    }
+                    case 'selectPinnedResult': {
+                        this._selectPinnedResult(message.tabId, message.pinId);
+                        break;
+                    }
+                    case 'renamePinLabel': {
+                        this._renamePinLabel(message.tabId, message.pinId, message.label);
+                        break;
+                    }
+                    case 'toggleCompare': {
+                        this._toggleCompare(message.tabId, message.targetId);
+                        break;
+                    }
+                    case 'clearAllPins': {
+                        this._clearAllPins(message.tabId);
+                        break;
+                    }
                 }
             },
             null,
@@ -200,7 +243,8 @@ export class QueryTabPanel {
             databases: [],
             results: null,
             isExecuting: false,
-            error: null
+            error: null,
+            pinState: createDefaultTabPinState()
         };
 
         // Try to set active connection
@@ -491,6 +535,66 @@ export class QueryTabPanel {
             tab.error = null;
             this._update();
         }
+    }
+
+    // ===== 결과 고정(Pin) 메서드 =====
+
+    /** 현재 결과를 핀으로 고정 */
+    private _pinCurrentResult(tabId: string): void {
+        const tab = this._tabs.find(t => t.id === tabId);
+        if (!tab || !tab.results) { return; }
+
+        tab.pinState = pinResult(tab.pinState, {
+            query: tab.query,
+            columns: tab.results.columns,
+            rows: tab.results.rows,
+            rowCount: tab.results.rowCount,
+            executionTime: tab.results.executionTime,
+            executedAt: new Date().toISOString(),
+            connectionName: tab.connectionName,
+            databaseName: tab.databaseName
+        });
+        this._update();
+    }
+
+    /** 핀 해제 */
+    private _unpinResult(tabId: string, pinId: string): void {
+        const tab = this._tabs.find(t => t.id === tabId);
+        if (!tab) { return; }
+        tab.pinState = unpinResult(tab.pinState, pinId);
+        this._update();
+    }
+
+    /** 핀 결과 선택 */
+    private _selectPinnedResult(tabId: string, pinId: string | null): void {
+        const tab = this._tabs.find(t => t.id === tabId);
+        if (!tab) { return; }
+        tab.pinState = selectPinnedResult(tab.pinState, pinId);
+        this._update();
+    }
+
+    /** 핀 라벨 변경 */
+    private _renamePinLabel(tabId: string, pinId: string, label: string): void {
+        const tab = this._tabs.find(t => t.id === tabId);
+        if (!tab) { return; }
+        tab.pinState = renamePinLabel(tab.pinState, pinId, label);
+        this._update();
+    }
+
+    /** 비교 모드 토글 */
+    private _toggleCompare(tabId: string, targetId: string | null): void {
+        const tab = this._tabs.find(t => t.id === tabId);
+        if (!tab) { return; }
+        tab.pinState = toggleCompareMode(tab.pinState, targetId);
+        this._update();
+    }
+
+    /** 모든 핀 삭제 */
+    private _clearAllPins(tabId: string): void {
+        const tab = this._tabs.find(t => t.id === tabId);
+        if (!tab) { return; }
+        tab.pinState = clearAllPins(tab.pinState);
+        this._update();
     }
 
     private _sendConnections(): void {
@@ -973,6 +1077,160 @@ export class QueryTabPanel {
             padding: 2px 6px;
             border-radius: 3px;
         }
+        /* === 결과 고정(Pin) 스타일 === */
+        .pin-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            background: var(--vscode-editorGroupHeader-tabsBackground);
+            border-bottom: 1px solid var(--vscode-panel-border);
+            overflow-x: auto;
+            min-height: 28px;
+        }
+
+        .pin-bar::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .pin-bar::-webkit-scrollbar-thumb {
+            background: var(--vscode-scrollbarSlider-background);
+        }
+
+        .pin-tab {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: var(--vscode-tab-inactiveBackground);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            color: var(--vscode-tab-inactiveForeground);
+            white-space: nowrap;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pin-tab:hover {
+            background: var(--vscode-tab-hoverBackground);
+        }
+
+        .pin-tab.active {
+            background: var(--vscode-tab-activeBackground);
+            color: var(--vscode-tab-activeForeground);
+            border-color: var(--vscode-focusBorder);
+        }
+
+        .pin-tab.current-result {
+            border-left: 2px solid var(--vscode-terminal-ansiGreen, #28a745);
+        }
+
+        .pin-tab .pin-icon {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .pin-tab .pin-close {
+            font-size: 12px;
+            opacity: 0;
+            cursor: pointer;
+            margin-left: 2px;
+        }
+
+        .pin-tab:hover .pin-close {
+            opacity: 0.7;
+        }
+
+        .pin-tab .pin-close:hover {
+            opacity: 1;
+        }
+
+        .pin-actions {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .pin-actions button {
+            padding: 2px 6px;
+            font-size: 10px;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .pin-actions button:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .pin-actions button.active {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+
+        .side-by-side-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .side-by-side-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .side-by-side-panel:first-child {
+            border-right: 2px solid var(--vscode-panel-border);
+        }
+
+        .side-by-side-panel .panel-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--vscode-editorWidget-background);
+            border-bottom: 1px solid var(--vscode-panel-border);
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .side-by-side-panel .panel-label .label-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .compare-select {
+            padding: 2px 6px;
+            background: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
+            border: 1px solid var(--vscode-dropdown-border);
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .pin-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 1px 5px;
+            font-size: 10px;
+            background: rgba(0, 122, 204, 0.15);
+            color: var(--vscode-textLink-foreground, #007acc);
+            border-radius: 8px;
+        }
+
         /* === 파라미터 다이얼로그 스타일 === */
         .param-overlay {
             position: fixed;
@@ -1218,7 +1476,8 @@ export class QueryTabPanel {
                                   oninput="updateQuery('\${tab.id}', this.value)">\${escapeHtml(tab.query)}</textarea>
                     </div>
                     <div class="results-section">
-                        \${renderResults(tab)}
+                        \${renderPinBar(tab)}
+                        \${renderResultsArea(tab)}
                     </div>
                 </div>
             \`;
@@ -1229,11 +1488,239 @@ export class QueryTabPanel {
                 if (editor) {
                     editor.focus();
                 }
-                // Render results body if tab has results
-                if (tab && tab.results && tabColumnState[tab.id]) {
-                    renderResultsBody(tab.id);
-                }
+                // 결과 바디 렌더링 (현재 결과 또는 핀 결과)
+                renderAllResultBodies(tab);
             }, 0);
+        }
+
+        /** 핀 바 (고정된 결과 탭 목록) */
+        function renderPinBar(tab) {
+            const pinState = tab.pinState || { pinnedResults: [], activeResultId: null, compareMode: 'single', compareTargetId: null };
+            const hasPins = pinState.pinnedResults.length > 0;
+            const hasResults = tab.results && tab.results.rows && tab.results.rows.length > 0;
+
+            if (!hasPins && !hasResults) return '';
+
+            return \`
+                <div class="pin-bar">
+                    \${hasResults ? \`
+                        <div class="pin-tab current-result \${!pinState.activeResultId ? 'active' : ''}"
+                             onclick="selectPinResult('\${tab.id}', null)">
+                            <span class="pin-icon">▶</span>
+                            <span>Current</span>
+                        </div>
+                    \` : ''}
+                    \${pinState.pinnedResults.map(pin => \`
+                        <div class="pin-tab \${pinState.activeResultId === pin.id ? 'active' : ''}"
+                             onclick="selectPinResult('\${tab.id}', '\${pin.id}')"
+                             title="\${escapeHtml(pin.query.substring(0, 100))}">
+                            <span class="pin-icon">📌</span>
+                            <span>\${escapeHtml(getPinLabel(pin))}</span>
+                            <span class="pin-close" onclick="event.stopPropagation(); removePinResult('\${tab.id}', '\${pin.id}')">&times;</span>
+                        </div>
+                    \`).join('')}
+                    <div class="pin-actions">
+                        \${hasPins ? \`
+                            <button class="\${pinState.compareMode === 'side-by-side' ? 'active' : ''}"
+                                    onclick="toggleCompareMode('\${tab.id}')"
+                                    title="Side-by-side compare">⇄ Compare</button>
+                            <button onclick="clearPins('\${tab.id}')" title="Remove all pins">Clear All</button>
+                        \` : ''}
+                    </div>
+                </div>
+            \`;
+        }
+
+        /** 결과 영역 렌더링 (단일 또는 나란히 보기) */
+        function renderResultsArea(tab) {
+            const pinState = tab.pinState || { pinnedResults: [], activeResultId: null, compareMode: 'single', compareTargetId: null };
+
+            // 나란히 보기 모드
+            if (pinState.compareMode === 'side-by-side') {
+                return renderSideBySide(tab, pinState);
+            }
+
+            // 단일 보기: 핀 결과 또는 현재 결과
+            if (pinState.activeResultId) {
+                const pin = pinState.pinnedResults.find(p => p.id === pinState.activeResultId);
+                if (pin) {
+                    return renderPinnedResultTable(tab.id, pin);
+                }
+            }
+
+            // 현재 결과 표시
+            return renderResults(tab);
+        }
+
+        /** 나란히 보기 모드 렌더링 */
+        function renderSideBySide(tab, pinState) {
+            // 왼쪽: 현재 활성 결과
+            // 오른쪽: 비교 대상 선택
+            const leftResult = pinState.activeResultId
+                ? pinState.pinnedResults.find(p => p.id === pinState.activeResultId)
+                : null;
+            const rightResult = pinState.compareTargetId
+                ? pinState.pinnedResults.find(p => p.id === pinState.compareTargetId)
+                : null;
+
+            const leftHtml = leftResult
+                ? renderPinnedResultTable(tab.id + '-left', leftResult)
+                : (tab.results ? renderResultTableOnly(tab, tab.id + '-left') : '<div class="empty-results"><div class="icon">📊</div><div>No results</div></div>');
+
+            const rightHtml = rightResult
+                ? renderPinnedResultTable(tab.id + '-right', rightResult)
+                : '<div class="empty-results"><div class="icon">📌</div><div>Select a pinned result to compare</div></div>';
+
+            // 비교 대상 옵션 목록
+            const compareOptions = pinState.pinnedResults.filter(p => p.id !== pinState.activeResultId);
+
+            return \`
+                <div class="side-by-side-container">
+                    <div class="side-by-side-panel">
+                        <div class="panel-label">
+                            <span class="label-text">\${leftResult ? '📌 ' + escapeHtml(getPinLabel(leftResult)) : '▶ Current Result'}</span>
+                            <span class="pin-badge">\${leftResult ? leftResult.rowCount + ' rows' : (tab.results ? tab.results.rowCount + ' rows' : '0 rows')}</span>
+                        </div>
+                        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+                            \${leftHtml}
+                        </div>
+                    </div>
+                    <div class="side-by-side-panel">
+                        <div class="panel-label">
+                            <span class="label-text">\${rightResult ? '📌 ' + escapeHtml(getPinLabel(rightResult)) : 'Compare Target'}</span>
+                            <select class="compare-select" onchange="setCompareTarget('\${tab.id}', this.value)">
+                                <option value="">-- Select --</option>
+                                \${!pinState.activeResultId ? '' : \`
+                                    <option value="__current__" \${pinState.compareTargetId === '__current__' ? 'selected' : ''}>▶ Current Result</option>
+                                \`}
+                                \${compareOptions.map(p => \`
+                                    <option value="\${p.id}" \${pinState.compareTargetId === p.id ? 'selected' : ''}>\${escapeHtml(getPinLabel(p))}</option>
+                                \`).join('')}
+                            </select>
+                            \${rightResult ? \`<span class="pin-badge">\${rightResult.rowCount} rows</span>\` : ''}
+                        </div>
+                        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+                            \${rightHtml}
+                        </div>
+                    </div>
+                </div>
+            \`;
+        }
+
+        /** 핀 결과를 테이블로 렌더링 (header + empty tbody) */
+        function renderPinnedResultTable(resultId, pin) {
+            if (!pin.rows || pin.rows.length === 0) {
+                return \`
+                    <div class="results-header">
+                        <span class="results-title">📌 \${escapeHtml(getPinLabel(pin))}</span>
+                        <span class="results-stats">\${pin.rowCount} rows | \${pin.executionTime}ms</span>
+                    </div>
+                    <div class="empty-results">
+                        <div class="icon">✓</div>
+                        <div>Query executed successfully. No rows returned.</div>
+                    </div>
+                \`;
+            }
+
+            // 핀 결과 컬럼 상태 초기화
+            if (!tabColumnState[resultId]) {
+                tabColumnState[resultId] = {
+                    columns: pin.columns.map((col, idx) => ({ name: col, visible: true, order: idx })),
+                    sortField: null,
+                    sortDirection: 'asc',
+                    searchTerm: '',
+                    columnFilters: {}
+                };
+            }
+
+            const state = tabColumnState[resultId];
+            const visibleColumns = state.columns.filter(c => c.visible).sort((a, b) => a.order - b.order);
+
+            return \`
+                <div class="results-header">
+                    <span class="results-title">📌 \${escapeHtml(getPinLabel(pin))}</span>
+                    <span class="results-stats">\${pin.rowCount} rows | \${pin.executionTime}ms | \${visibleColumns.length}/\${pin.columns.length} columns</span>
+                    <div class="results-spacer"></div>
+                    <div class="results-search">
+                        <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
+                               oninput="handleResultSearch('\${resultId}', this.value)">
+                    </div>
+                </div>
+                <div class="results-filter-info" id="filterInfo-\${resultId}"></div>
+                <div class="results-table-container">
+                    <table class="results-table" id="resultsTable-\${resultId}">
+                        <thead>
+                            <tr>
+                                \${visibleColumns.map(col => \`
+                                    <th onclick="handlePinResultSort('\${resultId}', '\${escapeHtml(col.name)}')"
+                                        class="\${state.sortField === col.name ? 'sorted-' + state.sortDirection : ''}">
+                                        \${escapeHtml(col.name)}
+                                        <span class="sort-indicator">\${state.sortField === col.name ? (state.sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
+                                    </th>
+                                \`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody-\${resultId}">
+                        </tbody>
+                    </table>
+                </div>
+            \`;
+        }
+
+        /** 현재 결과를 테이블로만 렌더링 (사이드바이사이드 왼쪽 패널용) */
+        function renderResultTableOnly(tab, resultId) {
+            if (!tab.results) return '';
+            const results = tab.results;
+            if (results.rows.length === 0) {
+                return \`
+                    <div class="empty-results">
+                        <div class="icon">✓</div>
+                        <div>No rows returned.</div>
+                    </div>
+                \`;
+            }
+
+            if (!tabColumnState[resultId]) {
+                tabColumnState[resultId] = {
+                    columns: results.columns.map((col, idx) => ({ name: col, visible: true, order: idx })),
+                    sortField: null,
+                    sortDirection: 'asc',
+                    searchTerm: '',
+                    columnFilters: {}
+                };
+            }
+
+            const state = tabColumnState[resultId];
+            const visibleColumns = state.columns.filter(c => c.visible).sort((a, b) => a.order - b.order);
+
+            return \`
+                <div class="results-header">
+                    <span class="results-stats">\${results.rowCount} rows | \${results.executionTime}ms</span>
+                    <div class="results-spacer"></div>
+                    <div class="results-search">
+                        <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
+                               oninput="handleResultSearch('\${resultId}', this.value)">
+                    </div>
+                </div>
+                <div class="results-filter-info" id="filterInfo-\${resultId}"></div>
+                <div class="results-table-container">
+                    <table class="results-table" id="resultsTable-\${resultId}">
+                        <thead>
+                            <tr>
+                                \${visibleColumns.map(col => \`
+                                    <th onclick="handlePinResultSort('\${resultId}', '\${escapeHtml(col.name)}')"
+                                        class="\${state.sortField === col.name ? 'sorted-' + state.sortDirection : ''}">
+                                        \${escapeHtml(col.name)}
+                                        <span class="sort-indicator">\${state.sortField === col.name ? (state.sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
+                                    </th>
+                                \`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody-\${resultId}">
+                        </tbody>
+                    </table>
+                </div>
+            \`;
         }
 
         function renderResults(tab) {
@@ -1303,6 +1790,9 @@ export class QueryTabPanel {
                         <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
                                oninput="handleResultSearch('\${tab.id}', this.value)">
                     </div>
+                    <button class="results-btn" onclick="pinCurrentResult('\${tab.id}')" title="Pin this result">
+                        📌 Pin
+                    </button>
                     <button class="results-btn" onclick="toggleResultColumnPanel('\${tab.id}')" title="Column settings">
                         ⚙️ \${hiddenCount > 0 ? '(' + hiddenCount + ' hidden)' : ''}
                     </button>
@@ -1348,6 +1838,196 @@ export class QueryTabPanel {
 
         // Tab column state management
         let tabColumnState = {};
+
+        // ===== 핀 관련 함수 =====
+
+        /** 핀 라벨 생성 */
+        function getPinLabel(pin) {
+            if (pin.label) return pin.label;
+            const date = new Date(pin.executedAt);
+            const time = date.getHours().toString().padStart(2, '0') + ':' +
+                         date.getMinutes().toString().padStart(2, '0') + ':' +
+                         date.getSeconds().toString().padStart(2, '0');
+            const preview = pin.query.trim().substring(0, 25).replace(/\\n/g, ' ');
+            return time + ' — ' + preview + (pin.query.length > 25 ? '...' : '');
+        }
+
+        /** 현재 결과를 핀으로 고정 */
+        function pinCurrentResult(tabId) {
+            vscode.postMessage({ command: 'pinResult', tabId });
+        }
+
+        /** 핀 해제 */
+        function removePinResult(tabId, pinId) {
+            // 핀 결과의 컬럼 상태도 정리
+            delete tabColumnState[pinId];
+            vscode.postMessage({ command: 'unpinResult', tabId, pinId });
+        }
+
+        /** 핀 결과 선택 */
+        function selectPinResult(tabId, pinId) {
+            vscode.postMessage({ command: 'selectPinnedResult', tabId, pinId });
+        }
+
+        /** 비교 모드 토글 */
+        function toggleCompareMode(tabId) {
+            const tab = tabs.find(t => t.id === tabId);
+            if (!tab || !tab.pinState) return;
+            if (tab.pinState.compareMode === 'side-by-side') {
+                vscode.postMessage({ command: 'toggleCompare', tabId, targetId: null });
+            } else {
+                // 첫 번째 핀을 비교 대상으로
+                const firstPin = tab.pinState.pinnedResults[0];
+                vscode.postMessage({ command: 'toggleCompare', tabId, targetId: firstPin ? firstPin.id : null });
+            }
+        }
+
+        /** 비교 대상 설정 */
+        function setCompareTarget(tabId, targetId) {
+            vscode.postMessage({ command: 'toggleCompare', tabId, targetId: targetId || null });
+        }
+
+        /** 모든 핀 삭제 */
+        function clearPins(tabId) {
+            vscode.postMessage({ command: 'clearAllPins', tabId });
+        }
+
+        /** 핀 라벨 변경 */
+        function renamePinLabel(tabId, pinId) {
+            const tab = tabs.find(t => t.id === tabId);
+            if (!tab || !tab.pinState) return;
+            const pin = tab.pinState.pinnedResults.find(p => p.id === pinId);
+            const newLabel = prompt('Enter label for this pinned result:', pin?.label || '');
+            if (newLabel !== null) {
+                vscode.postMessage({ command: 'renamePinLabel', tabId, pinId, label: newLabel.trim() });
+            }
+        }
+
+        /** 핀 결과 정렬 */
+        function handlePinResultSort(resultId, field) {
+            if (!tabColumnState[resultId]) return;
+            const state = tabColumnState[resultId];
+            if (state.sortField === field) {
+                state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sortField = field;
+                state.sortDirection = 'asc';
+            }
+            renderEditor();
+        }
+
+        /** 핀 결과 바디 렌더링 (범용) */
+        function renderGenericResultBody(resultId, rows, columns) {
+            if (!tabColumnState[resultId]) return;
+            const state = tabColumnState[resultId];
+            const visibleColumns = state.columns.filter(c => c.visible).sort((a, b) => a.order - b.order);
+            let filteredRows = [...rows];
+
+            if (state.searchTerm) {
+                const term = state.searchTerm.toLowerCase();
+                filteredRows = filteredRows.filter(row => {
+                    return visibleColumns.some(col => {
+                        const val = row[col.name];
+                        return val !== null && val !== undefined && String(val).toLowerCase().includes(term);
+                    });
+                });
+            }
+
+            if (state.sortField) {
+                filteredRows.sort((a, b) => {
+                    const aVal = a[state.sortField];
+                    const bVal = b[state.sortField];
+                    if (aVal === null && bVal === null) return 0;
+                    if (aVal === null) return 1;
+                    if (bVal === null) return -1;
+                    const aNum = parseFloat(aVal);
+                    const bNum = parseFloat(bVal);
+                    let cmp = 0;
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        cmp = aNum - bNum;
+                    } else {
+                        cmp = String(aVal).localeCompare(String(bVal));
+                    }
+                    return state.sortDirection === 'asc' ? cmp : -cmp;
+                });
+            }
+
+            const tbody = document.getElementById('resultsBody-' + resultId);
+            if (tbody) {
+                tbody.innerHTML = filteredRows.slice(0, 1000).map(row => \`
+                    <tr>
+                        \${visibleColumns.map(col => {
+                            let val = row[col.name];
+                            let display = formatValue(val);
+                            if (state.searchTerm && display.toLowerCase().includes(state.searchTerm.toLowerCase())) {
+                                const regex = new RegExp('(' + escapeRegex(state.searchTerm) + ')', 'gi');
+                                display = display.replace(regex, '<mark>' + String.fromCharCode(36) + '1</mark>');
+                            }
+                            return \`<td title="\${escapeHtml(String(val ?? ''))}">\${display}</td>\`;
+                        }).join('')}
+                    </tr>
+                \`).join('');
+            }
+
+            const filterInfo = document.getElementById('filterInfo-' + resultId);
+            if (filterInfo) {
+                const displayedRows = Math.min(filteredRows.length, 1000);
+                const totalRows = rows.length;
+                const isFiltered = state.searchTerm || filteredRows.length !== totalRows;
+                const isTruncated = filteredRows.length > 1000;
+                if (isFiltered || isTruncated) {
+                    let msg = 'Showing ' + displayedRows + ' of ' + totalRows + ' rows';
+                    if (isTruncated) msg += ' (limited to 1000)';
+                    filterInfo.textContent = msg;
+                    filterInfo.style.display = 'block';
+                } else {
+                    filterInfo.style.display = 'none';
+                }
+            }
+        }
+
+        /** 탭의 모든 결과 바디를 렌더링 (현재 + 핀 + 사이드바이사이드) */
+        function renderAllResultBodies(tab) {
+            if (!tab) return;
+            const pinState = tab.pinState || { pinnedResults: [], activeResultId: null, compareMode: 'single', compareTargetId: null };
+
+            if (pinState.compareMode === 'side-by-side') {
+                // 왼쪽 패널
+                const leftId = tab.id + '-left';
+                if (pinState.activeResultId) {
+                    const pin = pinState.pinnedResults.find(p => p.id === pinState.activeResultId);
+                    if (pin && tabColumnState[leftId]) {
+                        renderGenericResultBody(leftId, pin.rows, pin.columns);
+                    }
+                } else if (tab.results && tabColumnState[leftId]) {
+                    renderGenericResultBody(leftId, tab.results.rows, tab.results.columns);
+                }
+
+                // 오른쪽 패널
+                const rightId = tab.id + '-right';
+                if (pinState.compareTargetId === '__current__') {
+                    if (tab.results && tabColumnState[rightId]) {
+                        renderGenericResultBody(rightId, tab.results.rows, tab.results.columns);
+                    }
+                } else if (pinState.compareTargetId) {
+                    const pin = pinState.pinnedResults.find(p => p.id === pinState.compareTargetId);
+                    if (pin && tabColumnState[rightId]) {
+                        renderGenericResultBody(rightId, pin.rows, pin.columns);
+                    }
+                }
+            } else if (pinState.activeResultId) {
+                // 핀 결과 표시
+                const pin = pinState.pinnedResults.find(p => p.id === pinState.activeResultId);
+                if (pin && tabColumnState[pinState.activeResultId]) {
+                    renderGenericResultBody(pinState.activeResultId, pin.rows, pin.columns);
+                }
+            } else {
+                // 현재 결과 표시
+                if (tab.results && tabColumnState[tab.id]) {
+                    renderResultsBody(tab.id);
+                }
+            }
+        }
 
         function renderResultsBody(tabId) {
             const tab = tabs.find(t => t.id === tabId);

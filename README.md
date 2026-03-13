@@ -2,7 +2,7 @@
 
 > "Hop into your databases!"
 
-![DBunny](https://files.chimaek.net/api/public/dl/wcwMPDWj?inline=true)
+![DBunny Demo](resources/demo.gif)
 
 **[English](#english)** | **[한국어](#한국어)**
 
@@ -54,6 +54,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 
 #### Query Results
 
+- **Result Pinning** — Pin query results to keep them while running new queries
+  - Side-by-side comparison of two results (before/after data changes)
+  - Pin tab bar with timestamps and custom labels
+  - Up to 20 pinned results per query tab
 - **Inline Cell Editing** — Double-click to edit, Tab/Enter to navigate, Ctrl+S to save
 - **Cell Expand View** — View long text and JSON with syntax highlighting in a modal
 - **Multi-Row Selection** — Ctrl+Click to select, Delete to remove, Ctrl+C to copy
@@ -152,11 +156,17 @@ npx tsx src/test/integration/completion.test.ts
 # Query parameter integration tests (MySQL + PostgreSQL)
 npx tsx src/test/integration/queryParameter.test.ts
 
+# Result pinning integration tests (MySQL + PostgreSQL)
+npx tsx src/test/integration/resultPin.test.ts
+
 # SQL parser unit tests (no DB required)
 npx tsx src/test/unit/sqlParser.standalone.ts
 
 # Query parameter unit tests (no DB required)
 npx tsx src/test/unit/queryParameter.standalone.ts
+
+# Result pinning unit tests (no DB required)
+npx tsx src/test/unit/resultPin.standalone.ts
 
 # Unit tests
 npm test
@@ -214,6 +224,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 #### 쿼리 결과
 
+- **결과 고정(Pinning)** — 쿼리 결과를 핀으로 고정하여 새 쿼리 실행 시에도 보관
+  - 나란히 보기로 두 결과 비교 (변경 전/후 데이터 비교)
+  - 핀 탭 바 — 타임스탬프와 사용자 지정 라벨로 관리
+  - 쿼리 탭당 최대 20개 핀 지원
 - **인라인 셀 편집** — 더블클릭으로 수정, Tab/Enter로 이동, Ctrl+S로 저장
 - **셀 확장 뷰** — 긴 텍스트와 JSON을 구문 강조 모달로 표시
 - **멀티행 선택** — Ctrl+Click으로 선택, Delete로 삭제, Ctrl+C로 복사
@@ -312,11 +326,17 @@ npx tsx src/test/integration/completion.test.ts
 # 쿼리 파라미터 통합 테스트 (MySQL + PostgreSQL)
 npx tsx src/test/integration/queryParameter.test.ts
 
+# 결과 고정(Pin) 통합 테스트 (MySQL + PostgreSQL)
+npx tsx src/test/integration/resultPin.test.ts
+
 # SQL 파서 유닛 테스트 (DB 불필요)
 npx tsx src/test/unit/sqlParser.standalone.ts
 
 # 쿼리 파라미터 유닛 테스트 (DB 불필요)
 npx tsx src/test/unit/queryParameter.standalone.ts
+
+# 결과 고정(Pin) 유닛 테스트 (DB 불필요)
+npx tsx src/test/unit/resultPin.standalone.ts
 
 # 단위 테스트
 npm test

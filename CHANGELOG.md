@@ -5,6 +5,19 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-03-13
+
+### Added
+
+- **Result Pinning**: Pin query results to keep them while executing new queries
+  - **Pin Button**: Click "📌 Pin" in results header to save the current result
+  - **Pin Tab Bar**: Switch between pinned results and current result via tab bar with timestamps
+  - **Side-by-Side Compare**: View two results side-by-side for comparison (e.g., before/after data changes)
+  - **Pin Labels**: Rename pinned results with custom labels for easy identification
+  - **Max 20 Pins**: Oldest pins are automatically removed when limit is reached
+- **Result Pin Utility** (`src/utils/resultPin.ts`): Immutable state management for pinned results, compare mode, and label operations
+- **Tests**: 77 unit tests (result pin utility) + 62 integration tests (MySQL + PostgreSQL pin workflows, overflow, before/after comparison)
+
 ## [2.1.0] - 2026-03-12
 
 ### Added
