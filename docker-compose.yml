@@ -48,7 +48,7 @@ services:
     container_name: dbunny-redis
     command: redis-server --requirepass redis1234
     ports:
-      - "16379:6379"
+      - "6379:6379"
     volumes:
       - dbunny-redis-data:/data
 

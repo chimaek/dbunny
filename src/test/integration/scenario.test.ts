@@ -20,7 +20,6 @@ import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
 import { checkWriteOperation } from '../../utils/readOnlyGuard';
 import {
-    extractParameters,
     substituteParameters,
     hasParameters,
     getUniqueParameterNames,
@@ -29,13 +28,10 @@ import {
 import {
     createDefaultTabPinState,
     pinResult,
-    renamePinLabel,
     selectPinnedResult,
     toggleCompareMode,
-    unpinResult,
     getPinDisplayName,
     clearAllPins,
-    PinnedResult,
     TabPinState
 } from '../../utils/resultPin';
 
@@ -267,7 +263,7 @@ async function scenario3_QACompareResults() {
         let pinState: TabPinState = createDefaultTabPinState();
         pinState = pinResult(pinState, {
             query: beforeQuery,
-            columns: beforeResult.columns ?? ['metric_name', 'value'],
+            columns: beforeResult.fields?.map(f => f.name) ?? ['metric_name', 'value'],
             rows: beforeResult.rows,
             rowCount: beforeResult.rows.length,
             executionTime: 5,
@@ -291,7 +287,7 @@ async function scenario3_QACompareResults() {
         const afterResult = await pg.executeQuery(beforeQuery);
         pinState = pinResult(pinState, {
             query: beforeQuery,
-            columns: afterResult.columns ?? ['metric_name', 'value'],
+            columns: afterResult.fields?.map(f => f.name) ?? ['metric_name', 'value'],
             rows: afterResult.rows,
             rowCount: afterResult.rows.length,
             executionTime: 3,

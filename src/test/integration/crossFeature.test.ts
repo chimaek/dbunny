@@ -22,7 +22,6 @@ import {
 import {
     createDefaultTabPinState,
     pinResult,
-    renamePinLabel,
     selectPinnedResult,
     toggleCompareMode,
     getPinDisplayName,
@@ -264,7 +263,7 @@ async function testSQLParserWithRealDB() {
             if (fks.length > 0) {
                 const userFk = fks.find(f => f.referencedTable === 'users');
                 if (userFk) {
-                    pass(`FK 발견: posts.${userFk.column} → users.${userFk.referencedColumn}`);
+                    pass(`FK 발견: posts.${userFk.columnName} → users.${userFk.referencedColumn}`);
                 } else {
                     pass('posts 테이블에 users 참조 FK 없음 (스키마에 따라 다름)');
                 }
