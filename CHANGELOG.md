@@ -5,6 +5,23 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-16
+
+### Added
+
+- **Read-Only Mode**: Lock connections to prevent accidental write operations on production databases
+  - **Write Query Detection**: Blocks INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, REPLACE, RENAME, GRANT, REVOKE, MERGE, UPSERT, CALL, EXEC, EXECUTE (16 SQL keywords)
+  - **Redis Write Guard**: Blocks SET, DEL, HSET, LPUSH, SADD, ZADD, FLUSHDB, FLUSHALL, and 50+ other write commands
+  - **MongoDB Write Guard**: Blocks insertOne, updateMany, deleteOne, drop, bulkWrite, and other write methods
+  - **Connection Form Toggle**: Read-only mode checkbox in connection add/edit form
+  - **Tree View Lock Icon**: 🔒 icon on read-only connections with inline toggle button
+  - **Query Editor Banner**: Warning banner when editing on a read-only connection
+  - **Table Editor Block**: INSERT/UPDATE/DELETE operations blocked in table editor
+  - **Emergency Unlock**: Modal confirmation dialog to disable read-only mode
+  - **False Positive Prevention**: Write keywords inside string literals and comments are ignored
+- **Read-Only Guard Utility** (`src/utils/readOnlyGuard.ts`): SQL/Redis/MongoDB write operation detection with string/comment stripping
+- **Tests**: 104 unit tests (read-only guard) + 76 integration tests (MySQL, PostgreSQL, Redis, MongoDB read-only workflows)
+
 ## [2.2.0] - 2026-03-13
 
 ### Added

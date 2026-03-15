@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
 import { QueryResult } from '../types/database';
+import { checkWriteOperation } from '../utils/readOnlyGuard';
 
 /**
  * Webview panel for editing table data
@@ -32,6 +33,30 @@ export class TableEditorPanel {
 
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
+                // 읽기 전용 모드에서 쓰기 작업 차단
+                const writeCommands = ['insert', 'update', 'delete'];
+                if (writeCommands.includes(message.command)) {
+                    const conn = this.connectionManager.getActiveConnection();
+                    if (conn?.config.readOnly) {
+                        vscode.window.showWarningMessage(
+                            this.i18n.t('readOnly.tableEditorBlocked', { name: conn.config.name })
+                        );
+                        return;
+                    }
+                }
+                if (message.command === 'executeCustom') {
+                    const conn = this.connectionManager.getActiveConnection();
+                    if (conn?.config.readOnly) {
+                        const check = checkWriteOperation(message.query, conn.config.type);
+                        if (check.isWrite) {
+                            vscode.window.showWarningMessage(
+                                this.i18n.t('readOnly.blocked', { keyword: check.keyword!, name: conn.config.name })
+                            );
+                            return;
+                        }
+                    }
+                }
+
                 switch (message.command) {
                     case 'refresh':
                         await this._loadData();

@@ -1098,6 +1098,34 @@ db.collectionName.find({})
         })
     );
 
+    // Toggle Read-Only Mode
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.toggleReadOnly', async (item: ConnectionTreeItem) => {
+            if (!item?.connectionId) { return; }
+            const conn = connectionManager.getConnection(item.connectionId);
+            if (!conn) { return; }
+
+            const currentReadOnly = !!conn.config.readOnly;
+
+            if (currentReadOnly) {
+                // 읽기 전용 해제 → 확인 다이얼로그
+                const confirmMsg = i18n.t('readOnly.emergencyConfirm', { name: conn.config.name });
+                const yes = i18n.t('common.yes');
+                const no = i18n.t('common.no');
+                const answer = await vscode.window.showWarningMessage(confirmMsg, { modal: true }, yes, no);
+                if (answer !== yes) { return; }
+            }
+
+            const updatedConfig = { ...conn.config, readOnly: !currentReadOnly };
+            await connectionManager.updateConnection(updatedConfig);
+
+            const msg = !currentReadOnly
+                ? i18n.t('readOnly.enabled', { name: conn.config.name })
+                : i18n.t('readOnly.disabled', { name: conn.config.name });
+            vscode.window.showInformationMessage(msg);
+        })
+    );
+
     // Listen for connection changes to refresh tree
     connectionManager.onDidChangeConnections(() => {
         connectionTreeProvider.refresh();

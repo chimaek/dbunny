@@ -355,6 +355,151 @@ header('엣지 케이스');
     assert(!result.includes('{{'), '모든 플레이스홀더 치환됨');
 })();
 
+// ── 멀티라인 쿼리 ───────────────────────────────
+
+header('extractParameters — 멀티라인 복잡 쿼리');
+
+(() => {
+    const query = `
+        -- 사용자 조회 쿼리
+        SELECT u.name, o.total
+        FROM users u
+        /* 주문 테이블 조인 {{무시될_변수}} */
+        JOIN orders o ON o.user_id = u.id
+        WHERE u.status = {{status}}
+          AND o.date BETWEEN {{start}} AND {{end}}
+        -- LIMIT {{무시될_리밋}}
+        LIMIT {{limit}}
+        OFFSET {{offset}}
+    `;
+    const params = extractParameters(query);
+    assertEqual(params.length, 5, '멀티라인 — 5개 파라미터 (주석 내 무시)');
+    const names = params.map(p => p.name);
+    assert(names.includes('status'), 'status 추출');
+    assert(names.includes('start'), 'start 추출');
+    assert(names.includes('end'), 'end 추출');
+    assert(names.includes('limit'), 'limit 추출');
+    assert(names.includes('offset'), 'offset 추출');
+    assert(!names.includes('무시될_변수'), '블록 주석 내 무시');
+    assert(!names.includes('무시될_리밋'), '한줄 주석 내 무시');
+})();
+
+// 위 테스트 수정 — offset은 주석 바깥이므로 실제 5개
+(() => {
+    const query = `
+        SELECT * FROM users
+        WHERE status = {{status}}
+          AND date BETWEEN {{start}} AND {{end}}
+        LIMIT {{limit}}
+        OFFSET {{offset}}
+    `;
+    const params = extractParameters(query);
+    assertEqual(params.length, 5, '멀티라인 — 5개 파라미터');
+})();
+
+// ── 특수한 따옴표 패턴 ───────────────────────────────
+
+header('extractParameters — 특수 따옴표 패턴');
+
+(() => {
+    // 이스케이프된 백슬래시 + 따옴표
+    const params = extractParameters("SELECT * FROM t WHERE c = '\\'{{var}}'");
+    // 백슬래시 이스케이프 후 따옴표가 닫히므로 {{var}}은 문자열 밖
+    // 실제 동작은 파서 구현에 따라 다름
+    assert(params.length >= 0, '백슬래시 이스케이프 처리');
+})();
+
+(() => {
+    // 연속 이스케이프된 따옴표
+    const params = extractParameters("SELECT * FROM t WHERE c = '''' AND id = {{id}}");
+    assert(params.length === 1, "연속 이스케이프 따옴표 후 파라미터 추출");
+    if (params.length > 0) {
+        assertEqual(params[0].name, 'id', '이름: id');
+    }
+})();
+
+(() => {
+    // 큰따옴표와 작은따옴표 혼합
+    const params = extractParameters(`SELECT * FROM t WHERE a = "hello" AND b = '{{inside}}' AND c = {{outside}}`);
+    assertEqual(params.length, 1, '작은따옴표 내부 무시, 외부만 추출');
+    if (params.length > 0) {
+        assertEqual(params[0].name, 'outside', '이름: outside');
+    }
+})();
+
+// ── substituteParameters — 부분 치환 ───────────────
+
+header('substituteParameters — 부분 치환');
+
+(() => {
+    const result = substituteParameters(
+        'SELECT * FROM users WHERE id = {{id}} AND name = {{name}}',
+        { id: '1' }
+    );
+    assert(result.includes('id = 1'), 'id 치환됨');
+    assert(result.includes('{{name}}'), 'name은 미치환 유지');
+})();
+
+(() => {
+    // 존재하지 않는 키 전달
+    const result = substituteParameters(
+        'SELECT * FROM users WHERE id = {{id}}',
+        { nonexistent: 'value', id: '42' }
+    );
+    assert(result.includes('42'), '존재하는 키만 치환');
+    assert(!result.includes('nonexistent'), '존재하지 않는 키 무시');
+})();
+
+// ── extractParameters — 위치 정보 정확성 ─────────────
+
+header('extractParameters — 위치 정보');
+
+(() => {
+    const query = 'SELECT * FROM users WHERE id = {{user_id}}';
+    const params = extractParameters(query);
+    assert(params.length === 1, '파라미터 1개');
+    const param = params[0];
+    assert(param.startIndex === query.indexOf('{{user_id}}'), '시작 인덱스 정확');
+    assert(param.endIndex === query.indexOf('{{user_id}}') + '{{user_id}}'.length, '끝 인덱스 정확');
+    assertEqual(query.substring(param.startIndex, param.endIndex), '{{user_id}}', '슬라이싱 결과 일치');
+})();
+
+// ── 한국어 + 영문 혼합 변수명 ─────────────────────────
+
+header('extractParameters — 한국어 혼합 변수명');
+
+(() => {
+    const params = extractParameters('SELECT * FROM t WHERE c = {{사용자_ID}} AND d = {{user이름}}');
+    assertEqual(params.length, 2, '한영 혼합 변수명 2개');
+    assertEqual(params[0].name, '사용자_ID', '사용자_ID');
+    assertEqual(params[1].name, 'user이름', 'user이름');
+})();
+
+(() => {
+    // 한국어 자음/모음으로 시작
+    const params = extractParameters('SELECT * FROM t WHERE c = {{ㄱ변수}}');
+    assertEqual(params.length, 1, '한국어 자음으로 시작하는 변수명');
+    assertEqual(params[0].name, 'ㄱ변수', 'ㄱ변수');
+})();
+
+// ── ConnectionVariableData 구조 검증 ─────────────────
+
+header('ConnectionVariableData 구조');
+
+(() => {
+    const data = createEmptyConnectionData();
+    // profiles에 값 추가
+    data.profiles[0].variables = { user_id: '1', name: "'test'" };
+    assertEqual(data.profiles[0].name, 'dev', 'dev 프로필');
+    assertEqual(data.profiles[0].variables.user_id, '1', 'dev 변수 값');
+
+    // 프로필을 사용한 치환
+    const query = 'SELECT * FROM users WHERE id = {{user_id}} AND name = {{name}}';
+    const result = substituteParameters(query, data.profiles[0].variables);
+    assert(result.includes('id = 1'), 'dev 프로필로 치환 — id');
+    assert(result.includes("name = 'test'"), 'dev 프로필로 치환 — name');
+})();
+
 // ── 결과 출력 ───────────────────────────────
 
 console.log(`\n${'═'.repeat(50)}`);

@@ -146,6 +146,14 @@
   "copiedToClipboard": "Copied to clipboard",
   "changesRecorded": "{count} change(s) recorded. Note: Inline editing preview - changes are not persisted to database.",
   "rowsMarkedForDeletion": "{count} row(s) marked for deletion. Note: Inline editing preview - changes are not persisted to database.",
+  "readOnly": {
+    "blocked": "[Read-Only] \"{keyword}\" operation blocked on \"{name}\"",
+    "disableAction": "Disable Read-Only",
+    "emergencyConfirm": "⚠️ Disable read-only mode for \"{name}\"?\n\nWrite queries (INSERT, UPDATE, DELETE, etc.) will be allowed. Be cautious if this is a production database.",
+    "enabled": "\"{name}\" is now in read-only mode 🔒",
+    "disabled": "Read-only mode disabled for \"{name}\"",
+    "tableEditorBlocked": "[Read-Only] Table editing blocked on \"{name}\""
+  },
   "queryTabs": {
     "noConnectionSelected": "Please select a connection for this tab",
     "newTab": "New Tab",

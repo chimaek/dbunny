@@ -19,6 +19,7 @@ import {
     toggleCompareMode,
     clearAllPins
 } from '../utils/resultPin';
+import { checkWriteOperation } from '../utils/readOnlyGuard';
 
 interface QueryTab {
     id: string;
@@ -359,6 +360,27 @@ export class QueryTabPanel {
             return;
         }
 
+        // 읽기 전용 모드 체크
+        const connection0 = this._connectionManager.getActiveConnection();
+        const conn0 = (connection0 && connection0.config.id === tab.connectionId)
+            ? connection0
+            : this._connectionManager.getConnection(tab.connectionId);
+        if (conn0?.config.readOnly) {
+            const writeCheck = checkWriteOperation(query, conn0.config.type);
+            if (writeCheck.isWrite) {
+                const connName = conn0.config.name;
+                vscode.window.showWarningMessage(
+                    this._i18n.t('readOnly.blocked', { keyword: writeCheck.keyword!, name: connName }),
+                    this._i18n.t('readOnly.disableAction')
+                ).then(action => {
+                    if (action === this._i18n.t('readOnly.disableAction')) {
+                        this._emergencyDisableReadOnly(conn0.config.id);
+                    }
+                });
+                return;
+            }
+        }
+
         // 파라미터가 있으면 입력 다이얼로그 표시 (값이 아직 제공되지 않은 경우)
         if (hasParameters(query) && !paramValues) {
             const paramNames = getUniqueParameterNames(query);
@@ -588,12 +610,35 @@ export class QueryTabPanel {
         this._update();
     }
 
+    /**
+     * 긴급 해제: 읽기 전용 모드를 해제합니다.
+     * 확인 다이얼로그를 표시하여 사용자가 명시적으로 동의해야 합니다.
+     */
+    private async _emergencyDisableReadOnly(connectionId: string): Promise<void> {
+        const conn = this._connectionManager.getConnection(connectionId);
+        if (!conn) { return; }
+
+        const confirmMsg = this._i18n.t('readOnly.emergencyConfirm', { name: conn.config.name });
+        const yes = this._i18n.t('common.yes');
+        const no = this._i18n.t('common.no');
+
+        const answer = await vscode.window.showWarningMessage(confirmMsg, { modal: true }, yes, no);
+        if (answer === yes) {
+            const updatedConfig = { ...conn.config, readOnly: false };
+            await this._connectionManager.updateConnection(updatedConfig);
+            vscode.window.showInformationMessage(
+                this._i18n.t('readOnly.disabled', { name: conn.config.name })
+            );
+        }
+    }
+
     private _sendConnections(): void {
         const connections = this._connectionManager.getAllConnections().map(c => ({
             id: c.config.id,
             name: c.config.name,
             type: c.config.type,
-            isConnected: c.isConnected()
+            isConnected: c.isConnected(),
+            readOnly: !!c.config.readOnly
         }));
 
         this._panel.webview.postMessage({
@@ -609,6 +654,12 @@ export class QueryTabPanel {
     private _getHtmlContent(): string {
         const tabsJson = JSON.stringify(this._tabs);
         const activeTabId = this._activeTabId;
+        const connectionsJson = JSON.stringify(
+            this._connectionManager.getAllConnections().map(c => ({
+                id: c.config.id,
+                readOnly: !!c.config.readOnly
+            }))
+        );
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -834,6 +885,20 @@ export class QueryTabPanel {
             line-height: 1.5;
             resize: none;
             outline: none;
+        }
+
+        .read-only-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: color-mix(in srgb, var(--vscode-editorWarning-foreground, #cca700) 15%, var(--vscode-editor-background));
+            border-bottom: 1px solid var(--vscode-editorWarning-foreground, #cca700);
+            font-size: 12px;
+            color: var(--vscode-editorWarning-foreground, #cca700);
+        }
+        .read-only-banner .lock-icon {
+            font-size: 14px;
         }
 
         .results-section {
@@ -1396,6 +1461,8 @@ export class QueryTabPanel {
         let tabs = ${tabsJson};
         let activeTabId = '${activeTabId}';
         let connections = [];
+        let readOnlyMap = {};
+        try { readOnlyMap = Object.fromEntries(${connectionsJson}.map(c => [c.id, c.readOnly])); } catch(e) {}
 
         // Request connections
         vscode.postMessage({ command: 'getConnections' });
@@ -1458,6 +1525,12 @@ export class QueryTabPanel {
                         \${tab.isExecuting ? 'Executing...' : '▶ Execute'}
                     </button>
                 </div>
+                \${readOnlyMap[tab.connectionId] ? \`
+                <div class="read-only-banner">
+                    <span class="lock-icon">🔒</span>
+                    <span>Read-Only Mode — Write queries are blocked</span>
+                </div>
+                \` : ''}
                 <div class="split-view">
                     <div class="query-section">
                         <textarea class="query-editor"
@@ -2457,6 +2530,8 @@ export class QueryTabPanel {
             const message = event.data;
             if (message.command === 'connections') {
                 connections = message.connections;
+                // readOnly 맵 업데이트
+                connections.forEach(c => { readOnlyMap[c.id] = !!c.readOnly; });
                 renderEditor();
             } else if (message.command === 'showParameterDialog') {
                 showParameterDialog(message.tabId, message.paramNames, message.connectionData);

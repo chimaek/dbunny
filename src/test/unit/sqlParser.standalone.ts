@@ -248,6 +248,158 @@ header('엣지 케이스');
     assert(result.aliasMap.get('p') === 'Posts', '대소문자 혼용 — p → Posts');
 })();
 
+// ── UPDATE / INSERT / SET 컨텍스트 ────────────────────
+
+header('parseSQL — UPDATE / INSERT / SET 컨텍스트');
+
+(() => {
+    const sql = 'UPDATE users SET ';
+    const result = parseSQL(sql, sql.length);
+    assert(result.cursorContext.type === 'SET_CLAUSE', 'UPDATE ... SET → SET_CLAUSE');
+})();
+
+(() => {
+    const sql = 'UPDATE ';
+    const result = parseSQL(sql, sql.length);
+    assert(result.cursorContext.type === 'UPDATE_TABLE', 'UPDATE → UPDATE_TABLE');
+})();
+
+(() => {
+    const sql = 'INSERT INTO ';
+    const result = parseSQL(sql, sql.length);
+    assert(result.cursorContext.type === 'INSERT_INTO', 'INSERT INTO → INSERT_INTO');
+})();
+
+(() => {
+    const sql = 'UPDATE users SET name = "test" WHERE ';
+    const result = parseSQL(sql, sql.length);
+    assert(result.cursorContext.type === 'WHERE', 'UPDATE ... WHERE → WHERE');
+})();
+
+// ── 복잡한 JOIN 시나리오 ────────────────────────────
+
+header('extractJoinClauses — 다양한 JOIN 타입');
+
+(() => {
+    const joins = extractJoinClauses('SELECT * FROM a CROSS JOIN b');
+    assert(joins.length === 1, 'CROSS JOIN 감지');
+    assert(joins[0].type === 'CROSS JOIN', 'type: CROSS JOIN');
+})();
+
+(() => {
+    const joins = extractJoinClauses('SELECT * FROM a RIGHT JOIN b ON a.id = b.aid');
+    assert(joins[0].type === 'RIGHT JOIN', 'type: RIGHT JOIN');
+    assert(joins[0].hasOnClause === true, 'ON 절 있음');
+})();
+
+(() => {
+    const joins = extractJoinClauses('SELECT * FROM a FULL JOIN b ON a.id = b.id');
+    assert(joins[0].type === 'FULL JOIN', 'type: FULL JOIN');
+})();
+
+// ── 스키마 접두사가 있는 테이블 ────────────────────────
+
+header('extractTableReferences — 스키마 접두사');
+
+(() => {
+    const refs = extractTableReferences('SELECT * FROM myschema.users u JOIN myschema.posts p ON u.id = p.user_id');
+    const userRef = refs.find(r => r.table === 'users');
+    assert(userRef !== undefined, 'users 테이블 추출');
+    assert(userRef?.schema === 'myschema', 'users 스키마: myschema');
+    assert(userRef?.alias === 'u', 'users 별칭: u');
+})();
+
+(() => {
+    const refs = extractTableReferences('SELECT * FROM pg_catalog.pg_tables');
+    assert(refs.length === 1, 'pg_catalog 스키마 테이블');
+    assert(refs[0].schema === 'pg_catalog', 'schema: pg_catalog');
+    assert(refs[0].table === 'pg_tables', 'table: pg_tables');
+})();
+
+// ── 복잡한 서브쿼리 시나리오 ────────────────────────
+
+header('서브쿼리 — 복잡한 시나리오');
+
+(() => {
+    // 이중 괄호 (서브쿼리 안의 함수)
+    const sql = 'SELECT * FROM (SELECT MAX(id) FROM users WHERE ';
+    const result = parseSQL(sql, sql.length);
+    assert(result.cursorContext.type === 'WHERE', '서브쿼리 내부 WHERE');
+})();
+
+(() => {
+    // JOIN 내 서브쿼리
+    const sql = 'SELECT * FROM users u JOIN (SELECT user_id, COUNT(*) as cnt FROM orders GROUP BY ';
+    const result = parseSQL(sql, sql.length);
+    assert(result.cursorContext.type === 'GROUP_BY', '서브쿼리 내부 GROUP BY');
+})();
+
+// ── 다중 FROM 절 ────────────────────────────────────
+
+header('extractTableReferences — 다중 테이블');
+
+(() => {
+    const refs = extractTableReferences('SELECT * FROM users u, posts p, comments c WHERE u.id = p.user_id');
+    assert(refs.length === 3, '3개 콤마 구분 테이블');
+    const names = refs.map(r => r.table);
+    assert(names.includes('users'), 'users 포함');
+    assert(names.includes('posts'), 'posts 포함');
+    assert(names.includes('comments'), 'comments 포함');
+})();
+
+(() => {
+    const refs = extractTableReferences('SELECT * FROM (SELECT 1) AS sub');
+    // 서브쿼리는 건너뜀
+    assert(refs.length === 0, '서브쿼리는 테이블로 추출 안 됨');
+})();
+
+// ── aliasMap 동작 검증 ────────────────────────────
+
+header('parseSQL — aliasMap 상세');
+
+(() => {
+    const sql = 'SELECT * FROM users AS u JOIN orders AS o ON u.id = o.user_id';
+    const result = parseSQL(sql, sql.length);
+    assert(result.aliasMap.get('u') === 'users', 'AS 키워드 별칭 — u → users');
+    assert(result.aliasMap.get('o') === 'orders', 'AS 키워드 별칭 — o → orders');
+    // 테이블 이름 자체도 맵에 있어야 함
+    assert(result.aliasMap.get('users') === 'users', 'users → users');
+    assert(result.aliasMap.get('orders') === 'orders', 'orders → orders');
+})();
+
+(() => {
+    // 대소문자 무관
+    const sql = 'SELECT * FROM Users U';
+    const result = parseSQL(sql, sql.length);
+    assert(result.aliasMap.get('u') === 'Users', '대소문자 무관 별칭 매핑');
+})();
+
+// ── 커서가 쿼리 중간에 있는 경우 ──────────────────
+
+header('parseSQL — 커서 위치 변형');
+
+(() => {
+    const sql = 'SELECT * FROM users WHERE id = 1 ORDER BY name';
+    // 커서가 WHERE 절 중간
+    const cursorPos = 'SELECT * FROM users WHERE '.length;
+    const result = parseSQL(sql, cursorPos);
+    assert(result.cursorContext.type === 'WHERE', '쿼리 중간 커서 — WHERE');
+})();
+
+(() => {
+    const sql = 'SELECT * FROM users WHERE id = 1 ORDER BY name';
+    // 커서가 ORDER BY 뒤
+    const cursorPos = 'SELECT * FROM users WHERE id = 1 ORDER BY '.length;
+    const result = parseSQL(sql, cursorPos);
+    assert(result.cursorContext.type === 'ORDER_BY', '쿼리 중간 커서 — ORDER BY');
+})();
+
+(() => {
+    // 커서가 첫 글자 위치
+    const result = parseSQL('SELECT * FROM users', 1);
+    assert(result.cursorContext.type !== undefined, '커서 위치 1에서도 동작');
+})();
+
 // ── Results ─────────────────────────────────────────────
 
 console.log(`\n${'═'.repeat(50)}`);

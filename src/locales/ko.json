@@ -146,6 +146,14 @@
   "copiedToClipboard": "클립보드에 복사되었습니다",
   "changesRecorded": "{count}개의 변경사항이 기록되었습니다. 참고: 인라인 편집 미리보기 - 변경사항은 데이터베이스에 저장되지 않습니다.",
   "rowsMarkedForDeletion": "{count}개 행이 삭제 표시되었습니다. 참고: 인라인 편집 미리보기 - 변경사항은 데이터베이스에 저장되지 않습니다.",
+  "readOnly": {
+    "blocked": "[읽기 전용] \"{name}\" 연결에서 \"{keyword}\" 작업이 차단되었습니다",
+    "disableAction": "읽기 전용 해제",
+    "emergencyConfirm": "⚠️ \"{name}\" 연결의 읽기 전용 모드를 해제하시겠습니까?\n\n쓰기 쿼리(INSERT, UPDATE, DELETE 등)가 허용됩니다. 프로덕션 DB인 경우 주의하세요.",
+    "enabled": "\"{name}\" 연결이 읽기 전용 모드로 설정되었습니다 🔒",
+    "disabled": "\"{name}\" 연결의 읽기 전용 모드가 해제되었습니다",
+    "tableEditorBlocked": "[읽기 전용] \"{name}\" 연결에서 테이블 편집이 차단되었습니다"
+  },
   "queryTabs": {
     "noConnectionSelected": "이 탭에 연결을 선택해주세요",
     "newTab": "새 탭",

@@ -162,10 +162,19 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
 
         // Show connection status
         if (isActive) {
-            item.description = this.i18n.t('connection.connected');
-            item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
+            if (conn.config.readOnly) {
+                item.description = `${this.i18n.t('connection.connected')} 🔒`;
+                item.iconPath = new vscode.ThemeIcon('lock', new vscode.ThemeColor('charts.yellow'));
+            } else {
+                item.description = this.i18n.t('connection.connected');
+                item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
+            }
         } else {
-            item.description = this.getDbTypeLabel(conn.config.type);
+            if (conn.config.readOnly) {
+                item.description = `${this.getDbTypeLabel(conn.config.type)} 🔒`;
+            } else {
+                item.description = this.getDbTypeLabel(conn.config.type);
+            }
         }
 
         item.tooltip = this.buildConnectionTooltip(conn);
@@ -305,6 +314,10 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
 
         if (config.ssh) {
             lines.push(`SSH: ${config.ssh.host}:${config.ssh.port || 22}`);
+        }
+
+        if (config.readOnly) {
+            lines.push('Mode: Read-Only 🔒');
         }
 
         return lines.join('\n');

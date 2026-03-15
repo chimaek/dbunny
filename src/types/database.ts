@@ -14,6 +14,8 @@ export interface ConnectionConfig {
     options?: Record<string, unknown>;
     group?: string;
     h2Mode?: H2ConnectionMode;
+    /** 읽기 전용 모드 — INSERT/UPDATE/DELETE/DROP 등 차단 */
+    readOnly?: boolean;
 }
 
 /**

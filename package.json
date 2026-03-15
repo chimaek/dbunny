@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -96,6 +96,12 @@
         "title": "Delete Connection",
         "category": "DBunny",
         "icon": "$(trash)"
+      },
+      {
+        "command": "dbunny.toggleReadOnly",
+        "title": "Toggle Read-Only Mode",
+        "category": "DBunny",
+        "icon": "$(lock)"
       },
       {
         "command": "dbunny.connect",
@@ -320,6 +326,11 @@
           "command": "dbunny.deleteConnection",
           "when": "view == dbunny.explorer && viewItem == connection",
           "group": "inline@3"
+        },
+        {
+          "command": "dbunny.toggleReadOnly",
+          "when": "view == dbunny.explorer && viewItem == connection",
+          "group": "inline@4"
         },
         {
           "command": "dbunny.setConnectionGroup",

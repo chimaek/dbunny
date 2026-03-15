@@ -705,6 +705,15 @@ export class ConnectionFormPanel {
                 </div>
             </div>
 
+            <!-- Read-Only Mode -->
+            <label class="ssh-toggle ${config?.readOnly ? 'active' : ''}" id="readOnlyToggle">
+                <input type="checkbox" id="readOnly" name="readOnly" ${config?.readOnly ? 'checked' : ''}>
+                <div class="ssh-toggle-content">
+                    <div class="ssh-toggle-title">🔒 ${this.i18n.getCurrentLanguage() === 'ko' ? '읽기 전용 모드' : 'Read-Only Mode'}</div>
+                    <div class="ssh-toggle-desc">${this.i18n.getCurrentLanguage() === 'ko' ? 'INSERT, UPDATE, DELETE, DROP 등 쓰기 쿼리를 차단합니다' : 'Block INSERT, UPDATE, DELETE, DROP and other write queries'}</div>
+                </div>
+            </label>
+
             <!-- SSH Tunnel -->
             <label class="ssh-toggle ${config?.ssh ? 'active' : ''}" id="sshToggle">
                 <input type="checkbox" id="useSSH" name="useSSH" ${config?.ssh ? 'checked' : ''}>
@@ -769,6 +778,17 @@ export class ConnectionFormPanel {
         const sshFields = document.getElementById('sshFields');
         const testMessage = document.getElementById('testMessage');
         const testBtn = document.getElementById('testBtn');
+
+        const readOnlyCheckbox = document.getElementById('readOnly');
+        const readOnlyToggleEl = document.getElementById('readOnlyToggle');
+
+        readOnlyCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                readOnlyToggleEl.classList.add('active');
+            } else {
+                readOnlyToggleEl.classList.remove('active');
+            }
+        });
 
         const defaultPorts = {
             mysql: 3306,
@@ -873,7 +893,8 @@ export class ConnectionFormPanel {
                 password: document.getElementById('password').value,
                 database: type === 'sqlite'
                     ? document.getElementById('sqlitePath').value
-                    : document.getElementById('database').value
+                    : document.getElementById('database').value,
+                readOnly: readOnlyCheckbox.checked
             };
 
             if (useSSHCheckbox.checked) {

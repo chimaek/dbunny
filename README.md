@@ -32,6 +32,11 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 - **SSH Tunneling** — Connect to remote databases through SSH tunnel (local TCP server based)
 - **Schema Explorer** — Browse databases, tables, and columns in a tree view
 - **Table Favorites** — Star frequently used tables for quick access
+- **Read-Only Mode** — Lock connections to prevent accidental writes on production databases
+  - Blocks INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, and more
+  - Redis/MongoDB write command detection
+  - Lock icon (🔒) in tree view, warning banner in query editor
+  - Emergency unlock with modal confirmation dialog
 
 #### Query Editor
 
@@ -202,6 +207,11 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 - **SSH 터널링** — SSH 터널을 통한 원격 데이터베이스 연결 (로컬 TCP 서버 기반)
 - **스키마 탐색기** — 트리 뷰로 데이터베이스, 테이블, 컬럼 탐색
 - **테이블 즐겨찾기** — 별표로 자주 사용하는 테이블 상단 고정
+- **읽기 전용 모드** — 프로덕션 DB 보호를 위한 쓰기 쿼리 차단
+  - INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE 등 차단
+  - Redis/MongoDB 쓰기 명령어 감지
+  - 트리뷰 잠금 아이콘 (🔒), 쿼리 에디터 경고 배너
+  - 긴급 해제 확인 다이얼로그
 
 #### 쿼리 편집기
 
