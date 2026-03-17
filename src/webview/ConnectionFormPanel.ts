@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ConnectionConfig } from '../types/database';
+import { ConnectionConfig, CONNECTION_COLOR_PRESETS } from '../types/database';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
 
@@ -153,6 +153,7 @@ export class ConnectionFormPanel {
     private _getHtmlContent(): string {
         const config = this.existingConfig;
         const isEdit = !!config;
+        const isKo = this.i18n.getCurrentLanguage() === 'ko';
 
         // Get translations for webview
         const t = {
@@ -475,6 +476,97 @@ export class ConnectionFormPanel {
             color: var(--db-color, var(--vscode-focusBorder));
         }
 
+        /* Color Picker */
+        .color-picker-section {
+            margin: 1.25rem 0;
+        }
+        .color-picker-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            color: var(--vscode-foreground);
+        }
+        .color-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .color-swatch {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .color-swatch:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+        }
+        .color-swatch.selected {
+            border-color: var(--vscode-foreground);
+            box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+        }
+        .color-swatch.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .color-swatch.none {
+            background: var(--vscode-input-background);
+            border: 2px dashed var(--vscode-input-border);
+        }
+        .color-swatch.none.selected::after {
+            content: '✕';
+            color: var(--vscode-descriptionForeground);
+            text-shadow: none;
+        }
+        .color-label-input {
+            margin-top: 0.75rem;
+            display: none;
+        }
+        .color-label-input.visible {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .color-label-input input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 0.3rem;
+            font-size: 0.9rem;
+        }
+        .color-label-input input:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+        }
+        .color-preview {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .production-warning-preview {
+            font-size: 0.8rem;
+            color: var(--vscode-editorWarning-foreground, #cca700);
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .production-warning-preview.visible {
+            display: block;
+        }
+
         /* Messages */
         .message {
             padding: 0.9rem 1.25rem;
@@ -714,6 +806,22 @@ export class ConnectionFormPanel {
                 </div>
             </label>
 
+            <!-- Color Coding -->
+            <div class="color-picker-section">
+                <div class="color-picker-title">🎨 ${isKo ? '연결 컬러' : 'Connection Color'}</div>
+                <div class="color-presets">
+                    <div class="color-swatch none ${!config?.color ? 'selected' : ''}" data-color-id="" data-color-hex="" title="${isKo ? '색상 없음' : 'No color'}" onclick="selectColor('', '')"></div>
+                    ${CONNECTION_COLOR_PRESETS.map(c => `<div class="color-swatch ${config?.color?.id === c.id ? 'selected' : ''}" style="background:${c.hex}" data-color-id="${c.id}" data-color-hex="${c.hex}" title="${isKo ? c.label : c.labelEn}" onclick="selectColor('${c.id}', '${c.hex}')"></div>`).join('\n                    ')}
+                </div>
+                <div class="color-label-input ${config?.color ? 'visible' : ''}" id="colorLabelRow">
+                    <div class="color-preview" id="colorPreview" style="background:${config?.color?.hex || 'transparent'}"></div>
+                    <input type="text" id="colorLabel" placeholder="${isKo ? '라벨 (예: 운영, 개발)' : 'Label (e.g., Production, Dev)'}" value="${this._escapeHtml(config?.color?.label || '')}">
+                </div>
+                <div class="production-warning-preview ${config?.color?.id === 'red' ? 'visible' : ''}" id="prodWarningPreview">
+                    ⚠️ ${isKo ? '빨간색 연결은 운영 환경 경고 배너가 표시됩니다' : 'Red connections will show a production warning banner'}
+                </div>
+            </div>
+
             <!-- SSH Tunnel -->
             <label class="ssh-toggle ${config?.ssh ? 'active' : ''}" id="sshToggle">
                 <input type="checkbox" id="useSSH" name="useSSH" ${config?.ssh ? 'checked' : ''}>
@@ -897,6 +1005,20 @@ export class ConnectionFormPanel {
                 readOnly: readOnlyCheckbox.checked
             };
 
+            // Color coding
+            const selectedSwatch = document.querySelector('.color-swatch.selected');
+            if (selectedSwatch) {
+                const colorId = selectedSwatch.getAttribute('data-color-id');
+                const colorHex = selectedSwatch.getAttribute('data-color-hex');
+                if (colorId && colorHex) {
+                    data.color = {
+                        id: colorId,
+                        hex: colorHex,
+                        label: document.getElementById('colorLabel').value || undefined
+                    };
+                }
+            }
+
             if (useSSHCheckbox.checked) {
                 data.ssh = {
                     host: document.getElementById('sshHost').value,
@@ -929,6 +1051,27 @@ export class ConnectionFormPanel {
 
         function browseFile() {
             vscode.postMessage({ command: 'browseFile' });
+        }
+
+        // Color picker
+        function selectColor(id, hex) {
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+            const target = id
+                ? document.querySelector('.color-swatch[data-color-id="' + id + '"]')
+                : document.querySelector('.color-swatch.none');
+            if (target) target.classList.add('selected');
+
+            const labelRow = document.getElementById('colorLabelRow');
+            const preview = document.getElementById('colorPreview');
+            const prodWarning = document.getElementById('prodWarningPreview');
+            if (id && hex) {
+                labelRow.classList.add('visible');
+                preview.style.background = hex;
+            } else {
+                labelRow.classList.remove('visible');
+                document.getElementById('colorLabel').value = '';
+            }
+            prodWarning.classList.toggle('visible', id === 'red');
         }
 
         window.addEventListener('message', event => {

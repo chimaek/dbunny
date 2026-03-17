@@ -78,7 +78,7 @@ const postgresNoDb: ConnectionConfig = {
 
 const redisConfig: ConnectionConfig = {
     id: 'test-redis', name: 'Redis Test', type: 'redis',
-    host: 'localhost', port: 16379,
+    host: 'localhost', port: 6379,
     username: '', password: 'redis1234',
 };
 

@@ -638,7 +638,8 @@ export class QueryTabPanel {
             name: c.config.name,
             type: c.config.type,
             isConnected: c.isConnected(),
-            readOnly: !!c.config.readOnly
+            readOnly: !!c.config.readOnly,
+            color: c.config.color || null
         }));
 
         this._panel.webview.postMessage({
@@ -733,6 +734,13 @@ export class QueryTabPanel {
             background: var(--vscode-tab-activeBackground);
             color: var(--vscode-tab-activeForeground);
             border-bottom: 2px solid var(--vscode-focusBorder);
+        }
+
+        .tab-color-bar {
+            width: 3px;
+            height: 60%;
+            border-radius: 2px;
+            flex-shrink: 0;
         }
 
         .tab-title {
@@ -899,6 +907,27 @@ export class QueryTabPanel {
         }
         .read-only-banner .lock-icon {
             font-size: 14px;
+        }
+
+        .production-warning-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: color-mix(in srgb, #E74C3C 15%, var(--vscode-editor-background));
+            border-bottom: 1px solid #E74C3C;
+            font-size: 12px;
+            color: #E74C3C;
+            font-weight: 500;
+        }
+        .production-warning-banner .warn-icon {
+            font-size: 14px;
+        }
+
+        .connection-color-bar {
+            height: 3px;
+            width: 100%;
+            flex-shrink: 0;
         }
 
         .results-section {
@@ -1462,7 +1491,12 @@ export class QueryTabPanel {
         let activeTabId = '${activeTabId}';
         let connections = [];
         let readOnlyMap = {};
-        try { readOnlyMap = Object.fromEntries(${connectionsJson}.map(c => [c.id, c.readOnly])); } catch(e) {}
+        let colorMap = {};
+        try {
+            const initConns = ${connectionsJson};
+            readOnlyMap = Object.fromEntries(initConns.map(c => [c.id, c.readOnly]));
+            colorMap = Object.fromEntries(initConns.filter(c => c.color).map(c => [c.id, c.color]));
+        } catch(e) {}
 
         // Request connections
         vscode.postMessage({ command: 'getConnections' });
@@ -1478,14 +1512,18 @@ export class QueryTabPanel {
 
         function renderTabs() {
             const tabsEl = document.getElementById('tabs');
-            tabsEl.innerHTML = tabs.map(tab => \`
+            tabsEl.innerHTML = tabs.map(tab => {
+                const cc = colorMap[tab.connectionId];
+                const colorBar = cc ? \`<span class="tab-color-bar" style="background:\${cc.hex}"></span>\` : '';
+                return \`
                 <div class="tab \${tab.id === activeTabId ? 'active' : ''}"
                      onclick="switchTab('\${tab.id}')"
                      ondblclick="renameTab('\${tab.id}')">
+                    \${colorBar}
                     <span class="tab-title">\${escapeHtml(tab.name)}</span>
                     <button class="tab-close" onclick="event.stopPropagation(); closeTab('\${tab.id}')">&times;</button>
                 </div>
-            \`).join('');
+            \`;}).join('');
         }
 
         function renderEditor() {
@@ -1516,7 +1554,7 @@ export class QueryTabPanel {
                             \`).join('')}
                         </select>
                     \` : ''}
-                    <span class="connection-badge \${tab.connectionId ? 'connected' : ''}">\${escapeHtml(tab.connectionName)}</span>
+                    <span class="connection-badge \${tab.connectionId ? 'connected' : ''}" \${colorMap[tab.connectionId] ? 'style="background:' + colorMap[tab.connectionId].hex + '22;color:' + colorMap[tab.connectionId].hex + ';border:1px solid ' + colorMap[tab.connectionId].hex + '44"' : ''}>\${colorMap[tab.connectionId] ? '<span style="color:' + colorMap[tab.connectionId].hex + '">●</span> ' : ''}\${escapeHtml(tab.connectionName)}</span>
                     <div class="toolbar-spacer"></div>
                     <span class="keyboard-hint">Ctrl+Enter to execute</span>
                     <button class="toolbar-btn" onclick="formatQuery('\${tab.id}')">Format</button>
@@ -1525,6 +1563,13 @@ export class QueryTabPanel {
                         \${tab.isExecuting ? 'Executing...' : '▶ Execute'}
                     </button>
                 </div>
+                \${colorMap[tab.connectionId] ? \`<div class="connection-color-bar" style="background:\${colorMap[tab.connectionId].hex}"></div>\` : ''}
+                \${colorMap[tab.connectionId]?.id === 'red' ? \`
+                <div class="production-warning-banner">
+                    <span class="warn-icon">⚠️</span>
+                    <span>PRODUCTION — Be careful with your queries</span>
+                </div>
+                \` : ''}
                 \${readOnlyMap[tab.connectionId] ? \`
                 <div class="read-only-banner">
                     <span class="lock-icon">🔒</span>
@@ -2530,8 +2575,13 @@ export class QueryTabPanel {
             const message = event.data;
             if (message.command === 'connections') {
                 connections = message.connections;
-                // readOnly 맵 업데이트
-                connections.forEach(c => { readOnlyMap[c.id] = !!c.readOnly; });
+                // readOnly 및 color 맵 업데이트
+                readOnlyMap = {};
+                colorMap = {};
+                connections.forEach(c => {
+                    readOnlyMap[c.id] = !!c.readOnly;
+                    if (c.color) colorMap[c.id] = c.color;
+                });
                 renderEditor();
             } else if (message.command === 'showParameterDialog') {
                 showParameterDialog(message.tabId, message.paramNames, message.connectionData);

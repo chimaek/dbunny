@@ -51,11 +51,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Listen for connection changes and track disposable
     const connectionChangeDisposable = connectionManager.onDidChangeConnection((connection) => {
         if (connection) {
-            statusBarItem.text = `$(database) DBunny: ${connection.config.name}`;
+            const colorLabel = connection.config.color?.label;
+            const colorDot = connection.config.color ? '●' : '';
+            const nameDisplay = colorLabel ? `${colorLabel}: ${connection.config.name}` : connection.config.name;
+            statusBarItem.text = `$(database) ${colorDot} DBunny: ${nameDisplay}`;
             statusBarItem.tooltip = i18n.t('status.connected', { name: connection.config.name });
+            // 상태 바 색상 — 연결 컬러가 있으면 적용
+            statusBarItem.color = connection.config.color?.hex || undefined;
         } else {
             statusBarItem.text = '$(database) DBunny: Disconnected';
             statusBarItem.tooltip = i18n.t('status.disconnected');
+            statusBarItem.color = undefined;
         }
         connectionTreeProvider.refresh();
     });

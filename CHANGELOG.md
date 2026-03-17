@@ -5,6 +5,21 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-03-17
+
+### Added
+
+- **Connection Color Coding**: Assign colors to connections for visual environment distinction
+  - **8 Preset Colors**: Red (Production), Orange (Staging), Yellow (Testing), Green (Development), Blue (Local), Purple (Analytics), Pink, Gray
+  - **Color Picker UI**: Circular color swatches in connection add/edit form with custom label input
+  - **Tree View Indicator**: Connection icon color and color dot in the sidebar tree view
+  - **Tab Color Bar**: Thin color bar on the left side of query tabs showing connection color
+  - **Connection Badge**: Colored connection badge in the query editor toolbar
+  - **Status Bar Color**: Connection color and label displayed in VS Code status bar
+  - **Production Warning Banner**: Red "PRODUCTION — Be careful with your queries" banner for red-colored connections
+- **Connection Color Types** (`ConnectionColor`, `CONNECTION_COLOR_PRESETS`): Color configuration and preset definitions in `src/types/database.ts`
+- **Tests**: 66 unit tests (color presets, mapping, badge styles, edge cases) + 20 integration tests (real DB connections with color, multi-connection, backward compatibility)
+
 ## [2.3.0] - 2026-03-16
 
 ### Added

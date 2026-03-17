@@ -160,21 +160,22 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             isActive ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
         );
 
-        // Show connection status
+        // 컬러 코딩 인디케이터
+        const colorDot = conn.config.color ? `●` : '';
+        const readOnlyIcon = conn.config.readOnly ? ' 🔒' : '';
+
+        // Show connection status with color indicator
         if (isActive) {
+            const iconColor = this.getConnectionIconColor(conn);
             if (conn.config.readOnly) {
-                item.description = `${this.i18n.t('connection.connected')} 🔒`;
-                item.iconPath = new vscode.ThemeIcon('lock', new vscode.ThemeColor('charts.yellow'));
+                item.description = `${colorDot} ${this.i18n.t('connection.connected')}${readOnlyIcon}`.trim();
+                item.iconPath = new vscode.ThemeIcon('lock', new vscode.ThemeColor(iconColor));
             } else {
-                item.description = this.i18n.t('connection.connected');
-                item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
+                item.description = `${colorDot} ${this.i18n.t('connection.connected')}`.trim();
+                item.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor(iconColor));
             }
         } else {
-            if (conn.config.readOnly) {
-                item.description = `${this.getDbTypeLabel(conn.config.type)} 🔒`;
-            } else {
-                item.description = this.getDbTypeLabel(conn.config.type);
-            }
+            item.description = `${colorDot} ${this.getDbTypeLabel(conn.config.type)}${readOnlyIcon}`.trim();
         }
 
         item.tooltip = this.buildConnectionTooltip(conn);
@@ -320,7 +321,33 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             lines.push('Mode: Read-Only 🔒');
         }
 
+        if (config.color) {
+            const label = config.color.label || config.color.id;
+            lines.push(`Color: ${label}`);
+        }
+
         return lines.join('\n');
+    }
+
+    /**
+     * 연결의 아이콘 색상 결정 — 사용자 컬러 > 기본(readOnly=yellow, 일반=green)
+     */
+    private getConnectionIconColor(conn: DatabaseConnection): string {
+        if (conn.config.color) {
+            // VSCode ThemeColor에 직접 hex를 쓸 수 없으므로 프리셋→charts 매핑
+            const colorMap: Record<string, string> = {
+                red: 'charts.red',
+                orange: 'charts.orange',
+                yellow: 'charts.yellow',
+                green: 'charts.green',
+                blue: 'charts.blue',
+                purple: 'charts.purple',
+                pink: 'charts.pink',
+                gray: 'descriptionForeground',
+            };
+            return colorMap[conn.config.color.id] || (conn.config.readOnly ? 'charts.yellow' : 'charts.green');
+        }
+        return conn.config.readOnly ? 'charts.yellow' : 'charts.green';
     }
 
     /**

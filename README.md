@@ -37,6 +37,11 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Redis/MongoDB write command detection
   - Lock icon (🔒) in tree view, warning banner in query editor
   - Emergency unlock with modal confirmation dialog
+- **Connection Color Coding** — Assign colors to visually distinguish environments
+  - 8 preset colors: Red (Production), Orange (Staging), Green (Development), Blue (Local), and more
+  - Color indicator in tree view, tab bar, connection badge, and status bar
+  - Production warning banner for red-colored connections
+  - Custom labels per connection (e.g., "Production", "Dev")
 
 #### Query Editor
 
@@ -212,6 +217,11 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - Redis/MongoDB 쓰기 명령어 감지
   - 트리뷰 잠금 아이콘 (🔒), 쿼리 에디터 경고 배너
   - 긴급 해제 확인 다이얼로그
+- **연결별 컬러 코딩** — 환경별 색상으로 연결을 시각적으로 구분
+  - 8가지 프리셋 색상: 빨강(운영), 주황(스테이징), 초록(개발), 파랑(로컬) 등
+  - 트리뷰, 탭 바, 연결 배지, 상태 바에 컬러 인디케이터
+  - 운영(빨강) 연결 시 경고 배너 표시
+  - 연결별 사용자 지정 라벨 (예: "운영", "개발")
 
 #### 쿼리 편집기
 

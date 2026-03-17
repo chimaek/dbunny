@@ -16,6 +16,8 @@ export interface ConnectionConfig {
     h2Mode?: H2ConnectionMode;
     /** 읽기 전용 모드 — INSERT/UPDATE/DELETE/DROP 등 차단 */
     readOnly?: boolean;
+    /** 연결별 컬러 코딩 — 탭/트리뷰/상태바에 표시되는 색상 */
+    color?: ConnectionColor;
 }
 
 /**
@@ -34,6 +36,32 @@ export interface H2ConnectionMode {
  * Supported database types
  */
 export type DatabaseType = 'mysql' | 'postgres' | 'sqlite' | 'mongodb' | 'redis' | 'h2';
+
+/**
+ * 연결별 컬러 코딩 설정
+ */
+export interface ConnectionColor {
+    /** 프리셋 컬러 ID 또는 커스텀 hex 코드 */
+    id: string;
+    /** 표시용 색상 hex 값 */
+    hex: string;
+    /** 사용자에게 보여질 라벨 (예: "운영", "개발") */
+    label?: string;
+}
+
+/**
+ * 프리셋 컬러 목록 — 환경별 의미가 있는 색상
+ */
+export const CONNECTION_COLOR_PRESETS: { id: string; hex: string; label: string; labelEn: string }[] = [
+    { id: 'red', hex: '#E74C3C', label: '운영(빨강)', labelEn: 'Production (Red)' },
+    { id: 'orange', hex: '#E67E22', label: '스테이징(주황)', labelEn: 'Staging (Orange)' },
+    { id: 'yellow', hex: '#F1C40F', label: '테스트(노랑)', labelEn: 'Testing (Yellow)' },
+    { id: 'green', hex: '#27AE60', label: '개발(초록)', labelEn: 'Development (Green)' },
+    { id: 'blue', hex: '#3498DB', label: '로컬(파랑)', labelEn: 'Local (Blue)' },
+    { id: 'purple', hex: '#9B59B6', label: '분석(보라)', labelEn: 'Analytics (Purple)' },
+    { id: 'pink', hex: '#E91E8F', label: '핑크', labelEn: 'Pink' },
+    { id: 'gray', hex: '#95A5A6', label: '기타(회색)', labelEn: 'Other (Gray)' },
+];
 
 /**
  * SSH tunnel configuration
