@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -276,6 +276,48 @@
         "title": "Toggle Favorite",
         "category": "DBunny",
         "icon": "$(star)"
+      },
+      {
+        "command": "dbunny.duplicateConnection",
+        "title": "Duplicate Connection",
+        "category": "DBunny",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "dbunny.exportConnection",
+        "title": "Export Connection",
+        "category": "DBunny",
+        "icon": "$(export)"
+      },
+      {
+        "command": "dbunny.exportAllConnections",
+        "title": "Export All Connections",
+        "category": "DBunny",
+        "icon": "$(export)"
+      },
+      {
+        "command": "dbunny.importConnections",
+        "title": "Import Connections",
+        "category": "DBunny",
+        "icon": "$(import)"
+      },
+      {
+        "command": "dbunny.saveAsTemplate",
+        "title": "Save as Template",
+        "category": "DBunny",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "dbunny.newFromTemplate",
+        "title": "New from Template",
+        "category": "DBunny",
+        "icon": "$(file-symlink-file)"
+      },
+      {
+        "command": "dbunny.deleteTemplate",
+        "title": "Delete Template",
+        "category": "DBunny",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -309,6 +351,21 @@
           "command": "dbunny.clearHistory",
           "when": "view == dbunny.queries",
           "group": "navigation"
+        },
+        {
+          "command": "dbunny.importConnections",
+          "when": "view == dbunny.explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "dbunny.newFromTemplate",
+          "when": "view == dbunny.explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "dbunny.exportAllConnections",
+          "when": "view == dbunny.explorer",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -336,6 +393,21 @@
           "command": "dbunny.setConnectionGroup",
           "when": "view == dbunny.explorer && viewItem == connection",
           "group": "navigation@1"
+        },
+        {
+          "command": "dbunny.duplicateConnection",
+          "when": "view == dbunny.explorer && viewItem == connection",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dbunny.exportConnection",
+          "when": "view == dbunny.explorer && viewItem == connection",
+          "group": "navigation@3"
+        },
+        {
+          "command": "dbunny.saveAsTemplate",
+          "when": "view == dbunny.explorer && viewItem == connection",
+          "group": "navigation@4"
         },
         {
           "command": "dbunny.renameGroup",

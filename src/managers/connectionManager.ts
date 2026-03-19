@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DatabaseConnection, ConnectionConfig, DatabaseType, QueryResult } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, ConnectionTemplate, DatabaseType, QueryResult } from '../types/database';
+import { createTemplate, templateToConnectionConfig, MAX_TEMPLATES } from '../utils/connectionShare';
 import { MySQLProvider } from '../providers/mysqlProvider';
 import { PostgresProvider } from '../providers/postgresProvider';
 import { SQLiteProvider } from '../providers/sqliteProvider';
@@ -15,6 +16,8 @@ export class ConnectionManager {
     private connections: Map<string, DatabaseConnection> = new Map();
     private activeConnection: DatabaseConnection | null = null;
     private encryptionService: EncryptionService;
+    /** 트리뷰에서 선택된 데이터베이스 이름 (쿼리 실행 시 컨텍스트) */
+    private _selectedDatabase: string | undefined;
 
     private readonly _onDidChangeConnection = new vscode.EventEmitter<DatabaseConnection | null>();
     readonly onDidChangeConnection = this._onDidChangeConnection.event;
@@ -119,6 +122,7 @@ export class ConnectionManager {
         await connectionWithDecryptedPassword.connect();
 
         this.activeConnection = connectionWithDecryptedPassword;
+        this._selectedDatabase = decryptedConfig.database;
         this._onDidChangeConnection.fire(this.activeConnection);
     }
 
@@ -129,6 +133,7 @@ export class ConnectionManager {
         if (this.activeConnection) {
             await this.activeConnection.disconnect();
             this.activeConnection = null;
+            this._selectedDatabase = undefined;
             this._onDidChangeConnection.fire(null);
         }
     }
@@ -136,11 +141,26 @@ export class ConnectionManager {
     /**
      * Execute a query on the active connection
      */
-    async executeQuery(query: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string): Promise<QueryResult> {
         if (!this.activeConnection) {
             throw new Error('No active connection');
         }
-        return await this.activeConnection.executeQuery(query);
+        const db = database || this._selectedDatabase;
+        return await this.activeConnection.executeQuery(query, db);
+    }
+
+    /**
+     * 선택된 데이터베이스 설정 (트리뷰에서 DB 선택 시)
+     */
+    setSelectedDatabase(database: string | undefined): void {
+        this._selectedDatabase = database;
+    }
+
+    /**
+     * 현재 선택된 데이터베이스 조회
+     */
+    getSelectedDatabase(): string | undefined {
+        return this._selectedDatabase;
     }
 
     /**
@@ -337,6 +357,104 @@ export class ConnectionManager {
         }
         await this.saveConnections();
         this._onDidChangeConnections.fire();
+    }
+
+    // ===== Connection Duplication =====
+
+    /**
+     * 기존 연결을 복제 (암호화된 비밀번호 포함)
+     */
+    async duplicateConnection(connectionId: string): Promise<ConnectionConfig> {
+        const connection = this.connections.get(connectionId);
+        if (!connection) {
+            throw new Error(`Connection not found: ${connectionId}`);
+        }
+
+        const newId = this.generateConnectionId();
+        const duplicatedConfig: ConnectionConfig = {
+            ...connection.config,
+            id: newId,
+            name: `${connection.config.name} (Copy)`,
+        };
+
+        // 암호화된 비밀번호를 직접 복사하여 재암호화 없이 저장
+        const newConnection = this.createConnection(duplicatedConfig);
+        this.connections.set(newId, newConnection);
+        await this.saveConnections();
+        this._onDidChangeConnections.fire();
+
+        return duplicatedConfig;
+    }
+
+    // ===== Connection Import =====
+
+    /**
+     * 외부에서 가져온 연결 설정 일괄 추가 (비밀번호 없음)
+     */
+    async importConnections(configs: ConnectionConfig[]): Promise<number> {
+        let count = 0;
+        for (const config of configs) {
+            const connection = this.createConnection(config);
+            this.connections.set(config.id, connection);
+            count++;
+        }
+        await this.saveConnections();
+        this._onDidChangeConnections.fire();
+        return count;
+    }
+
+    // ===== Connection Templates =====
+
+    /**
+     * 저장된 템플릿 목록 조회
+     */
+    getTemplates(): ConnectionTemplate[] {
+        return this.context.globalState.get<ConnectionTemplate[]>('dbunny.templates', []);
+    }
+
+    /**
+     * 연결을 템플릿으로 저장
+     */
+    async saveAsTemplate(connectionId: string, templateName: string, description?: string): Promise<ConnectionTemplate> {
+        const connection = this.connections.get(connectionId);
+        if (!connection) {
+            throw new Error(`Connection not found: ${connectionId}`);
+        }
+
+        const templates = this.getTemplates();
+        if (templates.length >= MAX_TEMPLATES) {
+            throw new Error(`Maximum ${MAX_TEMPLATES} templates allowed`);
+        }
+
+        const template = createTemplate(
+            connection.config,
+            templateName,
+            description,
+            () => this.generateConnectionId()
+        );
+
+        templates.push(template);
+        await this.context.globalState.update('dbunny.templates', templates);
+
+        return template;
+    }
+
+    /**
+     * 템플릿 삭제
+     */
+    async deleteTemplate(templateId: string): Promise<void> {
+        const templates = this.getTemplates().filter(t => t.id !== templateId);
+        await this.context.globalState.update('dbunny.templates', templates);
+    }
+
+    /**
+     * 템플릿에서 새 연결 생성 (비밀번호 없이 — 폼 프리필용)
+     */
+    createConnectionFromTemplate(templateId: string): ConnectionConfig | undefined {
+        const template = this.getTemplates().find(t => t.id === templateId);
+        if (!template) { return undefined; }
+
+        return templateToConnectionConfig(template, () => this.generateConnectionId());
     }
 
     // ===== Table Favorites =====

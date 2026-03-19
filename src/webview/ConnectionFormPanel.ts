@@ -17,7 +17,8 @@ export class ConnectionFormPanel {
         extensionUri: vscode.Uri,
         private connectionManager: ConnectionManager,
         private i18n: I18n,
-        private existingConfig?: ConnectionConfig
+        private existingConfig?: ConnectionConfig,
+        private isTemplate: boolean = false
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -55,7 +56,8 @@ export class ConnectionFormPanel {
         extensionUri: vscode.Uri,
         connectionManager: ConnectionManager,
         i18n: I18n,
-        existingConfig?: ConnectionConfig
+        existingConfig?: ConnectionConfig,
+        isTemplate: boolean = false
     ): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
@@ -66,9 +68,11 @@ export class ConnectionFormPanel {
             return;
         }
 
+        // 템플릿에서 온 경우 새 연결로 취급 (프리필만)
+        const isEditMode = existingConfig && !isTemplate;
         const panel = vscode.window.createWebviewPanel(
             'dbunnyConnectionForm',
-            existingConfig ? i18n.t('connection.editConnection') : i18n.t('connection.addConnection'),
+            isEditMode ? i18n.t('connection.editConnection') : i18n.t('connection.addConnection'),
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -81,8 +85,17 @@ export class ConnectionFormPanel {
             extensionUri,
             connectionManager,
             i18n,
-            existingConfig
+            isEditMode ? existingConfig : undefined,
+            isTemplate
         );
+
+        // 템플릿 프리필 시 WebView에 데이터 전송
+        if (isTemplate && existingConfig) {
+            panel.webview.postMessage({
+                command: 'prefill',
+                data: existingConfig,
+            });
+        }
     }
 
     private async _handleSave(data: ConnectionConfig): Promise<void> {
@@ -1094,6 +1107,36 @@ export class ConnectionFormPanel {
                 case 'fileSelected':
                     document.getElementById('sqlitePath').value = message.path;
                     break;
+                case 'prefill': {
+                    // 템플릿에서 폼 프리필
+                    const d = message.data;
+                    if (d.type) { selectDbType(d.type); }
+                    if (d.name) { document.getElementById('name').value = d.name; }
+                    if (d.host) { document.getElementById('host').value = d.host; }
+                    if (d.port) { document.getElementById('port').value = String(d.port); }
+                    if (d.username) { document.getElementById('username').value = d.username; }
+                    if (d.database) {
+                        if (d.type === 'sqlite') {
+                            document.getElementById('sqlitePath').value = d.database;
+                        } else {
+                            document.getElementById('database').value = d.database;
+                        }
+                    }
+                    if (d.readOnly) { readOnlyCheckbox.checked = true; }
+                    if (d.ssh) {
+                        useSSHCheckbox.checked = true;
+                        sshFields.style.display = 'block';
+                        sshToggle.classList.add('active');
+                        if (d.ssh.host) { document.getElementById('sshHost').value = d.ssh.host; }
+                        if (d.ssh.port) { document.getElementById('sshPort').value = String(d.ssh.port); }
+                        if (d.ssh.username) { document.getElementById('sshUsername').value = d.ssh.username; }
+                    }
+                    if (d.h2Mode) {
+                        document.getElementById('h2DbType').value = d.h2Mode.dbType || 'mem';
+                        if (d.h2Mode.dbPath) { document.getElementById('h2DbPath').value = d.h2Mode.dbPath; }
+                    }
+                    break;
+                }
             }
         });
 

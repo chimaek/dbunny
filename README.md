@@ -42,6 +42,11 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Color indicator in tree view, tab bar, connection badge, and status bar
   - Production warning banner for red-colored connections
   - Custom labels per connection (e.g., "Production", "Dev")
+- **Connection Duplication & Sharing** — Clone, export, import, and template connections
+  - One-click duplication with all settings preserved
+  - Export as `.dbunny.json` (passwords excluded) for sharing with team members
+  - Import shared connection files with validation
+  - Save connections as reusable templates (up to 50)
 
 #### Query Editor
 
@@ -222,6 +227,11 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - 트리뷰, 탭 바, 연결 배지, 상태 바에 컬러 인디케이터
   - 운영(빨강) 연결 시 경고 배너 표시
   - 연결별 사용자 지정 라벨 (예: "운영", "개발")
+- **연결 복제 및 공유** — 복제, 내보내기, 가져오기, 템플릿 기능
+  - 원클릭 연결 복제 (모든 설정 보존)
+  - `.dbunny.json`으로 내보내기 (비밀번호 제외) — 팀원과 공유
+  - 공유받은 연결 파일 가져오기 (유효성 검증 포함)
+  - 재사용 가능한 연결 템플릿 저장 (최대 50개)
 
 #### 쿼리 편집기
 

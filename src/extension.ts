@@ -25,8 +25,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const queryHistoryProvider = new QueryHistoryProvider(context, i18n);
     const savedQueriesProvider = new SavedQueriesProvider(context, i18n);
 
+    // Explorer 트리뷰 — createTreeView로 선택 이벤트 활용
+    const explorerTreeView = vscode.window.createTreeView('dbunny.explorer', {
+        treeDataProvider: connectionTreeProvider,
+    });
+
+    // 트리뷰에서 데이터베이스/테이블 노드 선택 시 selectedDatabase 자동 갱신
+    explorerTreeView.onDidChangeSelection(e => {
+        const item = e.selection[0];
+        if (item?.databaseName) {
+            connectionManager.setSelectedDatabase(item.databaseName);
+        }
+    });
+
     context.subscriptions.push(
-        vscode.window.registerTreeDataProvider('dbunny.explorer', connectionTreeProvider),
+        explorerTreeView,
         vscode.window.registerTreeDataProvider('dbunny.savedQueries', savedQueriesProvider),
         vscode.window.registerTreeDataProvider('dbunny.queries', queryHistoryProvider)
     );

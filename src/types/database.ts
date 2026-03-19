@@ -76,6 +76,50 @@ export interface SSHConfig {
 }
 
 /**
+ * 비밀번호 제외된 연결 설정 — 내보내기/공유/템플릿용
+ */
+export interface ExportableConnectionConfig {
+    name: string;
+    type: DatabaseType;
+    host: string;
+    port: number;
+    username: string;
+    database?: string;
+    ssh?: {
+        host: string;
+        port: number;
+        username: string;
+    };
+    options?: Record<string, unknown>;
+    group?: string;
+    h2Mode?: H2ConnectionMode;
+    readOnly?: boolean;
+    color?: ConnectionColor;
+}
+
+/**
+ * 연결 내보내기 JSON 봉투 형식
+ */
+export interface ConnectionExportEnvelope {
+    dbunny: {
+        version: string;
+        exportedAt: string;
+        connections: ExportableConnectionConfig[];
+    };
+}
+
+/**
+ * 팀용 연결 템플릿
+ */
+export interface ConnectionTemplate {
+    id: string;
+    name: string;
+    description?: string;
+    config: ExportableConnectionConfig;
+    createdAt: string;
+}
+
+/**
  * Query execution result
  */
 export interface QueryResult {

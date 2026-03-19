@@ -5,6 +5,38 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-03-20
+
+### Added
+
+- **Connection Duplication**: One-click clone of existing connections via context menu
+  - Preserves all settings including encrypted password, group, color, and read-only mode
+  - Automatically appends "(Copy)" to the duplicated connection name
+- **Connection Export**: Export connection settings as JSON (passwords excluded)
+  - Single connection export via context menu
+  - Export all connections via explorer title menu
+  - `.dbunny.json` envelope format with version and timestamp metadata
+- **Connection Import**: Import shared connection settings from JSON files
+  - Schema validation with detailed error messages
+  - Supports all 6 database types (MySQL, PostgreSQL, SQLite, MongoDB, Redis, H2)
+  - Automatic ID generation for imported connections
+- **Connection Templates**: Save and reuse connection configurations for teams
+  - Save any connection as a template (passwords stripped)
+  - Create new connections from templates with QuickPick selection
+  - Template management (create/delete) with max 50 templates
+  - Pre-fills connection form with template values
+- **Connection Share Utility** (`src/utils/connectionShare.ts`): Export/import/validation functions with `ExportableConnectionConfig` and `ConnectionTemplate` types
+- **Tests**: 36 unit tests (stripSecrets, exportToJson, validateImportData, toConnectionConfig, createTemplate, round-trip, edge cases)
+
+### Fixed
+
+- **Database Context Bug**: Queries now execute on the correct database when using the query button from tree view
+  - Previously, clicking the query button on a specific database (e.g., "trading") would run queries on the connection's default database instead
+  - Added `selectedDatabase` state to `ConnectionManager` — auto-set on connect, cleared on disconnect
+  - Tree view selection (`onDidChangeSelection`) automatically updates the active database context
+  - Affects all query execution paths: Execute Query, CodeLens Run Query, and EXPLAIN
+  - All 6 providers (MySQL, PostgreSQL, SQLite, H2, MongoDB, Redis) already support the `database` parameter
+
 ## [2.4.0] - 2026-03-17
 
 ### Added

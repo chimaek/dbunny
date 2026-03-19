@@ -13,9 +13,10 @@ import { MockDataPanel } from '../webview/MockDataPanel';
 import { MigrationPanel } from '../webview/MigrationPanel';
 import { MonitoringPanel } from '../webview/MonitoringPanel';
 import { QueryTabPanel } from '../webview/QueryTabPanel';
-import { TableERDInfo } from '../types/database';
+import { TableERDInfo, ConnectionConfig } from '../types/database';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
+import { exportToJson, validateImportData, toConnectionConfig } from '../utils/connectionShare';
 
 /**
  * Register all commands
@@ -204,9 +205,14 @@ export function registerCommands(
 
     // New Query
     context.subscriptions.push(
-        vscode.commands.registerCommand('dbunny.newQuery', async () => {
+        vscode.commands.registerCommand('dbunny.newQuery', async (item?: ConnectionTreeItem) => {
             const activeConnection = connectionManager.getActiveConnection();
             const dbType = activeConnection?.config.type || 'sql';
+
+            // 트리뷰에서 데이터베이스를 선택했으면 해당 DB를 활성 컨텍스트로 설정
+            if (item?.databaseName) {
+                connectionManager.setSelectedDatabase(item.databaseName);
+            }
 
             let language = 'sql';
             let content = '-- DBunny Query\n-- SELECT * FROM table_name;\n\n';
@@ -756,7 +762,8 @@ db.collectionName.find({})
                 const resultPanel = QueryResultPanel.createOrShow(context.extensionUri, i18n);
                 resultPanel.showLoading(explainQuery);
 
-                const result = await activeConnection.executeQuery(explainQuery);
+                const db = connectionManager.getSelectedDatabase();
+                const result = await activeConnection.executeQuery(explainQuery, db);
                 resultPanel.updateResults(explainQuery, result);
 
                 await queryHistoryProvider.addQuery({
@@ -1123,6 +1130,219 @@ db.collectionName.find({})
                 ? i18n.t('readOnly.enabled', { name: conn.config.name })
                 : i18n.t('readOnly.disabled', { name: conn.config.name });
             vscode.window.showInformationMessage(msg);
+        })
+    );
+
+    // ===== Duplicate Connection =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.duplicateConnection', async (item?: ConnectionTreeItem) => {
+            const connectionId = item?.connectionId;
+            if (!connectionId) { return; }
+            try {
+                const duplicated = await connectionManager.duplicateConnection(connectionId);
+                vscode.window.showInformationMessage(
+                    i18n.t('share.duplicated', { name: duplicated.name })
+                );
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    i18n.t('share.duplicateFailed', { error: (error as Error).message })
+                );
+            }
+        })
+    );
+
+    // ===== Export Connection =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.exportConnection', async (item?: ConnectionTreeItem) => {
+            const connectionId = item?.connectionId;
+            if (!connectionId) { return; }
+            const connection = connectionManager.getConnection(connectionId);
+            if (!connection) { return; }
+
+            try {
+                const json = exportToJson([connection.config]);
+                const uri = await vscode.window.showSaveDialog({
+                    defaultUri: vscode.Uri.file(`${connection.config.name}.dbunny.json`),
+                    filters: { 'DBunny Connection': ['dbunny.json', 'json'] },
+                });
+                if (!uri) { return; }
+                await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf-8'));
+                vscode.window.showInformationMessage(
+                    i18n.t('share.exported', { path: uri.fsPath })
+                );
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    i18n.t('share.exportFailed', { error: (error as Error).message })
+                );
+            }
+        })
+    );
+
+    // ===== Export All Connections =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.exportAllConnections', async () => {
+            const allConnections = connectionManager.getAllConnections();
+            if (allConnections.length === 0) {
+                vscode.window.showWarningMessage(i18n.t('share.noConnections'));
+                return;
+            }
+
+            try {
+                const json = exportToJson(allConnections.map(c => c.config));
+                const uri = await vscode.window.showSaveDialog({
+                    defaultUri: vscode.Uri.file('dbunny-connections.dbunny.json'),
+                    filters: { 'DBunny Connection': ['dbunny.json', 'json'] },
+                });
+                if (!uri) { return; }
+                await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf-8'));
+                vscode.window.showInformationMessage(
+                    i18n.t('share.exportAll', { path: uri.fsPath })
+                );
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    i18n.t('share.exportFailed', { error: (error as Error).message })
+                );
+            }
+        })
+    );
+
+    // ===== Import Connections =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.importConnections', async () => {
+            const uris = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                filters: { 'DBunny Connection': ['dbunny.json', 'json'] },
+            });
+            if (!uris || uris.length === 0) { return; }
+
+            try {
+                const fileData = await vscode.workspace.fs.readFile(uris[0]);
+                const jsonString = Buffer.from(fileData).toString('utf-8');
+
+                const result = validateImportData(jsonString);
+                if (!result.valid) {
+                    vscode.window.showErrorMessage(
+                        i18n.t('share.invalidFormat', { error: result.errors.join('; ') })
+                    );
+                    return;
+                }
+
+                const configs: ConnectionConfig[] = result.connections.map(c =>
+                    toConnectionConfig(c, () => connectionManager.generateConnectionId())
+                );
+                const count = await connectionManager.importConnections(configs);
+                vscode.window.showInformationMessage(
+                    i18n.t('share.imported', { count: count.toString() })
+                );
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    i18n.t('share.importFailed', { error: (error as Error).message })
+                );
+            }
+        })
+    );
+
+    // ===== Save as Template =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.saveAsTemplate', async (item?: ConnectionTreeItem) => {
+            const connectionId = item?.connectionId;
+            if (!connectionId) { return; }
+
+            const templateName = await vscode.window.showInputBox({
+                prompt: i18n.t('share.enterTemplateName'),
+                placeHolder: i18n.t('share.templateNamePlaceholder'),
+            });
+            if (!templateName) { return; }
+
+            const description = await vscode.window.showInputBox({
+                prompt: i18n.t('share.enterTemplateDescription'),
+                placeHolder: i18n.t('share.templateDescPlaceholder'),
+            });
+
+            try {
+                const template = await connectionManager.saveAsTemplate(connectionId, templateName, description || undefined);
+                vscode.window.showInformationMessage(
+                    i18n.t('share.templateSaved', { name: template.name })
+                );
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    i18n.t('share.templateSaveFailed', { error: (error as Error).message })
+                );
+            }
+        })
+    );
+
+    // ===== New from Template =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.newFromTemplate', async () => {
+            const templates = connectionManager.getTemplates();
+            if (templates.length === 0) {
+                vscode.window.showWarningMessage(i18n.t('share.noTemplates'));
+                return;
+            }
+
+            const selected = await vscode.window.showQuickPick(
+                templates.map(t => ({
+                    label: t.name,
+                    description: `${t.config.type} — ${t.config.host}:${t.config.port}`,
+                    detail: t.description,
+                    templateId: t.id,
+                })),
+                { placeHolder: i18n.t('share.selectTemplate') }
+            );
+            if (!selected) { return; }
+
+            const config = connectionManager.createConnectionFromTemplate(selected.templateId);
+            if (!config) { return; }
+
+            // 연결 폼을 프리필 상태로 열기 (isTemplate=true — 새 연결 + 프리필)
+            ConnectionFormPanel.createOrShow(
+                context.extensionUri,
+                connectionManager,
+                i18n,
+                config,
+                true // isTemplate
+            );
+        })
+    );
+
+    // ===== Delete Template =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.deleteTemplate', async () => {
+            const templates = connectionManager.getTemplates();
+            if (templates.length === 0) {
+                vscode.window.showWarningMessage(i18n.t('share.noTemplates'));
+                return;
+            }
+
+            const selected = await vscode.window.showQuickPick(
+                templates.map(t => ({
+                    label: t.name,
+                    description: `${t.config.type} — ${t.config.host}:${t.config.port}`,
+                    detail: t.description,
+                    templateId: t.id,
+                })),
+                { placeHolder: i18n.t('share.selectTemplate') }
+            );
+            if (!selected) { return; }
+
+            const confirm = await vscode.window.showWarningMessage(
+                i18n.t('share.deleteTemplateConfirm', { name: selected.label }),
+                { modal: true },
+                i18n.t('common.yes')
+            );
+            if (!confirm) { return; }
+
+            try {
+                await connectionManager.deleteTemplate(selected.templateId);
+                vscode.window.showInformationMessage(
+                    i18n.t('share.templateDeleted', { name: selected.label })
+                );
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    i18n.t('share.templateDeleteFailed', { error: (error as Error).message })
+                );
+            }
         })
     );
 
