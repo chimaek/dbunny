@@ -6,7 +6,7 @@
  */
 
 import * as path from 'path';
-import { ConnectionConfig, DataImportConfig, ColumnMapping, ParsedFileData, ColumnInfo } from '../../types/database';
+import { ConnectionConfig, DataImportConfig, ColumnMapping, ParsedFileData } from '../../types/database';
 import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
 import { SQLiteProvider } from '../../providers/sqliteProvider';
@@ -15,13 +15,11 @@ import {
     parseCSV,
     parseJSON,
     parseExcel,
-    parseFile,
     suggestColumnMapping,
     importData,
-    buildConflictSQL,
-    DEFAULT_BATCH_SIZE,
 } from '../../utils/dataImport';
 import { DatabaseConnection } from '../../types/database';
+import * as XLSX from 'xlsx';
 
 // ── Helpers ─────────────────────────────────────
 
@@ -53,9 +51,9 @@ async function assert(condition: boolean, msg: string) {
 
 /** H2는 대문자 컬럼명 반환 — 대소문자 무관 접근 */
 function getField(row: Record<string, unknown>, field: string): unknown {
-    if (row[field] !== undefined) return row[field];
-    if (row[field.toUpperCase()] !== undefined) return row[field.toUpperCase()];
-    if (row[field.toLowerCase()] !== undefined) return row[field.toLowerCase()];
+    if (row[field] !== undefined) { return row[field]; }
+    if (row[field.toUpperCase()] !== undefined) { return row[field.toUpperCase()]; }
+    if (row[field.toLowerCase()] !== undefined) { return row[field.toLowerCase()]; }
     return undefined;
 }
 
@@ -99,7 +97,6 @@ function makeJsonBuffer(data: unknown): Uint8Array {
 }
 
 function makeExcelBuffer(headers: string[], rows: unknown[][]): Uint8Array {
-    const XLSX = require('xlsx');
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
@@ -150,17 +147,6 @@ async function setupTable(conn: DatabaseConnection, dbType: string, db?: string)
         default:
             throw new Error(`Unsupported: ${dbType}`);
     }
-
-    await conn.executeQuery(createSQL, db);
-}
-
-// PK 없는 테이블
-async function setupNoPkTable(conn: DatabaseConnection, dbType: string, db?: string) {
-    try { await conn.executeQuery('DROP TABLE IF EXISTS import_nopk', db); } catch { /* ok */ }
-
-    const createSQL = dbType === 'mysql'
-        ? `CREATE TABLE import_nopk (name VARCHAR(100), val VARCHAR(200))`
-        : `CREATE TABLE import_nopk (name VARCHAR(100), val VARCHAR(200))`;
 
     await conn.executeQuery(createSQL, db);
 }

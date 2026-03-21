@@ -7,7 +7,6 @@ import {
     DataImportConfig,
     ImportProgress,
     ImportResult,
-    ImportError,
     DatabaseType,
     DatabaseConnection,
     ColumnInfo,

@@ -3,7 +3,7 @@ import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
 import { ColumnInfo, ParsedFileData, ColumnMapping, ConflictStrategy, DataImportConfig } from '../types/database';
 import { parseFile, suggestColumnMapping, importData, MAX_PREVIEW_ROWS, DEFAULT_BATCH_SIZE } from '../utils/dataImport';
-import { checkWriteOperation } from '../utils/readOnlyGuard';
+// readOnlyGuard는 commands/index.ts에서 import 전에 체크
 
 /**
  * 데이터 가져오기 WebView 패널

@@ -18,6 +18,7 @@ import {
     MAX_PREVIEW_ROWS,
 } from '../../utils/dataImport';
 import { ColumnInfo, DatabaseType, ConflictStrategy } from '../../types/database';
+import * as XLSX from 'xlsx';
 
 let passed = 0;
 let failed = 0;
@@ -95,7 +96,7 @@ section('parseCSV');
         const buf = new TextEncoder().encode('');
         parseCSV(buf, 'empty.csv');
         assert(false, 'CSV 빈 파일 예외 발생 필요');
-    } catch (e) {
+    } catch {
         assert(true, 'CSV 빈 파일 예외 발생');
     }
 }
@@ -163,7 +164,7 @@ section('parseJSON');
         const buf = new TextEncoder().encode('[]');
         parseJSON(buf, 'empty.json');
         assert(false, 'JSON 빈 배열 예외');
-    } catch (e) {
+    } catch {
         assert(true, 'JSON 빈 배열 예외 발생');
     }
 }
@@ -174,7 +175,7 @@ section('parseJSON');
         const buf = new TextEncoder().encode('{invalid');
         parseJSON(buf, 'bad.json');
         assert(false, 'JSON 파싱 에러 예외');
-    } catch (e) {
+    } catch {
         assert(true, 'JSON 파싱 에러 예외 발생');
     }
 }
@@ -185,7 +186,7 @@ section('parseJSON');
         const buf = new TextEncoder().encode('"just a string"');
         parseJSON(buf, 'string.json');
         assert(false, 'JSON 문자열 리터럴 예외');
-    } catch (e) {
+    } catch {
         assert(true, 'JSON 문자열 리터럴 예외 발생');
     }
 }
@@ -196,7 +197,6 @@ section('parseExcel');
 
 {
     // xlsx 라이브러리로 간단한 워크북 생성
-    const XLSX = require('xlsx');
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
         ['name', 'age', 'city'],
@@ -238,7 +238,7 @@ section('parseFile');
         const buf = new TextEncoder().encode('hello');
         parseFile(buf, 'unknown.txt');
         assert(false, 'parseFile 지원하지 않는 형식 예외');
-    } catch (e) {
+    } catch {
         assert(true, 'parseFile 지원하지 않는 형식 예외 발생');
     }
 }
