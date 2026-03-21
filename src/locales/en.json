@@ -194,6 +194,28 @@
     "required": "This field is required",
     "invalidPort": "Port must be between 1 and 65535"
   },
+  "dataImport": {
+    "title": "Import Data",
+    "selectFile": "Click to select a data file (CSV, JSON, Excel)",
+    "columnMapping": "Column Mapping",
+    "sourceColumn": "Source Column",
+    "targetColumn": "Table Column",
+    "type": "Type",
+    "preview": "Data Preview",
+    "options": "Import Options",
+    "conflictStrategy": "On Conflict",
+    "strategySkip": "Skip (ignore duplicates)",
+    "strategyOverwrite": "Overwrite (replace existing)",
+    "strategyUpsert": "Upsert (update or insert)",
+    "batchSize": "Batch Size",
+    "startImport": "Start Import",
+    "noFile": "No file selected. Please select a file first.",
+    "parseFailed": "Failed to parse file: {error}",
+    "importFailed": "Import failed: {error}",
+    "loadFailed": "Failed to load table schema: {error}",
+    "notSupported": "Data import is only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)",
+    "complete": "Import complete — Inserted: {inserted}, Skipped: {skipped}, Failed: {failed} ({time}ms)"
+  },
   "export": {
     "csv": "Export as CSV",
     "json": "Export as JSON",

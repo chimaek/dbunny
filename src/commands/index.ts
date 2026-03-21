@@ -17,6 +17,7 @@ import { TableERDInfo, ConnectionConfig } from '../types/database';
 import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
 import { exportToJson, validateImportData, toConnectionConfig } from '../utils/connectionShare';
+import { DataImportPanel } from '../webview/DataImportPanel';
 
 /**
  * Register all commands
@@ -1341,6 +1342,56 @@ db.collectionName.find({})
             } catch (error) {
                 vscode.window.showErrorMessage(
                     i18n.t('share.templateDeleteFailed', { error: (error as Error).message })
+                );
+            }
+        })
+    );
+
+    // ===== Import Data to Table =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.importData', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('dataImport.notSupported'));
+                return;
+            }
+
+            // 읽기 전용 체크
+            if (activeConnection.config.readOnly) {
+                vscode.window.showWarningMessage(
+                    i18n.t('readOnly.blocked', { keyword: 'INSERT', name: activeConnection.config.name })
+                );
+                return;
+            }
+
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
+
+            try {
+                const columns = await activeConnection.getTableSchema(tableName, databaseName);
+                await DataImportPanel.createOrShow(
+                    context.extensionUri,
+                    connectionManager,
+                    i18n,
+                    tableName,
+                    databaseName,
+                    columns
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(
+                    i18n.t('dataImport.loadFailed', { error: message })
                 );
             }
         })

@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -318,6 +318,12 @@
         "title": "Delete Template",
         "category": "DBunny",
         "icon": "$(trash)"
+      },
+      {
+        "command": "dbunny.importData",
+        "title": "Import Data",
+        "category": "DBunny",
+        "icon": "$(cloud-upload)"
       }
     ],
     "menus": {
@@ -460,6 +466,11 @@
           "group": "navigation@2"
         },
         {
+          "command": "dbunny.importData",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@3"
+        },
+        {
           "command": "dbunny.toggleFavorite",
           "when": "view == dbunny.explorer && viewItem == table-sql",
           "group": "inline@3"
@@ -488,6 +499,11 @@
           "command": "dbunny.generateMockData",
           "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
           "group": "navigation@2"
+        },
+        {
+          "command": "dbunny.importData",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "navigation@3"
         },
         {
           "command": "dbunny.viewKeyData",
@@ -603,15 +619,18 @@
   "dependencies": {
     "mongodb": "^6.10.0",
     "mysql2": "^3.11.0",
+    "papaparse": "^5.5.3",
     "pg": "^8.13.1",
     "redis": "^4.7.0",
     "sql-formatter": "^15.4.0",
     "sql.js": "^1.13.0",
-    "ssh2": "^1.16.0"
+    "ssh2": "^1.16.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.17.0",
+    "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.16.0",
     "@types/sql.js": "^1.4.9",
     "@types/ssh2": "^1.15.1",

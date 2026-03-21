@@ -194,6 +194,28 @@
     "required": "필수 입력 항목입니다",
     "invalidPort": "포트는 1에서 65535 사이여야 합니다"
   },
+  "dataImport": {
+    "title": "데이터 가져오기",
+    "selectFile": "데이터 파일을 선택하세요 (CSV, JSON, Excel)",
+    "columnMapping": "컬럼 매핑",
+    "sourceColumn": "소스 컬럼",
+    "targetColumn": "테이블 컬럼",
+    "type": "타입",
+    "preview": "데이터 미리보기",
+    "options": "가져오기 옵션",
+    "conflictStrategy": "충돌 처리",
+    "strategySkip": "건너뛰기 (중복 무시)",
+    "strategyOverwrite": "덮어쓰기 (기존 데이터 교체)",
+    "strategyUpsert": "Upsert (수정 또는 삽입)",
+    "batchSize": "배치 크기",
+    "startImport": "가져오기 시작",
+    "noFile": "파일이 선택되지 않았습니다. 먼저 파일을 선택하세요.",
+    "parseFailed": "파일 파싱 실패: {error}",
+    "importFailed": "가져오기 실패: {error}",
+    "loadFailed": "테이블 스키마 로드 실패: {error}",
+    "notSupported": "데이터 가져오기는 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다",
+    "complete": "가져오기 완료 — 삽입: {inserted}, 건너뜀: {skipped}, 실패: {failed} ({time}ms)"
+  },
   "export": {
     "csv": "CSV로 내보내기",
     "json": "JSON으로 내보내기",

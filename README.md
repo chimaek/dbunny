@@ -47,6 +47,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Export as `.dbunny.json` (passwords excluded) for sharing with team members
   - Import shared connection files with validation
   - Save connections as reusable templates (up to 50)
+- **Data Import** — Import CSV, JSON, and Excel (.xlsx) files directly into tables
+  - Column mapping preview with auto-suggested mappings
+  - Conflict handling: Skip / Overwrite / Upsert
+  - Progress bar with real-time inserted/skipped/failed counters
 
 #### Query Editor
 
@@ -232,6 +236,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - `.dbunny.json`으로 내보내기 (비밀번호 제외) — 팀원과 공유
   - 공유받은 연결 파일 가져오기 (유효성 검증 포함)
   - 재사용 가능한 연결 템플릿 저장 (최대 50개)
+- **데이터 가져오기** — CSV, JSON, Excel(.xlsx) 파일을 테이블에 직접 가져오기
+  - 컬럼 매핑 미리보기 — 자동 매핑 제안 + 수동 변경
+  - 충돌 처리: 건너뛰기 / 덮어쓰기 / Upsert
+  - 진행률 바 + 삽입/건너뜀/실패 실시간 카운트
 
 #### 쿼리 편집기
 

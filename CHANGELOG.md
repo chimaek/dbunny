@@ -5,6 +5,38 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-03-22
+
+### Added
+
+- **Data Import**: Import CSV, JSON, and Excel (.xlsx) files directly into database tables
+  - File format auto-detection based on extension
+  - CSV parsing with PapaParse (handles quoted fields, multiline, BOM)
+  - JSON array of objects import with auto-header extraction
+  - Excel import via SheetJS (first sheet)
+- **Column Mapping Preview**: Visual column mapping interface in WebView panel
+  - Auto-suggests mappings based on column name similarity
+  - Manual column reassignment via dropdown selectors
+  - Data preview table with first 50 rows
+- **Conflict Handling Options**: Three strategies for duplicate key conflicts
+  - Skip: INSERT IGNORE / ON CONFLICT DO NOTHING
+  - Overwrite: ON DUPLICATE KEY UPDATE / ON CONFLICT DO UPDATE
+  - Upsert: MERGE INTO (H2) / INSERT OR REPLACE (SQLite)
+  - Database-specific SQL generation for MySQL, PostgreSQL, SQLite, H2
+- **Import Progress**: Real-time progress display for large files
+  - Progress bar with batch-level updates
+  - Live counters: inserted / skipped / failed
+  - Error list with row numbers and messages (up to 100 errors)
+- **Data Import Utility** (`src/utils/dataImport.ts`): File parsing, SQL generation, batch import with conflict strategies
+- **Data Import Panel** (`src/webview/DataImportPanel.ts`): WebView panel with column mapping, preview, and progress UI
+- Read-only mode protection: blocks import on read-only connections
+- Context menu: "Import Data" available on SQL table items (regular and favorite)
+
+### Dependencies
+
+- Added `xlsx` (SheetJS) for Excel file parsing
+- Added `papaparse` for robust CSV parsing
+
 ## [2.5.0] - 2026-03-20
 
 ### Added

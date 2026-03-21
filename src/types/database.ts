@@ -222,3 +222,78 @@ export interface SavedQuery {
     createdAt: Date;
     updatedAt: Date;
 }
+
+// ===== Data Import (v2.6.0) =====
+
+/**
+ * 지원하는 가져오기 파일 형식
+ */
+export type ImportFileFormat = 'csv' | 'json' | 'xlsx';
+
+/**
+ * 충돌 처리 전략
+ */
+export type ConflictStrategy = 'skip' | 'overwrite' | 'upsert';
+
+/**
+ * 소스 컬럼 → 테이블 컬럼 매핑
+ */
+export interface ColumnMapping {
+    sourceColumn: string;
+    targetColumn: string;
+    targetType: string;
+}
+
+/**
+ * 파일 파싱 결과
+ */
+export interface ParsedFileData {
+    headers: string[];
+    rows: unknown[][];
+    totalRows: number;
+    format: ImportFileFormat;
+    fileName: string;
+}
+
+/**
+ * 데이터 가져오기 설정
+ */
+export interface DataImportConfig {
+    tableName: string;
+    database?: string;
+    columnMapping: ColumnMapping[];
+    conflictStrategy: ConflictStrategy;
+    batchSize: number;
+    primaryKeyColumns?: string[];
+}
+
+/**
+ * 가져오기 진행 상태
+ */
+export interface ImportProgress {
+    total: number;
+    current: number;
+    inserted: number;
+    skipped: number;
+    failed: number;
+    errors: ImportError[];
+}
+
+/**
+ * 가져오기 오류 항목
+ */
+export interface ImportError {
+    row: number;
+    message: string;
+}
+
+/**
+ * 가져오기 최종 결과
+ */
+export interface ImportResult {
+    inserted: number;
+    skipped: number;
+    failed: number;
+    errors: ImportError[];
+    executionTime: number;
+}
