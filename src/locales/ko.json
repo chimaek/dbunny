@@ -221,6 +221,14 @@
     "json": "JSON으로 내보내기",
     "excel": "Excel로 내보내기"
   },
+  "dataExport": {
+    "notSupported": "Excel 내보내기는 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다",
+    "exported": "{path}에 내보내기 완료",
+    "exportedMulti": "{count}개 테이블을 {path}에 내보내기 완료",
+    "noTables": "이 데이터베이스에 테이블이 없습니다",
+    "selectTarget": "테이블 또는 데이터베이스를 우클릭하여 내보내기하세요",
+    "failed": "내보내기 실패: {error}"
+  },
   "webview": {
     "connectionForm": {
       "title": "새 연결",

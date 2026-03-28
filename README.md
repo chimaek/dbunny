@@ -51,6 +51,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Column mapping preview with auto-suggested mappings
   - Conflict handling: Skip / Overwrite / Upsert
   - Progress bar with real-time inserted/skipped/failed counters
+- **Excel Export** — Export table data and query results as `.xlsx` files
+  - Single table or multi-sheet export (all tables per database)
+  - Column type row with PK, NOT NULL, DEFAULT annotations
+  - Auto-adjusted column widths
 
 #### Query Editor
 
@@ -240,6 +244,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - 컬럼 매핑 미리보기 — 자동 매핑 제안 + 수동 변경
   - 충돌 처리: 건너뛰기 / 덮어쓰기 / Upsert
   - 진행률 바 + 삽입/건너뜀/실패 실시간 카운트
+- **Excel 내보내기** — 테이블 데이터 및 쿼리 결과를 `.xlsx` 파일로 내보내기
+  - 단일 테이블 또는 멀티시트 내보내기 (데이터베이스 전체)
+  - 컬럼 타입 행 — PK, NOT NULL, DEFAULT 표시
+  - 컬럼 너비 자동 조정
 
 #### 쿼리 편집기
 

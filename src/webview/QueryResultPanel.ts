@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { QueryResult } from '../types/database';
 import { I18n } from '../utils/i18n';
+import { exportSingleSheet } from '../utils/dataExport';
 
 /**
  * Column settings for result display
@@ -137,25 +138,27 @@ export class QueryResultPanel {
     private async _handleExport(format: string, data: QueryResult, visibleColumns?: string[]): Promise<void> {
         const defaultName = `query_result_${Date.now()}`;
 
+        const filters: Record<string, string[]> = format === 'xlsx'
+            ? { 'Excel': ['xlsx'], 'All Files': ['*'] }
+            : { 'CSV': ['csv'], 'JSON': ['json'], 'All Files': ['*'] };
+
         const uri = await vscode.window.showSaveDialog({
             defaultUri: vscode.Uri.file(`${defaultName}.${format}`),
-            filters: {
-                'CSV': ['csv'],
-                'JSON': ['json'],
-                'All Files': ['*']
-            }
+            filters,
         });
 
         if (!uri) { return; }
 
-        let content: string;
-        if (format === 'csv') {
-            content = this._toCSV(data, visibleColumns);
+        if (format === 'xlsx') {
+            const buf = exportSingleSheet(data, 'QueryResult', undefined, visibleColumns);
+            await vscode.workspace.fs.writeFile(uri, buf);
         } else {
-            content = this._toJSON(data, visibleColumns);
+            const content = format === 'csv'
+                ? this._toCSV(data, visibleColumns)
+                : this._toJSON(data, visibleColumns);
+            await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
         }
 
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
         vscode.window.showInformationMessage(`Exported to ${uri.fsPath}`);
     }
 

@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -446,6 +446,11 @@
           "group": "navigation@2"
         },
         {
+          "command": "dbunny.exportData",
+          "when": "view == dbunny.explorer && viewItem == database",
+          "group": "navigation@3"
+        },
+        {
           "command": "dbunny.editTableData",
           "when": "view == dbunny.explorer && viewItem == table-sql",
           "group": "inline@1"
@@ -469,6 +474,11 @@
           "command": "dbunny.importData",
           "when": "view == dbunny.explorer && viewItem == table-sql",
           "group": "navigation@3"
+        },
+        {
+          "command": "dbunny.exportData",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@4"
         },
         {
           "command": "dbunny.toggleFavorite",
@@ -504,6 +514,11 @@
           "command": "dbunny.importData",
           "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
           "group": "navigation@3"
+        },
+        {
+          "command": "dbunny.exportData",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "navigation@4"
         },
         {
           "command": "dbunny.viewKeyData",

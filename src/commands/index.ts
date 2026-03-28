@@ -18,6 +18,7 @@ import { SqlCodeLensProvider } from '../providers/sqlCodeLensProvider';
 import { format } from 'sql-formatter';
 import { exportToJson, validateImportData, toConnectionConfig } from '../utils/connectionShare';
 import { DataImportPanel } from '../webview/DataImportPanel';
+import { exportSingleSheet, fetchAndExportTables } from '../utils/dataExport';
 
 /**
  * Register all commands
@@ -271,10 +272,89 @@ db.collectionName.find({})
         })
     );
 
-    // Export Data
+    // Export Data (Excel)
     context.subscriptions.push(
-        vscode.commands.registerCommand('dbunny.exportData', async () => {
-            vscode.window.showInformationMessage('Export feature coming soon!');
+        vscode.commands.registerCommand('dbunny.exportData', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('dataExport.notSupported'));
+                return;
+            }
+
+            try {
+                const itemType = item?.itemType;
+
+                if (itemType === 'table') {
+                    // 단일 테이블 내보내기
+                    const tableName = item.label?.toString() || '';
+                    const databaseName = item.databaseName || activeConnection.config.database || '';
+
+                    const uri = await vscode.window.showSaveDialog({
+                        defaultUri: vscode.Uri.file(`${tableName}.xlsx`),
+                        filters: { 'Excel': ['xlsx'] },
+                    });
+                    if (!uri) { return; }
+
+                    const quote = dbType === 'mysql' ? '`' : '"';
+                    const escaped = dbType === 'mysql'
+                        ? tableName.replace(/`/g, '``')
+                        : tableName.replace(/"/g, '""');
+                    const data = await activeConnection.executeQuery(
+                        `SELECT * FROM ${quote}${escaped}${quote}`, databaseName
+                    );
+                    const schema = await activeConnection.getTableSchema(tableName, databaseName);
+                    const buf = exportSingleSheet(data, tableName, schema);
+
+                    await vscode.workspace.fs.writeFile(uri, buf);
+                    vscode.window.showInformationMessage(
+                        i18n.t('dataExport.exported', { path: uri.fsPath })
+                    );
+
+                } else if (itemType === 'database') {
+                    // 멀티시트 — 데이터베이스 내 모든 테이블
+                    const databaseName = item.databaseName || item.label?.toString() || '';
+                    const tables = await activeConnection.getTables(databaseName);
+
+                    if (tables.length === 0) {
+                        vscode.window.showWarningMessage(i18n.t('dataExport.noTables'));
+                        return;
+                    }
+
+                    const uri = await vscode.window.showSaveDialog({
+                        defaultUri: vscode.Uri.file(`${databaseName}.xlsx`),
+                        filters: { 'Excel': ['xlsx'] },
+                    });
+                    if (!uri) { return; }
+
+                    const tableList = tables.map(t => ({ tableName: t, database: databaseName }));
+                    const buf = await fetchAndExportTables(
+                        tableList,
+                        (sql, db) => activeConnection.executeQuery(sql, db),
+                        (table, db) => activeConnection.getTableSchema(table, db),
+                        true,
+                        dbType,
+                    );
+
+                    await vscode.workspace.fs.writeFile(uri, buf);
+                    vscode.window.showInformationMessage(
+                        i18n.t('dataExport.exportedMulti', { count: tables.length, path: uri.fsPath })
+                    );
+
+                } else {
+                    vscode.window.showWarningMessage(i18n.t('dataExport.selectTarget'));
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(
+                    i18n.t('dataExport.failed', { error: message })
+                );
+            }
         })
     );
 

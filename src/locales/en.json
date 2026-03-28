@@ -221,6 +221,14 @@
     "json": "Export as JSON",
     "excel": "Export as Excel"
   },
+  "dataExport": {
+    "notSupported": "Excel export is only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)",
+    "exported": "Exported to {path}",
+    "exportedMulti": "Exported {count} tables to {path}",
+    "noTables": "No tables found in this database",
+    "selectTarget": "Right-click a table or database to export",
+    "failed": "Export failed: {error}"
+  },
   "webview": {
     "connectionForm": {
       "title": "New Connection",
