@@ -221,6 +221,24 @@
     "json": "JSON으로 내보내기",
     "excel": "Excel로 내보내기"
   },
+  "rowInsert": {
+    "title": "행 삽입",
+    "singleInsert": "단일 행",
+    "csvPaste": "CSV 붙여넣기",
+    "insert": "삽입",
+    "clear": "초기화",
+    "insertAll": "전체 삽입",
+    "preview": "미리보기",
+    "noValues": "삽입할 값이 없습니다",
+    "success": "행 삽입 성공",
+    "failed": "삽입 실패: {error}",
+    "batchComplete": "일괄 삽입 — 삽입: {inserted}, 실패: {failed}",
+    "batchResult": "삽입 완료",
+    "csvHint": "첫 행에 헤더가 포함된 CSV 데이터를 붙여넣으세요. 컬럼은 이름으로 매칭됩니다.",
+    "csvMinRows": "CSV에는 최소 헤더 행과 데이터 행 1개가 필요합니다",
+    "notSupported": "행 삽입은 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다",
+    "loadFailed": "테이블 스키마 로드 실패: {error}"
+  },
   "dataExport": {
     "notSupported": "Excel 내보내기는 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다",
     "exported": "{path}에 내보내기 완료",

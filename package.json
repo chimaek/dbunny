@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -324,6 +324,12 @@
         "title": "Import Data",
         "category": "DBunny",
         "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "dbunny.insertRow",
+        "title": "Insert Row",
+        "category": "DBunny",
+        "icon": "$(add)"
       }
     ],
     "menus": {
@@ -481,6 +487,11 @@
           "group": "navigation@4"
         },
         {
+          "command": "dbunny.insertRow",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@5"
+        },
+        {
           "command": "dbunny.toggleFavorite",
           "when": "view == dbunny.explorer && viewItem == table-sql",
           "group": "inline@3"
@@ -519,6 +530,11 @@
           "command": "dbunny.exportData",
           "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
           "group": "navigation@4"
+        },
+        {
+          "command": "dbunny.insertRow",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "navigation@5"
         },
         {
           "command": "dbunny.viewKeyData",

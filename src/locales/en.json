@@ -221,6 +221,24 @@
     "json": "Export as JSON",
     "excel": "Export as Excel"
   },
+  "rowInsert": {
+    "title": "Insert Row",
+    "singleInsert": "Single Row",
+    "csvPaste": "CSV Paste",
+    "insert": "Insert",
+    "clear": "Clear",
+    "insertAll": "Insert All",
+    "preview": "Preview",
+    "noValues": "No values to insert",
+    "success": "Row inserted successfully",
+    "failed": "Insert failed: {error}",
+    "batchComplete": "Batch insert — Inserted: {inserted}, Failed: {failed}",
+    "batchResult": "Inserted",
+    "csvHint": "Paste CSV data with headers in the first row. Columns are matched by name.",
+    "csvMinRows": "CSV must have at least a header row and one data row",
+    "notSupported": "Row insert is only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)",
+    "loadFailed": "Failed to load table schema: {error}"
+  },
   "dataExport": {
     "notSupported": "Excel export is only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)",
     "exported": "Exported to {path}",

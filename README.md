@@ -55,6 +55,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Single table or multi-sheet export (all tables per database)
   - Column type row with PK, NOT NULL, DEFAULT annotations
   - Auto-adjusted column widths
+- **Row Insert Form** — Form-based row insertion with field names and types
+  - Column constraint auto-detection (NOT NULL, DEFAULT, FK badges)
+  - FK reference value dropdown selection
+  - CSV paste bulk insert with preview
 
 #### Query Editor
 
@@ -248,6 +252,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - 단일 테이블 또는 멀티시트 내보내기 (데이터베이스 전체)
   - 컬럼 타입 행 — PK, NOT NULL, DEFAULT 표시
   - 컬럼 너비 자동 조정
+- **행 삽입 폼** — 필드명과 타입이 표시되는 폼 기반 행 삽입
+  - 컬럼 제약 조건 자동 감지 (NOT NULL, DEFAULT, FK 배지)
+  - FK 참조 값 드롭다운 선택
+  - CSV 붙여넣기 일괄 삽입 + 미리보기
 
 #### 쿼리 편집기
 

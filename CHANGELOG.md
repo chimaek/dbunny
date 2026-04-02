@@ -5,6 +5,17 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-03-31
+
+### Added
+
+- **Row Insert Form**: Form-based row insertion with field names and types
+  - Column constraint badges: PK, NOT NULL, DEFAULT, FK indicators
+  - FK reference value dropdown — fetches up to 200 distinct values from referenced tables
+  - CSV paste bulk insert with header-based column matching and preview
+  - Single row insert with field-level input (text, number, textarea, select)
+- **Row Insert Panel**: New `src/webview/RowInsertPanel.ts` WebView panel
+
 ## [2.7.0] - 2026-03-29
 
 ### Added

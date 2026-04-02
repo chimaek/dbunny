@@ -19,6 +19,7 @@ import { format } from 'sql-formatter';
 import { exportToJson, validateImportData, toConnectionConfig } from '../utils/connectionShare';
 import { DataImportPanel } from '../webview/DataImportPanel';
 import { exportSingleSheet, fetchAndExportTables } from '../utils/dataExport';
+import { RowInsertPanel } from '../webview/RowInsertPanel';
 
 /**
  * Register all commands
@@ -353,6 +354,91 @@ db.collectionName.find({})
                 const message = error instanceof Error ? error.message : String(error);
                 vscode.window.showErrorMessage(
                     i18n.t('dataExport.failed', { error: message })
+                );
+            }
+        })
+    );
+
+    // Insert Row Form
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.insertRow', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('rowInsert.notSupported'));
+                return;
+            }
+
+            if (activeConnection.config.readOnly) {
+                vscode.window.showWarningMessage(
+                    i18n.t('readOnly.blocked', { keyword: 'INSERT', name: activeConnection.config.name })
+                );
+                return;
+            }
+
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
+
+            try {
+                const columns = await activeConnection.getTableSchema(tableName, databaseName);
+
+                // FK 정보 조회
+                let foreignKeys = activeConnection.getForeignKeys
+                    ? await activeConnection.getForeignKeys(tableName, databaseName)
+                    : [];
+                // 안전하게 빈 배열 처리
+                if (!foreignKeys) { foreignKeys = []; }
+
+                // FK 참조 값 조회 (각 FK 컬럼의 참조 테이블에서 값 가져오기)
+                const fkValues: Record<string, { value: unknown; label: string }[]> = {};
+                for (const fk of foreignKeys) {
+                    try {
+                        const quoteChar = dbType === 'mysql' ? '`' : '"';
+                        const escapedTable = dbType === 'mysql'
+                            ? fk.referencedTable.replace(/`/g, '``')
+                            : fk.referencedTable.replace(/"/g, '""');
+                        const escapedCol = dbType === 'mysql'
+                            ? fk.referencedColumn.replace(/`/g, '``')
+                            : fk.referencedColumn.replace(/"/g, '""');
+
+                        const result = await activeConnection.executeQuery(
+                            `SELECT DISTINCT ${quoteChar}${escapedCol}${quoteChar} FROM ${quoteChar}${escapedTable}${quoteChar} ORDER BY ${quoteChar}${escapedCol}${quoteChar} LIMIT 200`,
+                            databaseName
+                        );
+                        fkValues[fk.columnName] = result.rows.map(row => {
+                            const val = row[fk.referencedColumn] ?? row[Object.keys(row)[0]];
+                            return { value: val, label: `${val} (${fk.referencedTable})` };
+                        });
+                    } catch {
+                        fkValues[fk.columnName] = [];
+                    }
+                }
+
+                await RowInsertPanel.createOrShow(
+                    context.extensionUri,
+                    connectionManager,
+                    i18n,
+                    tableName,
+                    databaseName,
+                    columns,
+                    foreignKeys,
+                    fkValues,
+                    dbType,
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(
+                    i18n.t('rowInsert.loadFailed', { error: message })
                 );
             }
         })
