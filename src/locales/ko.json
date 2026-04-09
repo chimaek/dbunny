@@ -221,6 +221,20 @@
     "json": "JSON으로 내보내기",
     "excel": "Excel로 내보내기"
   },
+  "statistics": {
+    "title": "테이블 통계",
+    "loading": "테이블 데이터 분석 중...",
+    "refresh": "새로고침",
+    "totalRows": "전체 행 수",
+    "columns": "컬럼 수",
+    "distinct": "고유값",
+    "nullCount": "NULL",
+    "min": "최솟값",
+    "max": "최댓값",
+    "avg": "평균",
+    "topValues": "상위 빈출값",
+    "notSupported": "통계는 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다"
+  },
   "rowInsert": {
     "title": "행 삽입",
     "singleInsert": "단일 행",

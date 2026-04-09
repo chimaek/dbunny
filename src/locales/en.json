@@ -221,6 +221,20 @@
     "json": "Export as JSON",
     "excel": "Export as Excel"
   },
+  "statistics": {
+    "title": "Table Statistics",
+    "loading": "Analyzing table data...",
+    "refresh": "Refresh",
+    "totalRows": "Total Rows",
+    "columns": "Columns",
+    "distinct": "Distinct",
+    "nullCount": "NULL",
+    "min": "Min",
+    "max": "Max",
+    "avg": "Avg",
+    "topValues": "Top Values",
+    "notSupported": "Statistics is only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)"
+  },
   "rowInsert": {
     "title": "Insert Row",
     "singleInsert": "Single Row",

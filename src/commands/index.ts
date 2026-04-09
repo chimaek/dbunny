@@ -20,6 +20,7 @@ import { exportToJson, validateImportData, toConnectionConfig } from '../utils/c
 import { DataImportPanel } from '../webview/DataImportPanel';
 import { exportSingleSheet, fetchAndExportTables } from '../utils/dataExport';
 import { RowInsertPanel } from '../webview/RowInsertPanel';
+import { StatisticsPanel } from '../webview/StatisticsPanel';
 
 /**
  * Register all commands
@@ -441,6 +442,40 @@ db.collectionName.find({})
                     i18n.t('rowInsert.loadFailed', { error: message })
                 );
             }
+        })
+    );
+
+    // Show Table Statistics
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.showStatistics', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('statistics.notSupported'));
+                return;
+            }
+
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
+
+            await StatisticsPanel.createOrShow(
+                context.extensionUri,
+                connectionManager,
+                i18n,
+                tableName,
+                databaseName,
+                dbType,
+            );
         })
     );
 

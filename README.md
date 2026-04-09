@@ -59,6 +59,9 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Column constraint auto-detection (NOT NULL, DEFAULT, FK badges)
   - FK reference value dropdown selection
   - CSV paste bulk insert with preview
+- **Data Statistics Panel** — Per-column statistics dashboard
+  - Min / Max / Avg, NULL ratio, distinct count
+  - Top frequent values with visual bar chart
 
 #### Query Editor
 
@@ -256,6 +259,9 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - 컬럼 제약 조건 자동 감지 (NOT NULL, DEFAULT, FK 배지)
   - FK 참조 값 드롭다운 선택
   - CSV 붙여넣기 일괄 삽입 + 미리보기
+- **데이터 통계 패널** — 컬럼별 통계 대시보드
+  - 최솟값 / 최댓값 / 평균, NULL 비율, 고유값 수
+  - 상위 빈출값 바 차트
 
 #### 쿼리 편집기
 

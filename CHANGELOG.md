@@ -5,6 +5,20 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-04-04
+
+### Added
+
+- **Data Statistics Panel**: Per-column statistics with visual dashboard
+  - Min / Max / Avg for numeric columns, Min / Max for text columns
+  - NULL count and percentage with visual bar indicator
+  - Distinct value count per column
+  - Top 5 most frequent values with bar chart
+  - Summary cards: total rows, column count
+  - Refresh button for live re-analysis
+- **Statistics Utility**: New `src/utils/dataStatistics.ts` with `collectTableStatistics`, query builders
+- **Statistics Panel**: New `src/webview/StatisticsPanel.ts` WebView panel
+
 ## [2.8.0] - 2026-03-31
 
 ### Added
