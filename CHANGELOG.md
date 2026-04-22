@@ -5,6 +5,20 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-10
+
+### Added
+
+- **Simple Charts**: SVG-based chart visualization for query results
+  - Bar chart for numeric columns with Y-axis ticks and rotated labels
+  - Pie chart with slices, legend, and percentage display
+  - Line chart for time-series data with data points and auto-spaced labels
+  - Aggregation options: Raw / Sum / Count / Average (group by label column)
+  - Chart type auto-suggestion based on data characteristics
+  - Interactive controls: chart type, label/value column, aggregation selector
+- **Chart Builder**: New `src/utils/chartBuilder.ts` with pure SVG rendering (no external dependencies)
+- **Chart Panel**: New `src/webview/ChartPanel.ts` WebView panel
+
 ## [2.9.0] - 2026-04-04
 
 ### Added

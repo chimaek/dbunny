@@ -62,6 +62,9 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 - **Data Statistics Panel** — Per-column statistics dashboard
   - Min / Max / Avg, NULL ratio, distinct count
   - Top frequent values with visual bar chart
+- **Simple Charts** — SVG-based chart visualization for query results
+  - Bar, Pie, and Line charts with aggregation options (Sum / Count / Avg)
+  - Auto chart type suggestion based on data characteristics
 
 #### Query Editor
 
@@ -262,6 +265,9 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 - **데이터 통계 패널** — 컬럼별 통계 대시보드
   - 최솟값 / 최댓값 / 평균, NULL 비율, 고유값 수
   - 상위 빈출값 바 차트
+- **간단한 차트** — 쿼리 결과 SVG 차트 시각화
+  - 막대, 파이, 라인 차트 + 집계 옵션 (합계 / 개수 / 평균)
+  - 데이터 특성 기반 차트 유형 자동 추천
 
 #### 쿼리 편집기
 

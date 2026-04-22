@@ -221,6 +221,26 @@
     "json": "Export as JSON",
     "excel": "Export as Excel"
   },
+  "chart": {
+    "title": "Chart",
+    "rows": "rows",
+    "chartType": "Chart Type",
+    "bar": "Bar",
+    "pie": "Pie",
+    "line": "Line",
+    "labelColumn": "Label Column",
+    "valueColumn": "Value Column",
+    "aggregation": "Aggregation",
+    "aggRaw": "Raw (no aggregation)",
+    "aggSum": "Sum",
+    "aggCount": "Count",
+    "aggAvg": "Average",
+    "render": "Render",
+    "dataPoints": "data points",
+    "selectAndRender": "Select columns and click Render to create a chart",
+    "notSupported": "Charts are only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)",
+    "loadFailed": "Failed to load table data: {error}"
+  },
   "statistics": {
     "title": "Table Statistics",
     "loading": "Analyzing table data...",

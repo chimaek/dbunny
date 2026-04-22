@@ -463,6 +463,189 @@ section('특수 문자 이스케이프');
     assertEqual(escapeValue('', 'mysql'), "''", '빈 문자열 이스케이프');
 }
 
+// ===== 추가 엣지 케이스 — v3.0.0 커버리지 보강 =====
+
+section('parseCSV 엣지 케이스');
+
+{
+    // BOM 포함 CSV
+    const bom = '\uFEFFname,age\nAlice,30\n';
+    const parsed = parseCSV(new TextEncoder().encode(bom), 'bom.csv');
+    assert(parsed.headers[0] === 'name' || parsed.headers[0] === '\uFEFFname', 'BOM CSV 파싱');
+}
+
+{
+    // 따옴표 안 쉼표
+    const csv = 'name,address\n"Alice","123, Main St"\n';
+    const parsed = parseCSV(new TextEncoder().encode(csv), 'quoted.csv');
+    assertEqual(parsed.totalRows, 1, '따옴표 안 쉼표 1행');
+}
+
+{
+    // 따옴표 안 개행
+    const csv = 'name,bio\n"Alice","line1\nline2"\n';
+    const parsed = parseCSV(new TextEncoder().encode(csv), 'multiline.csv');
+    assertEqual(parsed.totalRows, 1, '따옴표 안 개행 1행');
+}
+
+{
+    // 빈 CSV (헤더만)
+    const csv = 'name,age\n';
+    const parsed = parseCSV(new TextEncoder().encode(csv), 'empty.csv');
+    assertEqual(parsed.totalRows, 0, '빈 CSV 0행');
+    assertEqual(parsed.headers.length, 2, '빈 CSV 헤더 2개');
+}
+
+{
+    // 탭 구분자는 CSV로 처리됨 (PapaParse 자동 감지)
+    const tsv = 'name\tage\nBob\t25\n';
+    const parsed = parseCSV(new TextEncoder().encode(tsv), 'tab.csv');
+    assert(parsed.totalRows >= 1, 'TSV 형식 파싱');
+}
+
+section('parseJSON 엣지 케이스');
+
+{
+    // 중첩 객체 포함
+    const data = [{ name: 'Alice', meta: { age: 30 } }];
+    const parsed = parseJSON(new TextEncoder().encode(JSON.stringify(data)), 'nested.json');
+    assertEqual(parsed.totalRows, 1, '중첩 객체 1행');
+    assert(parsed.headers.includes('meta'), '중첩 필드 meta 포함');
+}
+
+{
+    // 빈 배열 → 에러 발생
+    let threw = false;
+    try {
+        parseJSON(new TextEncoder().encode('[]'), 'empty.json');
+    } catch {
+        threw = true;
+    }
+    assert(threw, '빈 JSON 배열 → 에러 발생');
+}
+
+{
+    // 단일 객체 (배열 아님)
+    const parsed = parseJSON(new TextEncoder().encode('{"name":"Alice","age":30}'), 'single.json');
+    assertEqual(parsed.totalRows, 1, '단일 객체 → 1행');
+}
+
+{
+    // 다양한 키가 있는 배열
+    const data = [{ a: 1 }, { b: 2 }, { a: 3, c: 4 }];
+    const parsed = parseJSON(new TextEncoder().encode(JSON.stringify(data)), 'hetero.json');
+    assert(parsed.headers.length >= 3, '이질적 키 3개 이상');
+}
+
+section('suggestColumnMapping 엣지 케이스');
+
+{
+    // 대소문자 불일치
+    const cols: ColumnInfo[] = [
+        { name: 'UserName', type: 'VARCHAR', nullable: true, primaryKey: false },
+        { name: 'AGE', type: 'INT', nullable: true, primaryKey: false },
+    ];
+    const mappings = suggestColumnMapping(['username', 'age'], cols);
+    const mapped = mappings.filter(m => m.targetColumn !== '');
+    assert(mapped.length >= 1, '대소문자 불일치 매핑 최소 1개');
+}
+
+{
+    // 언더스코어 제거 매핑
+    const cols: ColumnInfo[] = [
+        { name: 'first_name', type: 'VARCHAR', nullable: true, primaryKey: false },
+    ];
+    const mappings = suggestColumnMapping(['firstname'], cols);
+    const mapped = mappings.filter(m => m.targetColumn !== '');
+    assert(mapped.length >= 1, '언더스코어 제거 매핑');
+}
+
+{
+    // 소스에 없는 타겟 → 빈 매핑
+    const cols: ColumnInfo[] = [
+        { name: 'x', type: 'INT', nullable: true, primaryKey: false },
+    ];
+    const mappings = suggestColumnMapping(['totally_different'], cols);
+    const mapped = mappings.filter(m => m.targetColumn !== '');
+    assertEqual(mapped.length, 0, '매칭 불가 → 빈 매핑');
+}
+
+section('escapeValue 추가 엣지 케이스');
+
+assertEqual(escapeValue(true, 'mysql'), 'TRUE', 'boolean true → TRUE');
+assertEqual(escapeValue(false, 'mysql'), 'FALSE', 'boolean false → FALSE');
+assertEqual(escapeValue(0, 'mysql'), '0', '숫자 0');
+assertEqual(escapeValue(-1.5, 'postgres'), '-1.5', '음수 소수');
+assertEqual(escapeValue(NaN, 'mysql'), 'NULL', 'NaN → NULL');
+assertEqual(escapeValue(Infinity, 'mysql'), 'NULL', 'Infinity → NULL');
+assertEqual(escapeValue(undefined, 'postgres'), 'NULL', 'undefined → NULL');
+
+// 긴 문자열
+{
+    const longStr = 'a'.repeat(10000);
+    const escaped = escapeValue(longStr, 'mysql');
+    assert(escaped.length > 10000, '긴 문자열 이스케이프');
+}
+
+section('escapeIdentifier 추가 엣지 케이스');
+
+assertEqual(escapeIdentifier('', 'mysql'), '``', 'MySQL 빈 식별자');
+assertEqual(escapeIdentifier('', 'postgres'), '""', 'PG 빈 식별자');
+assertEqual(escapeIdentifier('123', 'mysql'), '`123`', '숫자로 시작하는 식별자');
+
+section('buildInsertSQL 엣지 케이스');
+
+{
+    // 모든 값이 NULL
+    const sql = buildInsertSQL('t', ['a', 'b'], [null, null], 'mysql');
+    assert(sql.includes('NULL, NULL'), '모든 NULL');
+}
+
+{
+    // 싱글 컬럼
+    const sql = buildInsertSQL('t', ['x'], [42], 'postgres');
+    assert(sql.includes('"x"'), '단일 컬럼');
+    assert(sql.includes('42'), '단일 값');
+}
+
+section('buildConflictSQL 추가 엣지 케이스');
+
+{
+    // skip 전략 + PK 없음
+    const sql = buildConflictSQL('t', ['a'], [1], 'postgres', 'skip', []);
+    assert(sql.includes('ON CONFLICT DO NOTHING'), 'PG skip PK 없음 → ON CONFLICT DO NOTHING');
+}
+
+{
+    // upsert 전략 + 모든 컬럼이 PK → DO NOTHING
+    const sql = buildConflictSQL('t', ['a', 'b'], [1, 2], 'postgres', 'upsert', ['a', 'b']);
+    assert(sql.includes('DO NOTHING'), 'PG upsert 모든 컬럼 PK → DO NOTHING');
+}
+
+{
+    // MySQL overwrite
+    const sql = buildConflictSQL('t', ['id', 'name', 'age'], [1, 'A', 10], 'mysql', 'overwrite', ['id']);
+    assert(sql.includes('ON DUPLICATE KEY UPDATE'), 'MySQL overwrite');
+    assert(sql.includes('`name` = VALUES(`name`)'), 'MySQL overwrite name 업데이트');
+    assert(sql.includes('`age` = VALUES(`age`)'), 'MySQL overwrite age 업데이트');
+}
+
+{
+    // SQLite overwrite
+    const sql = buildConflictSQL('t', ['id', 'v'], [1, 'x'], 'sqlite', 'overwrite', ['id']);
+    assert(sql.includes('INSERT OR REPLACE INTO'), 'SQLite overwrite → INSERT OR REPLACE');
+}
+
+{
+    // detectFormat
+    assertEqual(detectFormat('test.csv'), 'csv', 'CSV 확장자');
+    assertEqual(detectFormat('test.json'), 'json', 'JSON 확장자');
+    assertEqual(detectFormat('test.xlsx'), 'xlsx', 'XLSX 확장자');
+    assertEqual(detectFormat('test.xls'), 'xlsx', 'XLS → xlsx');
+    assertEqual(detectFormat('TEST.CSV'), 'csv', '대문자 확장자');
+    assertEqual(detectFormat('data.tsv'), null, 'TSV → 미지원');
+}
+
 // ===== 결과 =====
 
 console.log(`\n${'='.repeat(50)}`);

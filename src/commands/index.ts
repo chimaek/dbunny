@@ -21,6 +21,7 @@ import { DataImportPanel } from '../webview/DataImportPanel';
 import { exportSingleSheet, fetchAndExportTables } from '../utils/dataExport';
 import { RowInsertPanel } from '../webview/RowInsertPanel';
 import { StatisticsPanel } from '../webview/StatisticsPanel';
+import { ChartPanel } from '../webview/ChartPanel';
 
 /**
  * Register all commands
@@ -476,6 +477,54 @@ db.collectionName.find({})
                 databaseName,
                 dbType,
             );
+        })
+    );
+
+    // Show Chart
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.showChart', async (item: ConnectionTreeItem) => {
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const dbType = activeConnection.config.type;
+            if (dbType === 'mongodb' || dbType === 'redis') {
+                vscode.window.showWarningMessage(i18n.t('chart.notSupported'));
+                return;
+            }
+
+            const tableName = item?.label?.toString() || '';
+            if (!tableName) {
+                vscode.window.showWarningMessage(i18n.t('messages.noTableSelected'));
+                return;
+            }
+
+            const databaseName = item?.databaseName || activeConnection.config.database || '';
+
+            try {
+                const quote = dbType === 'mysql' ? '`' : '"';
+                const escaped = dbType === 'mysql'
+                    ? tableName.replace(/`/g, '``')
+                    : tableName.replace(/"/g, '""');
+                const result = await activeConnection.executeQuery(
+                    `SELECT * FROM ${quote}${escaped}${quote}`, databaseName
+                );
+
+                await ChartPanel.createOrShow(
+                    context.extensionUri,
+                    connectionManager,
+                    i18n,
+                    result,
+                    tableName,
+                    databaseName,
+                    dbType,
+                );
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(i18n.t('chart.loadFailed', { error: msg }));
+            }
         })
     );
 

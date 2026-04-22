@@ -221,6 +221,26 @@
     "json": "JSON으로 내보내기",
     "excel": "Excel로 내보내기"
   },
+  "chart": {
+    "title": "차트",
+    "rows": "행",
+    "chartType": "차트 유형",
+    "bar": "막대",
+    "pie": "파이",
+    "line": "라인",
+    "labelColumn": "라벨 컬럼",
+    "valueColumn": "값 컬럼",
+    "aggregation": "집계",
+    "aggRaw": "원본 (집계 없음)",
+    "aggSum": "합계",
+    "aggCount": "개수",
+    "aggAvg": "평균",
+    "render": "렌더링",
+    "dataPoints": "데이터 포인트",
+    "selectAndRender": "컬럼을 선택하고 렌더링을 클릭하여 차트를 생성하세요",
+    "notSupported": "차트는 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다",
+    "loadFailed": "테이블 데이터 로드 실패: {error}"
+  },
   "statistics": {
     "title": "테이블 통계",
     "loading": "테이블 데이터 분석 중...",

@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -336,6 +336,12 @@
         "title": "Table Statistics",
         "category": "DBunny",
         "icon": "$(graph)"
+      },
+      {
+        "command": "dbunny.showChart",
+        "title": "Show Chart",
+        "category": "DBunny",
+        "icon": "$(graph-line)"
       }
     ],
     "menus": {
@@ -503,6 +509,11 @@
           "group": "navigation@6"
         },
         {
+          "command": "dbunny.showChart",
+          "when": "view == dbunny.explorer && viewItem == table-sql",
+          "group": "navigation@7"
+        },
+        {
           "command": "dbunny.toggleFavorite",
           "when": "view == dbunny.explorer && viewItem == table-sql",
           "group": "inline@3"
@@ -551,6 +562,11 @@
           "command": "dbunny.showStatistics",
           "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
           "group": "navigation@6"
+        },
+        {
+          "command": "dbunny.showChart",
+          "when": "view == dbunny.explorer && viewItem == table-sql-favorite",
+          "group": "navigation@7"
         },
         {
           "command": "dbunny.viewKeyData",

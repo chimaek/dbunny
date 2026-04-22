@@ -490,6 +490,123 @@ section('exportToExcel — 특수 값 타입');
     assertEqual(rows[2][1], -42, '음수 보존');
 }
 
+// ===== 추가 엣지 케이스 — v3.0.0 커버리지 보강 =====
+
+section('sanitizeSheetName — 추가 엣지 케이스');
+
+assertEqual(sanitizeSheetName('   '), 'Sheet', '공백만 → Sheet');
+assertEqual(sanitizeSheetName('a/b/c/d'), 'a_b_c_d', '다중 슬래시');
+assertEqual(sanitizeSheetName('tab\tname'), 'tab\tname', '탭은 허용');
+
+{
+    // 30자 + 중복 → suffix 공간 확보
+    const name29 = 'a'.repeat(29);
+    const existing = [name29 + 'ab'];
+    const result = sanitizeSheetName(name29 + 'ab', existing);
+    assert(result.length <= 31, '29자+중복 시 31자 제한');
+    assert(result !== name29 + 'ab', '중복 회피');
+}
+
+section('formatColumnType — 추가 엣지 케이스');
+
+{
+    const col = makeSchema([{ name: 'x', type: 'text', nullable: true, primaryKey: false, defaultValue: '' }])[0];
+    const result = formatColumnType(col);
+    assert(result.includes('DEFAULT='), '빈 문자열 DEFAULT 표시');
+}
+
+{
+    const col = makeSchema([{ name: 'x', type: 'varchar(255)', nullable: false, primaryKey: true, defaultValue: 'hello' }])[0];
+    const result = formatColumnType(col);
+    assert(result.includes('PK'), 'PK + NOT NULL + DEFAULT 동시');
+    assert(result.includes('NOT NULL'), 'NOT NULL');
+    assert(result.includes('DEFAULT=hello'), 'DEFAULT=hello');
+}
+
+section('buildWorksheet — Date 객체');
+
+{
+    const data = makeQueryResult(
+        [{ name: 'ts', type: 'timestamp' }],
+        [{ ts: new Date('2024-01-15T10:30:00Z') }]
+    );
+
+    const ws = buildWorksheet({ sheetName: 'dates', data }, false);
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as unknown[][];
+
+    assert(typeof rows[1][0] === 'string', 'Date → ISO string');
+    assert(String(rows[1][0]).includes('2024'), 'Date 연도 포함');
+}
+
+section('buildWorksheet — 숫자 정밀도');
+
+{
+    const data = makeQueryResult(
+        [{ name: 'val', type: 'decimal' }],
+        [{ val: 0.1 + 0.2 }, { val: 123456789.123456 }]
+    );
+
+    const ws = buildWorksheet({ sheetName: 'precision', data }, false);
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as unknown[][];
+
+    assert(typeof rows[1][0] === 'number', '소수 숫자 타입 유지');
+    assert(typeof rows[2][0] === 'number', '큰 소수 숫자 타입 유지');
+}
+
+section('exportToExcel — 많은 시트');
+
+{
+    const data = makeQueryResult([{ name: 'x', type: 'int' }], [{ x: 1 }]);
+    const config: ExcelExportConfig = {
+        sheets: Array.from({ length: 10 }, (_, i) => ({
+            sheetName: `Sheet_${i}`,
+            data,
+        })),
+        showColumnTypes: false,
+    };
+
+    const buf = exportToExcel(config);
+    const sheets = readExcelSheetNames(buf);
+    assertEqual(sheets.length, 10, '10개 시트 생성');
+    assertEqual(sheets[9], 'Sheet_9', '마지막 시트 이름');
+}
+
+section('exportSingleSheet — 스키마 포함');
+
+{
+    const data = makeQueryResult(
+        [{ name: 'id', type: 'int' }, { name: 'name', type: 'varchar' }],
+        [{ id: 1, name: 'Alice' }]
+    );
+    const schema = makeSchema([
+        { name: 'id', type: 'int', primaryKey: true, nullable: false },
+        { name: 'name', type: 'varchar(100)', nullable: true, defaultValue: 'unnamed' },
+    ]);
+
+    const buf = exportSingleSheet(data, 'withSchema', schema, undefined, true);
+    const rows = readExcelSheet(buf);
+
+    // 헤더 + 타입 + 데이터 = 3행
+    assertEqual(rows.length, 3, '스키마 포함 3행');
+    assert(String(rows[1][0]).includes('PK'), '타입 행 PK');
+    assert(String(rows[1][1]).includes('DEFAULT=unnamed'), '타입 행 DEFAULT');
+}
+
+section('exportSingleSheet — boolean, undefined 값');
+
+{
+    const data = makeQueryResult(
+        [{ name: 'flag', type: 'bool' }, { name: 'opt', type: 'text' }],
+        [{ flag: true, opt: undefined }, { flag: false, opt: 'val' }]
+    );
+
+    const buf = exportSingleSheet(data, 'bools', undefined, undefined, false);
+    const rows = readExcelSheet(buf);
+
+    assertEqual(rows[1][0], true, 'boolean true 보존');
+    assertEqual(rows[2][0], false, 'boolean false 보존');
+}
+
 // ── 결과 ───────────────────────────────────────────
 
 console.log('\n==================================================');
