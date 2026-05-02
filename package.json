@@ -2,7 +2,7 @@
   "name": "dbunny",
   "displayName": "DBunny",
   "description": "Hop into your databases! Fast and friendly database management for VS Code",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "publisher": "chimaek",
   "author": "chimaek",
   "license": "MIT",
@@ -342,6 +342,12 @@
         "title": "Show Chart",
         "category": "DBunny",
         "icon": "$(graph-line)"
+      },
+      {
+        "command": "dbunny.compareResults",
+        "title": "Compare Query Results (Diff)",
+        "category": "DBunny",
+        "icon": "$(diff)"
       }
     ],
     "menus": {

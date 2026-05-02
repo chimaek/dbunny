@@ -91,6 +91,12 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
   - Side-by-side comparison of two results (before/after data changes)
   - Pin tab bar with timestamps and custom labels
   - Up to 20 pinned results per query tab
+- **Query Result Diff** — Compare two query results with row-level diff
+  - Added / Removed / Modified row detection with color markers (+, -, ~)
+  - Cell-level change highlighting for modified rows
+  - Automatic key column detection (id, _id, code, etc.)
+  - Status filter: All / Added / Removed / Modified / Unchanged
+  - Export diff report as Markdown or JSON
 - **Inline Cell Editing** — Double-click to edit, Tab/Enter to navigate, Ctrl+S to save
 - **Cell Expand View** — View long text and JSON with syntax highlighting in a modal
 - **Multi-Row Selection** — Ctrl+Click to select, Delete to remove, Ctrl+C to copy
@@ -294,6 +300,12 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
   - 나란히 보기로 두 결과 비교 (변경 전/후 데이터 비교)
   - 핀 탭 바 — 타임스탬프와 사용자 지정 라벨로 관리
   - 쿼리 탭당 최대 20개 핀 지원
+- **쿼리 결과 비교(Diff)** — 두 쿼리 결과를 행 단위로 비교
+  - 추가 / 삭제 / 변경 행 감지 및 색상 마커 (+, -, ~)
+  - 변경 행의 셀 단위 하이라이트
+  - 키 컬럼 자동 감지 (id, _id, code 등)
+  - 상태별 필터: 전체 / 추가 / 삭제 / 변경 / 동일
+  - 비교 리포트를 마크다운 또는 JSON으로 내보내기
 - **인라인 셀 편집** — 더블클릭으로 수정, Tab/Enter로 이동, Ctrl+S로 저장
 - **셀 확장 뷰** — 긴 텍스트와 JSON을 구문 강조 모달로 표시
 - **멀티행 선택** — Ctrl+Click으로 선택, Delete로 삭제, Ctrl+C로 복사

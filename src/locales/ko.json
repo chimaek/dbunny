@@ -281,6 +281,15 @@
     "selectTarget": "테이블 또는 데이터베이스를 우클릭하여 내보내기하세요",
     "failed": "내보내기 실패: {error}"
   },
+  "diff": {
+    "title": "결과 비교",
+    "noPins": "비교하려면 최소 2개 이상의 쿼리 결과를 고정하세요",
+    "selectLeft": "왼쪽 결과 선택",
+    "selectRight": "오른쪽 결과 선택",
+    "selectKey": "키 컬럼 선택 (선택사항)",
+    "allColumns": "전체 컬럼",
+    "exported": "비교 리포트를 {path}에 내보냈습니다"
+  },
   "webview": {
     "connectionForm": {
       "title": "새 연결",

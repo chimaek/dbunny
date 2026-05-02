@@ -22,6 +22,7 @@ import { exportSingleSheet, fetchAndExportTables } from '../utils/dataExport';
 import { RowInsertPanel } from '../webview/RowInsertPanel';
 import { StatisticsPanel } from '../webview/StatisticsPanel';
 import { ChartPanel } from '../webview/ChartPanel';
+import { DiffPanel } from '../webview/DiffPanel';
 
 /**
  * Register all commands
@@ -1644,6 +1645,82 @@ db.collectionName.find({})
                     i18n.t('dataImport.loadFailed', { error: message })
                 );
             }
+        })
+    );
+
+    // ===== Compare Query Results (Diff) =====
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.compareResults', async () => {
+            // 활성 QueryTabPanel에서 핀된 결과 목록을 가져옴
+            const tabPanel = QueryTabPanel.getCurrentPanel();
+            if (!tabPanel) {
+                vscode.window.showWarningMessage(i18n.t('messages.noConnection'));
+                return;
+            }
+
+            const pins = tabPanel.getPinnedResults();
+            if (pins.length < 2) {
+                vscode.window.showWarningMessage(i18n.t('diff.noPins'));
+                return;
+            }
+
+            // 왼쪽 결과 선택
+            const leftPick = await vscode.window.showQuickPick(
+                pins.map(p => ({
+                    label: p.label || `Pin ${pins.indexOf(p) + 1}`,
+                    description: `${p.rowCount} rows — ${p.connectionName}`,
+                    detail: p.query.substring(0, 80),
+                    pinId: p.id
+                })),
+                { placeHolder: i18n.t('diff.selectLeft') }
+            );
+            if (!leftPick) { return; }
+
+            // 오른쪽 결과 선택 (왼쪽 제외)
+            const rightPins = pins.filter(p => p.id !== leftPick.pinId);
+            if (rightPins.length === 0) {
+                vscode.window.showWarningMessage(i18n.t('diff.noPins'));
+                return;
+            }
+
+            const rightPick = await vscode.window.showQuickPick(
+                rightPins.map(p => ({
+                    label: p.label || `Pin ${pins.indexOf(p) + 1}`,
+                    description: `${p.rowCount} rows — ${p.connectionName}`,
+                    detail: p.query.substring(0, 80),
+                    pinId: p.id
+                })),
+                { placeHolder: i18n.t('diff.selectRight') }
+            );
+            if (!rightPick) { return; }
+
+            const leftPin = pins.find(p => p.id === leftPick.pinId)!;
+            const rightPin = pins.find(p => p.id === rightPick.pinId)!;
+
+            // 키 컬럼 선택 (선택사항)
+            const allColumns = [...new Set([...leftPin.columns, ...rightPin.columns])];
+            const keyPickItems = [
+                { label: i18n.t('diff.allColumns'), description: 'Auto-detect', keyColumns: undefined as string[] | undefined },
+                ...allColumns.map(col => ({
+                    label: col,
+                    description: 'Key column',
+                    keyColumns: [col] as string[] | undefined
+                }))
+            ];
+
+            const keyPick = await vscode.window.showQuickPick(
+                keyPickItems,
+                { placeHolder: i18n.t('diff.selectKey') }
+            );
+
+            const diffPanel = DiffPanel.createOrShow(context.extensionUri, i18n);
+            diffPanel.showDiff(
+                { rows: leftPin.rows, fields: leftPin.columns.map(c => ({ name: c, type: 'unknown' })), rowCount: leftPin.rowCount, executionTime: leftPin.executionTime },
+                { rows: rightPin.rows, fields: rightPin.columns.map(c => ({ name: c, type: 'unknown' })), rowCount: rightPin.rowCount, executionTime: rightPin.executionTime },
+                leftPin.label || leftPick.label,
+                rightPin.label || rightPick.label,
+                keyPick?.keyColumns
+            );
         })
     );
 

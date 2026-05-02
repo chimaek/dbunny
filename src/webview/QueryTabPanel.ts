@@ -2611,6 +2611,22 @@ export class QueryTabPanel {
 </html>`;
     }
 
+    /** 현재 패널 인스턴스 반환 (diff 명령에서 사용) */
+    public static getCurrentPanel(): QueryTabPanel | undefined {
+        return QueryTabPanel.currentPanel;
+    }
+
+    /** 모든 탭의 핀된 결과를 평탄하게 반환 */
+    public getPinnedResults(): import('../utils/resultPin').PinnedResult[] {
+        const allPins: import('../utils/resultPin').PinnedResult[] = [];
+        for (const tab of this._tabs) {
+            if (tab.pinState?.pinnedResults) {
+                allPins.push(...tab.pinState.pinnedResults);
+            }
+        }
+        return allPins;
+    }
+
     public dispose(): void {
         QueryTabPanel.currentPanel = undefined;
         this._panel.dispose();

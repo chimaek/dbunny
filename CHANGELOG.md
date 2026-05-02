@@ -5,6 +5,24 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-05-03
+
+### Added
+
+- **Query Result Diff**: Compare two query results and highlight differences
+  - Added / Removed / Modified row detection with color-coded markers
+  - Cell-level change highlighting for modified rows
+  - Automatic key column detection (id, _id, code, etc.)
+  - Status filter: All / Added / Removed / Modified / Unchanged
+  - Summary cards with row counts per status
+  - Export diff report as Markdown or JSON
+  - Key column selection via QuickPick (optional)
+- **Result Diff Utility**: New `src/utils/resultDiff.ts` with `computeDiff`, `diffToMarkdown`, `diffToJson`
+- **Diff Panel**: New `src/webview/DiffPanel.ts` WebView panel with unified diff view
+- **Command**: `dbunny.compareResults` — select two pinned results to compare
+- **i18n**: Diff-related translation keys in Korean and English
+- **Tests**: 14 unit tests for diff calculation logic
+
 ## [3.0.0] - 2026-04-10
 
 ### Added

@@ -281,6 +281,15 @@
     "selectTarget": "Right-click a table or database to export",
     "failed": "Export failed: {error}"
   },
+  "diff": {
+    "title": "Result Diff",
+    "noPins": "Pin at least two query results to compare them",
+    "selectLeft": "Select Left Result",
+    "selectRight": "Select Right Result",
+    "selectKey": "Select Key Columns (optional)",
+    "allColumns": "All columns",
+    "exported": "Diff report exported to {path}"
+  },
   "webview": {
     "connectionForm": {
       "title": "New Connection",
