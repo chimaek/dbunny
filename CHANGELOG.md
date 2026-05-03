@@ -5,6 +5,26 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-05-03
+
+### Added
+
+- **Routine Browser**: Explore stored procedures, functions, views, and triggers in the explorer tree
+  - Database nodes now group children into 📦 Tables / 📦 Routines / 📦 Triggers
+  - Click to view syntax-highlighted source code in RoutinePanel
+  - Execute stored procedures with parameter input forms
+  - Drop routines with confirmation dialog (PROCEDURE, FUNCTION, VIEW, TRIGGER)
+  - MySQL: full support (information_schema + SHOW CREATE + CALL)
+  - PostgreSQL: full support (pg_catalog + pg_get_functiondef + SELECT/CALL)
+  - SQLite: views and triggers (sqlite_master)
+  - H2: views, function aliases, and triggers (INFORMATION_SCHEMA)
+- **DatabaseConnection Interface**: 6 new optional methods
+  - `getRoutines()`, `getRoutineSource()`, `executeRoutine()`, `dropRoutine()`, `getTriggers()`, `getTriggerSource()`
+- **RoutinePanel**: New WebView panel with source code viewer, parameter form, and Execute/Drop/Copy actions
+- **Commands**: `dbunny.viewRoutine`, `dbunny.executeRoutine`, `dbunny.dropRoutine`
+- **i18n**: 18 routine-related translation keys in Korean and English
+- **Tests**: 203 tests (141 standalone + 24 Mocha + 38 Docker integration)
+
 ## [3.1.0] - 2026-05-03
 
 ### Added
