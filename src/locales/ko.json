@@ -290,6 +290,31 @@
     "allColumns": "전체 컬럼",
     "exported": "비교 리포트를 {path}에 내보냈습니다"
   },
+  "routine": {
+    "title": "루틴 브라우저",
+    "loading": "루틴 불러오는 중...",
+    "selectRoutine": "탐색기에서 루틴을 선택하여 소스를 확인하세요",
+    "viewSource": "소스 보기",
+    "execute": "실행",
+    "sourceCopied": "소스 코드가 클립보드에 복사되었습니다",
+    "parameters": "파라미터",
+    "noParams": "파라미터 없음",
+    "executed": "실행 완료",
+    "drop": "삭제",
+    "dropConfirm": "정말 {name}을(를) 삭제하시겠습니까?",
+    "dropped": "{name} 삭제 완료",
+    "dropFailed": "삭제 실패: {error}",
+    "notSupported": "이 데이터베이스 타입은 루틴 브라우저를 지원하지 않습니다",
+    "procedure": "프로시저",
+    "function": "함수",
+    "view": "뷰",
+    "trigger": "트리거"
+  },
+  "tree": {
+    "groupTables": "테이블",
+    "groupRoutines": "루틴",
+    "groupTriggers": "트리거"
+  },
   "webview": {
     "connectionForm": {
       "title": "새 연결",

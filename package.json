@@ -348,6 +348,24 @@
         "title": "Compare Query Results (Diff)",
         "category": "DBunny",
         "icon": "$(diff)"
+      },
+      {
+        "command": "dbunny.viewRoutine",
+        "title": "View Routine Source",
+        "category": "DBunny",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "dbunny.executeRoutine",
+        "title": "Execute Routine",
+        "category": "DBunny",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dbunny.dropRoutine",
+        "title": "Drop Routine",
+        "category": "DBunny",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -588,6 +606,26 @@
           "command": "dbunny.deleteSavedQuery",
           "when": "view == dbunny.savedQueries && viewItem == savedQuery",
           "group": "inline@2"
+        },
+        {
+          "command": "dbunny.viewRoutine",
+          "when": "view == dbunny.explorer && viewItem == routine",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dbunny.viewRoutine",
+          "when": "view == dbunny.explorer && viewItem == routine-procedure",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dbunny.executeRoutine",
+          "when": "view == dbunny.explorer && viewItem == routine-procedure",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dbunny.dropRoutine",
+          "when": "view == dbunny.explorer && viewItem == routine-procedure",
+          "group": "navigation@8"
         }
       ]
     },

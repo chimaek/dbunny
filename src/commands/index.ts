@@ -23,6 +23,7 @@ import { RowInsertPanel } from '../webview/RowInsertPanel';
 import { StatisticsPanel } from '../webview/StatisticsPanel';
 import { ChartPanel } from '../webview/ChartPanel';
 import { DiffPanel } from '../webview/DiffPanel';
+import { RoutinePanel } from '../webview/RoutinePanel';
 
 /**
  * Register all commands
@@ -1721,6 +1722,111 @@ db.collectionName.find({})
                 rightPin.label || rightPick.label,
                 keyPick?.keyColumns
             );
+        })
+    );
+
+    // ===== Routine Browser (v3.2.0) =====
+
+    // View Routine Source
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.viewRoutine', async (item: ConnectionTreeItem) => {
+            if (!item?.connectionId || !item?.routineName) { return; }
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection || !activeConnection.getRoutineSource) {
+                vscode.window.showWarningMessage(i18n.t('routine.notSupported'));
+                return;
+            }
+            const panel = RoutinePanel.createOrShow(context.extensionUri, connectionManager, i18n);
+            panel.showLoading();
+            try {
+                const source = await activeConnection.getRoutineSource(
+                    item.routineName!,
+                    item.routineType!,
+                    item.databaseName
+                );
+                panel.showRoutine(
+                    {
+                        name: item.routineName!,
+                        type: item.routineType!,
+                        source,
+                        database: item.databaseName,
+                        parameters: [],
+                    },
+                    source
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                panel.showError(message);
+            }
+        })
+    );
+
+    // Execute Routine
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.executeRoutine', async (item: ConnectionTreeItem) => {
+            if (!item?.connectionId || !item?.routineName) { return; }
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection || !activeConnection.getRoutineSource) {
+                vscode.window.showWarningMessage(i18n.t('routine.notSupported'));
+                return;
+            }
+            const panel = RoutinePanel.createOrShow(context.extensionUri, connectionManager, i18n);
+            panel.showLoading();
+            try {
+                // Fetch full routine info with parameters
+                let params: { name: string; dataType: string; mode: 'IN' | 'OUT' | 'INOUT'; ordinalPosition: number }[] = [];
+                if (activeConnection.getRoutines) {
+                    const allRoutines = await activeConnection.getRoutines(item.databaseName);
+                    const match = allRoutines.find(r => r.name === item.routineName && r.type === item.routineType);
+                    if (match) { params = match.parameters; }
+                }
+                const source = await activeConnection.getRoutineSource(
+                    item.routineName!, item.routineType!, item.databaseName
+                );
+                panel.showRoutine(
+                    {
+                        name: item.routineName!,
+                        type: item.routineType!,
+                        source,
+                        database: item.databaseName,
+                        parameters: params,
+                    },
+                    source
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                panel.showError(message);
+            }
+        })
+    );
+
+    // Drop Routine
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dbunny.dropRoutine', async (item: ConnectionTreeItem) => {
+            if (!item?.connectionId || !item?.routineName) { return; }
+            const activeConnection = connectionManager.getActiveConnection();
+            if (!activeConnection || !activeConnection.dropRoutine) {
+                vscode.window.showWarningMessage(i18n.t('routine.notSupported'));
+                return;
+            }
+            const confirm = await vscode.window.showWarningMessage(
+                i18n.t('routine.dropConfirm', { name: item.routineName }),
+                { modal: true },
+                i18n.t('common.delete')
+            );
+            if (!confirm) { return; }
+            try {
+                await activeConnection.dropRoutine(item.routineName, item.routineType!, item.databaseName);
+                connectionTreeProvider.refresh();
+                vscode.window.showInformationMessage(
+                    i18n.t('routine.dropped', { name: item.routineName })
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                vscode.window.showErrorMessage(
+                    i18n.t('routine.dropFailed', { error: message })
+                );
+            }
         })
     );
 

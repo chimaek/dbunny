@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
-import { DatabaseConnection, TreeItemType } from '../types/database';
+import { DatabaseConnection, TreeItemType, RoutineType } from '../types/database';
 import { I18n } from '../utils/i18n';
+import { getRoutineIconId, getRoutineBadge, supportsRoutines } from '../utils/routineBrowser';
 
 /**
- * Tree item representing a connection, database, table, column, or group
+ * Tree item representing a connection, database, table, column, routine, or group
  */
 export class ConnectionTreeItem extends vscode.TreeItem {
     constructor(
@@ -16,7 +17,9 @@ export class ConnectionTreeItem extends vscode.TreeItem {
         public readonly dbType?: string,
         public readonly groupName?: string,
         collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.None,
-        public readonly isFavorite: boolean = false
+        public readonly isFavorite: boolean = false,
+        public readonly routineName?: string,
+        public readonly routineType?: RoutineType
     ) {
         super(label, collapsibleState);
         // Include database type in contextValue for SQL vs NoSQL distinction
@@ -24,6 +27,9 @@ export class ConnectionTreeItem extends vscode.TreeItem {
             const isSqlDb = ['mysql', 'postgres', 'sqlite'].includes(dbType);
             const baseContext = isSqlDb ? 'table-sql' : 'table-nosql';
             this.contextValue = isFavorite ? `${baseContext}-favorite` : baseContext;
+        } else if (itemType === 'routine') {
+            this.contextValue = routineType === 'procedure' || routineType === 'function'
+                ? 'routine-procedure' : 'routine';
         } else {
             this.contextValue = itemType;
         }
@@ -50,6 +56,12 @@ export class ConnectionTreeItem extends vscode.TreeItem {
                 break;
             case 'column':
                 this.iconPath = new vscode.ThemeIcon('symbol-field');
+                break;
+            case 'routine-group':
+                this.iconPath = new vscode.ThemeIcon('symbol-module');
+                break;
+            case 'routine':
+                this.iconPath = new vscode.ThemeIcon(getRoutineIconId(this.routineType!));
                 break;
         }
     }
@@ -96,7 +108,9 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             case 'connection':
                 return this.getDatabaseItems(element.connectionId!);
             case 'database':
-                return this.getTableItems(element.connectionId!, element.databaseName!);
+                return this.getDatabaseGroupItems(element.connectionId!, element.databaseName!, element.dbType!);
+            case 'routine-group':
+                return this.getRoutineGroupItems(element.connectionId!, element.databaseName!, element.dbType!, element.label!);
             case 'table':
                 return this.getColumnItems(element.connectionId!, element.tableName!, element.databaseName);
             default:
@@ -255,6 +269,102 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<Connectio
             });
         } catch (error) {
             console.error('Failed to get tables:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get grouped children for a database node (Tables / Routines / Triggers)
+     */
+    private async getDatabaseGroupItems(
+        connectionId: string,
+        databaseName: string,
+        dbType: string
+    ): Promise<ConnectionTreeItem[]> {
+        const t = (k: string) => this.i18n.t(k) || k;
+        const items: ConnectionTreeItem[] = [];
+
+        // Tables group (always present)
+        items.push(new ConnectionTreeItem(
+            t('tree.groupTables'), 'routine-group',
+            connectionId, databaseName, undefined, dbType, undefined,
+            vscode.TreeItemCollapsibleState.Expanded,
+            false, undefined, undefined
+        ));
+
+        // Routines group (SQL DBs only)
+        if (supportsRoutines(dbType)) {
+            items.push(new ConnectionTreeItem(
+                t('tree.groupRoutines'), 'routine-group',
+                connectionId, databaseName, undefined, dbType, undefined,
+                vscode.TreeItemCollapsibleState.Collapsed,
+                false, undefined, undefined
+            ));
+        }
+
+        // Triggers group (SQL DBs only)
+        if (supportsRoutines(dbType)) {
+            items.push(new ConnectionTreeItem(
+                t('tree.groupTriggers'), 'routine-group',
+                connectionId, databaseName, undefined, dbType, undefined,
+                vscode.TreeItemCollapsibleState.Collapsed,
+                false, undefined, undefined
+            ));
+        }
+
+        return items;
+    }
+
+    /**
+     * Get routine items for a routine-group node
+     */
+    private async getRoutineGroupItems(
+        connectionId: string,
+        databaseName: string,
+        dbType: string,
+        groupLabel: string
+    ): Promise<ConnectionTreeItem[]> {
+        try {
+            const connection = this.connectionManager.getActiveConnection();
+            if (!connection || connection.config.id !== connectionId || !connection.getRoutines) {
+                return [];
+            }
+
+            const allRoutines = await connection.getRoutines(databaseName);
+            const t = (k: string) => this.i18n.t(k) || k;
+
+            // Filter by group label
+            if (groupLabel === t('tree.groupTables')) {
+                return this.getTableItems(connectionId, databaseName);
+            }
+
+            const isTriggers = groupLabel === t('tree.groupTriggers');
+            const filtered = allRoutines.filter(r => {
+                if (isTriggers) { return r.type === 'trigger'; }
+                return r.type !== 'trigger'; // Routines = procedure + function + view
+            });
+
+            return filtered.map(routine => {
+                const badge = getRoutineBadge(routine.type);
+                const item = new ConnectionTreeItem(
+                    routine.name,
+                    'routine',
+                    connectionId,
+                    databaseName,
+                    undefined,
+                    dbType,
+                    undefined,
+                    vscode.TreeItemCollapsibleState.None,
+                    false,
+                    routine.name,
+                    routine.type
+                );
+                item.description = badge;
+                item.tooltip = `${routine.type}: ${routine.name}${routine.returnType ? ' → ' + routine.returnType : ''}`;
+                return item;
+            });
+        } catch (error) {
+            console.error('Failed to get routines:', error);
             return [];
         }
     }

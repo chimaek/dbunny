@@ -151,6 +151,13 @@ export interface DatabaseConnection {
     getTableSchema(table: string, database?: string): Promise<ColumnInfo[]>;
     getCreateTableStatement?(table: string, database?: string): Promise<string>;
     getForeignKeys?(table: string, database?: string): Promise<ForeignKeyInfo[]>;
+    // v3.2.0 — Routine browser (optional: Redis/MongoDB 미구현)
+    getRoutines?(database?: string): Promise<RoutineInfo[]>;
+    getRoutineSource?(name: string, type: RoutineType, database?: string): Promise<string>;
+    executeRoutine?(name: string, params: Record<string, unknown>, database?: string): Promise<QueryResult>;
+    dropRoutine?(name: string, type: RoutineType, database?: string): Promise<void>;
+    getTriggers?(database?: string): Promise<RoutineInfo[]>;
+    getTriggerSource?(name: string, database?: string): Promise<string>;
     isConnected(): boolean;
 }
 
@@ -163,6 +170,36 @@ export interface ColumnInfo {
     nullable: boolean;
     primaryKey: boolean;
     defaultValue?: string;
+}
+
+// ===== Routine Browser (v3.2.0) =====
+
+/**
+ * 루틴(저장 프로시저, 함수, 뷰, 트리거) 타입
+ */
+export type RoutineType = 'procedure' | 'function' | 'view' | 'trigger';
+
+/**
+ * 루틴 파라미터 정보
+ */
+export interface RoutineParameter {
+    name: string;
+    dataType: string;
+    mode: 'IN' | 'OUT' | 'INOUT';
+    ordinalPosition: number;
+}
+
+/**
+ * 루틴 정보 — 저장 프로시저, 함수, 뷰, 트리거 공통
+ */
+export interface RoutineInfo {
+    name: string;
+    type: RoutineType;
+    source: string;
+    database?: string;
+    definer?: string;
+    parameters: RoutineParameter[];
+    returnType?: string;
 }
 
 /**
@@ -187,7 +224,7 @@ export interface TableERDInfo {
 /**
  * Tree item types for the explorer view
  */
-export type TreeItemType = 'connection' | 'database' | 'table' | 'column' | 'group';
+export type TreeItemType = 'connection' | 'database' | 'table' | 'column' | 'group' | 'routine-group' | 'routine';
 
 /**
  * Connection status

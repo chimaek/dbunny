@@ -1,7 +1,7 @@
 import { Client } from 'pg';
 import * as net from 'net';
 import { Client as SSHClient } from 'ssh2';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType, RoutineParameter } from '../types/database';
 
 /**
  * PostgreSQL database provider
@@ -278,6 +278,178 @@ export class PostgresProvider implements DatabaseConnection {
             referencedTable: row.referencedTable as string,
             referencedColumn: row.referencedColumn as string
         }));
+    }
+
+    // ===== Routine Browser (v3.2.0) =====
+
+    async getRoutines(database?: string): Promise<RoutineInfo[]> {
+        const routines: RoutineInfo[] = [];
+
+        // Functions + Procedures from pg_proc
+        const procResult = await this.executeQueryOnDatabaseParameterized(
+            database || this.currentDatabase,
+            `SELECT p.oid, p.proname, pg_get_function_arguments(p.oid) AS args,
+                    p.prokind, p.proretset, p.prorettype::regtype AS rettype
+             FROM pg_catalog.pg_proc p
+             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+             WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+               AND p.prokind IN ('f', 'p')
+             ORDER BY p.proname`,
+            []
+        );
+        for (const row of procResult.rows) {
+            const type: RoutineType = (row['prokind'] as string) === 'p' ? 'procedure' : 'function';
+            const params = this._parsePgParams(row['args'] as string);
+            routines.push({
+                name: row['proname'] as string,
+                type,
+                source: '', // lazy-loaded via getRoutineSource
+                database: database || this.currentDatabase,
+                parameters: params,
+                returnType: type === 'function' ? (row['rettype'] as string) : undefined,
+            });
+        }
+
+        // Views from information_schema
+        try {
+            const viewResult = await this.executeQueryOnDatabaseParameterized(
+                database || this.currentDatabase,
+                `SELECT table_name, view_definition FROM information_schema.views
+                 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')`,
+                []
+            );
+            for (const row of viewResult.rows) {
+                routines.push({
+                    name: row['table_name'] as string,
+                    type: 'view',
+                    source: (row['view_definition'] as string) || '',
+                    database: database || this.currentDatabase,
+                    parameters: [],
+                });
+            }
+        } catch { /* information_schema.views may not exist in older PG versions */ }
+
+        return routines;
+    }
+
+    async getRoutineSource(name: string, type: RoutineType, database?: string): Promise<string> {
+        if (type === 'view') {
+            const result = await this.executeQueryOnDatabaseParameterized(
+                database || this.currentDatabase,
+                `SELECT pg_get_viewdef($1::regclass, true) AS source`,
+                [name]
+            );
+            return result.rows[0]?.['source'] as string || '';
+        }
+        if (type === 'function' || type === 'procedure') {
+            const result = await this.executeQueryOnDatabaseParameterized(
+                database || this.currentDatabase,
+                `SELECT pg_get_functiondef(p.oid) AS source FROM pg_catalog.pg_proc p
+                 JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+                 WHERE p.proname = $1 AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                 LIMIT 1`,
+                [name]
+            );
+            return result.rows[0]?.['source'] as string || '';
+        }
+        if (type === 'trigger') {
+            const result = await this.executeQueryOnDatabaseParameterized(
+                database || this.currentDatabase,
+                `SELECT pg_get_triggerdef(t.oid) AS source FROM pg_catalog.pg_trigger t
+                 WHERE t.tgname = $1 LIMIT 1`,
+                [name]
+            );
+            return result.rows[0]?.['source'] as string || '';
+        }
+        return '';
+    }
+
+    async executeRoutine(name: string, params: Record<string, unknown>, database?: string): Promise<QueryResult> {
+        const paramValues = Object.values(params);
+        const placeholders = paramValues.map((_, i) => `$${i + 1}`).join(', ');
+        // Try as function first (SELECT), then procedure (CALL)
+        try {
+            return await this.executeQueryOnDatabaseParameterized(
+                database || this.currentDatabase,
+                `SELECT * FROM ${name}(${placeholders})`,
+                paramValues
+            );
+        } catch {
+            return await this.executeQueryOnDatabaseParameterized(
+                database || this.currentDatabase,
+                `CALL ${name}(${placeholders})`,
+                paramValues
+            );
+        }
+    }
+
+    async dropRoutine(name: string, type: RoutineType, database?: string): Promise<void> {
+        const dropMap: Record<RoutineType, string> = {
+            function: `DROP FUNCTION IF EXISTS ${name}`,
+            procedure: `DROP PROCEDURE IF EXISTS ${name}`,
+            view: `DROP VIEW IF EXISTS ${name}`,
+            trigger: '', // dropped below with context-aware query
+        };
+        if (type === 'trigger') {
+            throw new Error('Trigger DROP requires table context. Use DROP TRIGGER trigger_name ON table_name.');
+        }
+        await this.executeQueryOnDatabaseParameterized(database || this.currentDatabase, dropMap[type], []);
+    }
+
+    async getTriggers(database?: string): Promise<RoutineInfo[]> {
+        const result = await this.executeQueryOnDatabaseParameterized(
+            database || this.currentDatabase,
+            `SELECT trigger_name, event_manipulation, action_timing, action_statement, event_object_table
+             FROM information_schema.triggers
+             WHERE trigger_schema NOT IN ('pg_catalog', 'information_schema')
+             ORDER BY trigger_name`,
+            []
+        );
+        return result.rows.map(row => ({
+            name: row['trigger_name'] as string,
+            type: 'trigger' as RoutineType,
+            source: (row['action_statement'] as string) || '',
+            database: database || this.currentDatabase,
+            parameters: [],
+        }));
+    }
+
+    async getTriggerSource(name: string, database?: string): Promise<string> {
+        const result = await this.executeQueryOnDatabaseParameterized(
+            database || this.currentDatabase,
+            `SELECT pg_get_triggerdef(t.oid) AS source FROM pg_catalog.pg_trigger t WHERE t.tgname = $1 LIMIT 1`,
+            [name]
+        );
+        return result.rows[0]?.['source'] as string || '';
+    }
+
+    private _parsePgParams(args: string): RoutineParameter[] {
+        if (!args) { return []; }
+        const params: RoutineParameter[] = [];
+        // PostgreSQL function arguments format: "argname argtype, argname argtype"
+        // or "argtype, argtype" for unnamed params
+        const parts = args.split(',').map(p => p.trim()).filter(Boolean);
+        parts.forEach((part, idx) => {
+            const match = part.match(/^(\w+)\s+(.+)$/);
+            if (match) {
+                // Check if mode prefix exists: "IN argname type" or "OUT argname type"
+                let mode: 'IN' | 'OUT' | 'INOUT' = 'IN';
+                let remaining = part;
+                if (/^IN\s/i.test(remaining)) { mode = 'IN'; remaining = remaining.replace(/^IN\s+/i, ''); }
+                else if (/^OUT\s/i.test(remaining)) { mode = 'OUT'; remaining = remaining.replace(/^OUT\s+/i, ''); }
+                else if (/^INOUT\s/i.test(remaining)) { mode = 'INOUT'; remaining = remaining.replace(/^INOUT\s+/i, ''); }
+
+                const nameMatch = remaining.match(/^(\w+)\s+(.+)$/);
+                if (nameMatch) {
+                    params.push({ name: nameMatch[1], dataType: nameMatch[2], mode, ordinalPosition: idx });
+                } else {
+                    params.push({ name: `arg${idx}`, dataType: remaining, mode, ordinalPosition: idx });
+                }
+            } else {
+                params.push({ name: `arg${idx}`, dataType: part, mode: 'IN', ordinalPosition: idx });
+            }
+        });
+        return params;
     }
 
     /**

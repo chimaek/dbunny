@@ -1,5 +1,5 @@
 import { Client, ClientConfig } from 'pg';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType } from '../types/database';
 
 /**
  * H2 Database provider
@@ -272,5 +272,131 @@ export class H2Provider implements DatabaseConnection {
             referencedTable: row.referenced_table as string,
             referencedColumn: row.referenced_column as string
         }));
+    }
+
+    // ===== Routine Browser (v3.2.0) =====
+    // H2 supports VIEWS and FUNCTION_ALIASES. No stored procedures. Triggers are Java classes.
+
+    async getRoutines(database?: string): Promise<RoutineInfo[]> {
+        const routines: RoutineInfo[] = [];
+        const schema = (database || 'PUBLIC').toUpperCase();
+
+        // Views via INFORMATION_SCHEMA (try multiple approaches for H2 version compat)
+        const viewNames = new Set<string>();
+        try {
+            const result = await this.executeQuery(
+                `SELECT TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES`
+            );
+            for (const row of result.rows) {
+                const tableType = String(row['TABLE_TYPE'] || '').toUpperCase();
+                if (tableType === 'VIEW') {
+                    const name = row['TABLE_NAME'] as string;
+                    if (!viewNames.has(name)) {
+                        viewNames.add(name);
+                        routines.push({ name, type: 'view', source: '', database: schema, parameters: [] });
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+
+        try {
+            const result = await this.executeQuery(`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS`);
+            for (const row of result.rows) {
+                const name = row['TABLE_NAME'] as string;
+                if (!viewNames.has(name)) {
+                    viewNames.add(name);
+                    routines.push({ name, type: 'view', source: '', database: schema, parameters: [] });
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Function aliases (Java methods exposed as SQL functions)
+        try {
+            const aliasResult = await this.executeQuery(
+                `SELECT ALIAS_NAME, JAVA_CLASS, JAVA_METHOD, REMARKS, COLUMN_COUNT, RETURNS_RESULT, DATA_TYPE
+                 FROM INFORMATION_SCHEMA.FUNCTION_ALIASES
+                 WHERE ALIAS_SCHEMA = '${schema}' ORDER BY ALIAS_NAME`
+            );
+            for (const row of aliasResult.rows) {
+                routines.push({
+                    name: row['ALIAS_NAME'] as string,
+                    type: 'function',
+                    source: `${row['JAVA_CLASS']}.${row['JAVA_METHOD']}`,
+                    database: schema,
+                    returnType: (row['DATA_TYPE'] as string) || undefined,
+                    parameters: [],
+                });
+            }
+        } catch { /* FUNCTION_ALIASES may not exist */ }
+
+        return routines;
+    }
+
+    async getRoutineSource(name: string, type: RoutineType, database?: string): Promise<string> {
+        const schema = (database || 'PUBLIC').toUpperCase();
+        if (type === 'view') {
+            // H2: try VIEW_DEFINITION first, then SQL, then empty
+            try {
+                const result = await this.executeQuery(
+                    `SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = '${name}'`
+                );
+                const row = result.rows[0] as Record<string, unknown> | undefined;
+                if (row?.['VIEW_DEFINITION']) { return row['VIEW_DEFINITION'] as string; }
+            } catch { /* VIEWS may not exist */ }
+            try {
+                const result = await this.executeQuery(
+                    `SELECT SQL FROM INFORMATION_SCHEMA.TABLES
+                     WHERE TABLE_NAME = '${name}' AND TABLE_TYPE = 'VIEW'`
+                );
+                const row = result.rows[0] as Record<string, unknown> | undefined;
+                if (row?.['SQL']) { return row['SQL'] as string; }
+            } catch { /* SQL column may not exist */ }
+            return '';
+        }
+        if (type === 'function') {
+            const result = await this.executeQuery(
+                `SELECT JAVA_CLASS, JAVA_METHOD FROM INFORMATION_SCHEMA.FUNCTION_ALIASES
+                 WHERE ALIAS_NAME = '${name}'`
+            );
+            const row = result.rows[0] as Record<string, unknown> | undefined;
+            return row ? `${row.JAVA_CLASS}.${row.JAVA_METHOD}` : '';
+        }
+        return '';
+    }
+
+    async dropRoutine(name: string, type: RoutineType): Promise<void> {
+        if (type === 'view') {
+            await this.executeQuery(`DROP VIEW IF EXISTS "${name}"`);
+        } else if (type === 'function') {
+            await this.executeQuery(`DROP ALIAS IF EXISTS "${name}"`);
+        }
+    }
+
+    async getTriggers(database?: string): Promise<RoutineInfo[]> {
+        const schema = (database || 'PUBLIC').toUpperCase();
+        try {
+            const result = await this.executeQuery(
+                `SELECT TRIGGER_NAME, SQL FROM INFORMATION_SCHEMA.TRIGGERS
+                 WHERE TRIGGER_SCHEMA = '${schema}' ORDER BY TRIGGER_NAME`
+            );
+            return result.rows.map(row => ({
+                name: row['TRIGGER_NAME'] as string,
+                type: 'trigger' as RoutineType,
+                source: (row['SQL'] as string) || '',
+                database: schema,
+                parameters: [],
+            }));
+        } catch {
+            return [];
+        }
+    }
+
+    async getTriggerSource(name: string, database?: string): Promise<string> {
+        const schema = (database || 'PUBLIC').toUpperCase();
+        const result = await this.executeQuery(
+            `SELECT SQL FROM INFORMATION_SCHEMA.TRIGGERS
+             WHERE TRIGGER_SCHEMA = '${schema}' AND TRIGGER_NAME = '${name}'`
+        );
+        return result.rows[0]?.['SQL'] as string || '';
     }
 }

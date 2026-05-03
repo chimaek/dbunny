@@ -290,6 +290,31 @@
     "allColumns": "All columns",
     "exported": "Diff report exported to {path}"
   },
+  "routine": {
+    "title": "Routine Browser",
+    "loading": "Loading routine...",
+    "selectRoutine": "Select a routine from the explorer to view its source",
+    "viewSource": "View Source",
+    "execute": "Execute",
+    "sourceCopied": "Source code copied to clipboard",
+    "parameters": "Parameters",
+    "noParams": "No parameters",
+    "executed": "Executed successfully",
+    "drop": "Drop",
+    "dropConfirm": "Are you sure you want to drop {name}?",
+    "dropped": "{name} dropped successfully",
+    "dropFailed": "Drop failed: {error}",
+    "notSupported": "Routine browser not supported for this database type",
+    "procedure": "Procedure",
+    "function": "Function",
+    "view": "View",
+    "trigger": "Trigger"
+  },
+  "tree": {
+    "groupTables": "Tables",
+    "groupRoutines": "Routines",
+    "groupTriggers": "Triggers"
+  },
   "webview": {
     "connectionForm": {
       "title": "New Connection",

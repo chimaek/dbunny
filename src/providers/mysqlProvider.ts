@@ -1,7 +1,7 @@
 import * as mysql from 'mysql2/promise';
 import * as net from 'net';
 import { Client as SSHClient } from 'ssh2';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType } from '../types/database';
 
 /**
  * MySQL database provider
@@ -89,11 +89,13 @@ export class MySQLProvider implements DatabaseConnection {
             const executionTime = Date.now() - startTime;
 
             const resultRows = Array.isArray(rows) ? rows as Record<string, unknown>[] : [];
-            const resultFields = fields?.map(f => ({
-                name: f.name,
-                type: String(f.type),
-                table: f.table
-            })) || [];
+            const resultFields = (fields && Array.isArray(fields))
+                ? fields.filter(f => f != null).map(f => ({
+                    name: f.name,
+                    type: String(f.type),
+                    table: f.table
+                }))
+                : [];
 
             return {
                 rows: resultRows,
@@ -176,6 +178,139 @@ export class MySQLProvider implements DatabaseConnection {
             referencedTable: row.referencedTable as string,
             referencedColumn: row.referencedColumn as string
         }));
+    }
+
+    // ===== Routine Browser (v3.2.0) =====
+
+    async getRoutines(database?: string): Promise<RoutineInfo[]> {
+        if (!this.connection) {
+            throw new Error('Not connected to database');
+        }
+        const db = database || this.config.database || '';
+        const routines: RoutineInfo[] = [];
+
+        // Procedures + Functions from information_schema.ROUTINES (parameterized)
+        const [procRows] = await this.connection.execute(
+            `SELECT ROUTINE_NAME, ROUTINE_TYPE, ROUTINE_DEFINITION, DEFINER, CREATED, LAST_ALTERED
+             FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ?`,
+            [db]
+        );
+        for (const row of (procRows as Record<string, unknown>[])) {
+            const type: RoutineType = (row['ROUTINE_TYPE'] as string) === 'FUNCTION' ? 'function' : 'procedure';
+            routines.push({
+                name: row['ROUTINE_NAME'] as string,
+                type,
+                source: (row['ROUTINE_DEFINITION'] as string) || '',
+                database: db,
+                definer: row['DEFINER'] as string | undefined,
+                parameters: [],
+            });
+        }
+
+        // Views from information_schema.VIEWS (parameterized)
+        const [viewRows] = await this.connection.execute(
+            `SELECT TABLE_NAME, VIEW_DEFINITION, DEFINER
+             FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ?`,
+            [db]
+        );
+        for (const row of (viewRows as Record<string, unknown>[])) {
+            routines.push({
+                name: row['TABLE_NAME'] as string,
+                type: 'view',
+                source: (row['VIEW_DEFINITION'] as string) || '',
+                database: db,
+                definer: row['DEFINER'] as string | undefined,
+                parameters: [],
+            });
+        }
+
+        return routines;
+    }
+
+    async getRoutineSource(name: string, type: RoutineType, database?: string): Promise<string> {
+        const db = database || this.config.database;
+        const safeName = name.replace(/`/g, '``');
+        let sql: string;
+        switch (type) {
+            case 'procedure': sql = `SHOW CREATE PROCEDURE \`${db}\`.\`${safeName}\``; break;
+            case 'function': sql = `SHOW CREATE FUNCTION \`${db}\`.\`${safeName}\``; break;
+            case 'view': sql = `SHOW CREATE VIEW \`${db}\`.\`${safeName}\``; break;
+            case 'trigger': sql = `SHOW CREATE TRIGGER \`${db}\`.\`${safeName}\``; break;
+        }
+        const result = await this.executeQuery(sql);
+        if (result.rows.length > 0) {
+            const keyMap: Record<RoutineType, string> = {
+                procedure: 'Create Procedure',
+                function: 'Create Function',
+                view: 'Create View',
+                trigger: 'SQL Original Statement',
+            };
+            const key = keyMap[type];
+            const row = result.rows[0] as Record<string, unknown>;
+            const source = row[key] as string;
+            if (source) { return source; }
+            // Fallback: try any non-metadata key
+            const fallbackKey = Object.keys(row).find(k =>
+                k !== 'Trigger' && k !== 'sql_mode' && k !== 'character_set_client'
+                && k !== 'collation_connection' && k !== 'Database Collation'
+            ) || '';
+            return fallbackKey ? (row[fallbackKey] as string) || '' : '';
+        }
+        throw new Error(`Could not get source for ${type} ${name}`);
+    }
+
+    async executeRoutine(name: string, params: Record<string, unknown>, database?: string): Promise<QueryResult> {
+        if (!this.connection) {
+            throw new Error('Not connected to database');
+        }
+        const values = Object.values(params);
+        // Escape values for inline CALL statement (consistent with executeQuery's query() usage)
+        const escapedValues = values.map(v => {
+            if (v === null || v === undefined) { return 'NULL'; }
+            if (typeof v === 'number') { return String(v); }
+            return `'${String(v).replace(/'/g, "\\'").replace(/\\/g, '\\\\')}'`;
+        });
+        const safeName = name.replace(/`/g, '``');
+        return this.executeQuery(
+            `CALL \`${safeName}\`(${escapedValues.join(', ')})`,
+            database
+        );
+    }
+
+    async dropRoutine(name: string, type: RoutineType, database?: string): Promise<void> {
+        const db = database || this.config.database;
+        const safeName = name.replace(/`/g, '``');
+        const dropSql: Record<RoutineType, string> = {
+            procedure: `DROP PROCEDURE IF EXISTS \`${db}\`.\`${safeName}\``,
+            function: `DROP FUNCTION IF EXISTS \`${db}\`.\`${safeName}\``,
+            view: `DROP VIEW IF EXISTS \`${db}\`.\`${safeName}\``,
+            trigger: `DROP TRIGGER IF EXISTS \`${db}\`.\`${safeName}\``,
+        };
+        await this.executeQuery(dropSql[type]);
+    }
+
+    async getTriggers(database?: string): Promise<RoutineInfo[]> {
+        if (!this.connection) {
+            throw new Error('Not connected to database');
+        }
+        const db = database || this.config.database || '';
+        const [rows] = await this.connection.execute(
+            `SELECT TRIGGER_NAME, ACTION_TIMING, EVENT_MANIPULATION, ACTION_STATEMENT, DEFINER
+             FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ?`,
+            [db]
+        );
+        return (rows as Record<string, unknown>[]).map(row => ({
+            name: row['TRIGGER_NAME'] as string,
+            type: 'trigger' as RoutineType,
+            source: (row['ACTION_STATEMENT'] as string) || '',
+            database: db,
+            definer: row['DEFINER'] as string | undefined,
+            parameters: [],
+        }));
+    }
+
+    async getTriggerSource(name: string, database?: string): Promise<string> {
+        return this.getRoutineSource(name, 'trigger', database);
     }
 
     private async establishSSHTunnel(): Promise<{ host: string; port: number }> {

@@ -1,7 +1,7 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo } from '../types/database';
+import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType } from '../types/database';
 
 /**
  * SQLite database provider using sql.js (pure JavaScript/WebAssembly)
@@ -206,5 +206,55 @@ export class SQLiteProvider implements DatabaseConnection {
             referencedTable: row.table as string,
             referencedColumn: row.to as string
         }));
+    }
+
+    // ===== Routine Browser (v3.2.0) =====
+    // SQLite supports VIEW and TRIGGER only (no stored procedures/functions)
+
+    async getRoutines(_database?: string): Promise<RoutineInfo[]> {
+        const result = await this.executeQuery(
+            `SELECT name, sql, type FROM sqlite_master WHERE type IN ('view', 'trigger') ORDER BY type, name`
+        );
+        return result.rows.map(row => ({
+            name: row['name'] as string,
+            type: (row['type'] as string) as RoutineType,
+            source: (row['sql'] as string) || '',
+            parameters: [],
+        }));
+    }
+
+    async getRoutineSource(name: string, type: RoutineType): Promise<string> {
+        if (!/^[\w.]+$/i.test(name)) {
+            throw new Error(`Invalid routine name: ${name}`);
+        }
+        const safeName = name.replace(/'/g, "''");
+        const result = await this.executeQuery(
+            `SELECT sql FROM sqlite_master WHERE type='${type}' AND name='${safeName}'`
+        );
+        return result.rows[0]?.['sql'] as string || '';
+    }
+
+    async dropRoutine(name: string, type: RoutineType): Promise<void> {
+        if (!/^[\w.]+$/i.test(name)) {
+            throw new Error(`Invalid routine name: ${name}`);
+        }
+        const safeName = name.replace(/'/g, "''");
+        await this.executeQuery(`DROP ${type.toUpperCase()} IF EXISTS "${safeName}"`);
+    }
+
+    async getTriggers(): Promise<RoutineInfo[]> {
+        const result = await this.executeQuery(
+            `SELECT name, sql FROM sqlite_master WHERE type = 'trigger' ORDER BY name`
+        );
+        return result.rows.map(row => ({
+            name: row['name'] as string,
+            type: 'trigger' as RoutineType,
+            source: (row['sql'] as string) || '',
+            parameters: [],
+        }));
+    }
+
+    async getTriggerSource(name: string): Promise<string> {
+        return this.getRoutineSource(name, 'trigger');
     }
 }
