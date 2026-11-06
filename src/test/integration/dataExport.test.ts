@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * v2.7.0 Excel 내보내기 통합 테스트
  * 실행: npx tsx src/test/integration/dataExport.test.ts
@@ -71,12 +72,12 @@ const sqlitePath = path.resolve(__dirname, '../../../test-data/export-test.db');
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'exp-mysql', name: 'MySQL Export', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'exp-pg', name: 'PG Export', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -86,7 +87,7 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'exp-h2', name: 'H2 Export', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:exporttest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'exporttest' },

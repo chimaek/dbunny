@@ -15,9 +15,7 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Debuggers",
     "Data Science",
-    "Testing",
     "Other"
   ],
   "keywords": [
@@ -686,11 +684,15 @@
         "dbunny.queryTimeout": {
           "type": "number",
           "default": 30000,
+          "minimum": 1,
+          "maximum": 3600000,
           "description": "Query timeout in milliseconds"
         },
         "dbunny.maxResults": {
           "type": "number",
           "default": 1000,
+          "minimum": 1,
+          "maximum": 100000,
           "description": "Maximum number of result rows"
         },
         "dbunny.language": {
@@ -715,24 +717,28 @@
     "package": "npm run check-types && npm run lint && node esbuild.js --production",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "pretest": "npm run compile-tests && npm run compile",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "test": "vscode-test",
+    "test": "npm run test:unit && npm run test:extension",
+    "test:unit": "node scripts/run-unit-tests.cjs",
+    "test:extension": "vscode-test",
+    "test:integration": "node scripts/run-integration-tests.cjs",
+    "test:package": "node scripts/verify-vsix.cjs",
     "package-extension": "vsce package",
-    "publish-extension": "vsce publish"
+    "publish-extension": "node scripts/check-release.cjs dbunny.vsix && vsce publish --oidc --packagePath dbunny.vsix"
   },
   "dependencies": {
     "mongodb": "^6.10.0",
-    "mysql2": "^3.11.0",
+    "mysql2": "3.24.6",
     "papaparse": "^5.5.3",
     "pg": "^8.13.1",
     "redis": "^4.7.0",
     "sql-formatter": "^15.4.0",
     "sql.js": "^1.13.0",
     "ssh2": "^1.16.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -741,18 +747,19 @@
     "@types/pg": "^8.16.0",
     "@types/sql.js": "^1.4.9",
     "@types/ssh2": "^1.15.1",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "1.85.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
-    "@vscode/vsce": "^3.6.0",
-    "esbuild": "^0.24.2",
+    "@vscode/vsce": "4.1.0",
+    "esbuild": "0.28.2",
     "eslint": "^9.0.0",
     "glob": "^13.0.0",
     "mocha": "^11.7.5",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.51.0"
+    "typescript-eslint": "^8.51.0",
+    "yauzl": "^3.4.0"
   }
 }

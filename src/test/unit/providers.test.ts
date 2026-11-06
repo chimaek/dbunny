@@ -1,4 +1,7 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
+import { tmpdir } from 'os';
 import { ConnectionConfig } from '../../types/database';
 import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
@@ -303,16 +306,18 @@ suite('SQLiteProvider Unit Tests', () => {
         await provider.disconnect();
     });
 
-    test('Should throw on non-existent database file', async () => {
-        const fileConfig: ConnectionConfig = {
-            ...config,
-            database: '/non/existent/path/database.db'
-        };
-        const provider = new SQLiteProvider(fileConfig);
-        await assert.rejects(
-            () => provider.connect(),
-            /Database file not found/
-        );
+    test('Should create a new database file in an isolated temporary directory', async () => {
+        const directory = fs.mkdtempSync(path.join(tmpdir(), 'dbunny-sqlite-'));
+        const database = path.join(directory, 'new.db');
+        const provider = new SQLiteProvider({ ...config, database });
+        try {
+            await provider.connect();
+            assert.ok(fs.existsSync(database));
+        } finally {
+            await provider.disconnect();
+            if (fs.existsSync(database)) { fs.unlinkSync(database); }
+            fs.rmdirSync(directory);
+        }
     });
 
     test('Should throw on query execution error', async () => {

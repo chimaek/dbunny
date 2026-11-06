@@ -5,7 +5,31 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0] - 2026-05-03
+## [3.2.0] - Unreleased
+
+### Fixed
+
+- Make SQL read-only checks dialect-aware; block PostgreSQL side-effect functions and use server-enforced read-only queries.
+- Reuse PostgreSQL SSH tunnel endpoints when switching databases or reading metadata; forward encrypted-key passphrases.
+- Validate monitoring process IDs and reject termination on read-only connections.
+- Clarify that migration scripts are exported and run manually; require confirmation when recording their status.
+- Run every integration suite against isolated Docker database ports, including real SSH and execution-policy regressions.
+- Update vsce to 4.1.0 and verify both release tags and the downloaded VSIX identity before OIDC publishing.
+
+### Security
+
+- Enforce read-only policy at the shared execution boundary, including CTE writes, JSON MongoDB commands and administrative operations.
+- Move DB and SSH secrets to SecretStorage with legacy migration and independent duplication/deletion.
+- Add nonce-based Webview CSP, safe JSON embedding and delegated events without eval.
+- Update MySQL2 and use the official SheetJS 0.20.3 distribution.
+
+### Changed
+
+- Restore unit and isolated Extension Host tests and cross-platform/package CI.
+- Read query limits from settings and apply server limits where supported.
+- Publish verified VSIX artifacts only from matching release tags using OIDC and Node.js 24.
+- Exclude test databases, Docker assets, source maps and duplicate bundled dependencies.
+
 
 ### Added
 

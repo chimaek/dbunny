@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * v2.6~3.0 사용자 시나리오 통합 테스트
  * 실행: npx tsx src/test/integration/userScenario.test.ts
@@ -68,12 +69,12 @@ const sqlitePath = path.resolve(__dirname, '../../../test-data/scenario-test.db'
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'sc-mysql', name: 'MySQL Scenario', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'sc-pg', name: 'PG Scenario', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -83,7 +84,7 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'sc-h2', name: 'H2 Scenario', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:scenariotest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'scenariotest' },

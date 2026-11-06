@@ -124,13 +124,16 @@
     "notSupported": "DB Migration is not supported for this database type",
     "loadFailed": "Failed to load migrations: {error}",
     "created": "Migration '{name}' created successfully",
-    "applied": "Migration '{name}' applied successfully",
-    "rolledBack": "Migration '{name}' rolled back successfully",
+    "applied": "Recorded manual application of migration '{name}'",
+    "rolledBack": "Recorded manual rollback of migration '{name}'",
     "deleted": "Migration '{name}' deleted",
     "deleteConfirm": "Are you sure you want to delete migration '{name}'?",
     "applyFailed": "Failed to apply migration: {error}",
     "rollbackFailed": "Failed to rollback migration: {error}",
-    "exported": "Migration exported to {path}"
+    "exported": "Migration exported to {path}",
+    "manualNotice": "Manage SQL scripts and manual operation records here. SQL is not executed automatically. Export and run the SQL on the target database before recording its status.",
+    "recordAppliedConfirm": "Have you run the UP SQL on the target database? This button only records the status; it does not execute SQL.",
+    "recordRolledBackConfirm": "Have you run the DOWN SQL on the target database? This button only records the status; it does not execute SQL."
   },
   "monitoring": {
     "notSupported": "Real-time monitoring is only supported for MySQL and PostgreSQL",

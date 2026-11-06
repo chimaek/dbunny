@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * v2.9.0 데이터 통계 패널 통합 테스트
  * 실행: npx tsx src/test/integration/dataStatistics.test.ts
@@ -61,12 +62,12 @@ const sqlitePath = path.resolve(__dirname, '../../../test-data/statistics-test.d
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'stat-mysql', name: 'MySQL Stats', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'stat-pg', name: 'PG Stats', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -76,7 +77,7 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'stat-h2', name: 'H2 Stats', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:statstest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'statstest' },

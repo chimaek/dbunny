@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -7,6 +8,7 @@ import { RoutineInfo } from '../types/database';
  * 루틴(저장 프로시저, 함수, 뷰, 트리거) 소스 뷰어 및 실행 패널
  */
 export class RoutinePanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: RoutinePanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -49,7 +51,7 @@ export class RoutinePanel {
             this._disposables
         );
 
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     public static createOrShow(
@@ -68,7 +70,7 @@ export class RoutinePanel {
             'dbunnyRoutine',
             i18n.t('routine.title'),
             column,
-            { enableScripts: true, localResourceRoots: [extensionUri], retainContextWhenHidden: true }
+            { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')], retainContextWhenHidden: true }
         );
 
         RoutinePanel.currentPanel = new RoutinePanel(panel, extensionUri, i18n, connectionManager);
@@ -93,7 +95,7 @@ export class RoutinePanel {
         this._routine = routine;
         this._source = source;
         this._panel.title = routine.name;
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     public showError(message: string): void {
@@ -107,9 +109,9 @@ export class RoutinePanel {
         const conn = this._connectionManager.getActiveConnection();
         const dbType = conn?.config.type || 'mysql';
 
-        const routineJson = routine ? JSON.stringify(routine) : 'null';
-        const sourceJson = JSON.stringify(source);
-        const dbTypeJson = JSON.stringify(dbType);
+        const routineJson = routine ? serializeForWebview(routine) : 'null';
+        const sourceJson = serializeForWebview(source);
+        const dbTypeJson = serializeForWebview(dbType);
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -175,7 +177,7 @@ export class RoutinePanel {
 <div id="app">
   <div class="no-data">${t('routine.selectRoutine')}</div>
 </div>
-<script>
+<script nonce="${this._nonce}">
 (function() {
     const vscode = acquireVsCodeApi();
     const routine = ${routineJson};
@@ -218,7 +220,7 @@ export class RoutinePanel {
                 (routine.database ? '<span class="header-meta">' + esc(routine.database) + '</span>' : '') +
               '</div>' +
               '<div class="flex-row">' +
-                '<button class="btn btn-secondary" onclick="copySource()">📋 Copy</button>' +
+                '<button class="btn btn-secondary" data-dbunny-click="copySource()">📋 Copy</button>' +
               '</div>' +
             '</div>' +
             '<div class="section">' +
@@ -228,14 +230,14 @@ export class RoutinePanel {
             paramsHtml +
             (routine.type === 'function' && routine.returnType ? '<div class="section"><span class="header-meta">Returns: ' + esc(routine.returnType) + '</span></div>' : '') +
             '<div class="actions">' +
-              (canExecute ? '<button class="btn btn-primary" onclick="executeRoutine()">▶ Execute</button>' : '') +
-              (canDrop ? '<button class="btn btn-danger" onclick="dropRoutine()">🗑 Drop</button>' : '') +
+              (canExecute ? '<button class="btn btn-primary" data-dbunny-click="executeRoutine()">▶ Execute</button>' : '') +
+              (canDrop ? '<button class="btn btn-danger" data-dbunny-click="dropRoutine()">🗑 Drop</button>' : '') +
             '</div>' +
             '<div id="execParams" style="display:none; margin-top:12px; padding:12px; background:var(--card-bg); border-radius:4px;">' +
               '<div class="section-title">Execute Parameters</div>' +
               '<div id="paramInputs"></div>' +
-              '<button class="btn btn-primary" onclick="doExecute()" style="margin-top:8px;">Run</button>' +
-              '<button class="btn btn-secondary" onclick="hideExec()" style="margin-top:8px;">Cancel</button>' +
+              '<button class="btn btn-primary" data-dbunny-click="doExecute()" style="margin-top:8px;">Run</button>' +
+              '<button class="btn btn-secondary" data-dbunny-click="hideExec()" style="margin-top:8px;">Cancel</button>' +
             '</div>' +
             '<div id="execResult" class="result-area"></div>';
     }
@@ -292,6 +294,7 @@ export class RoutinePanel {
     });
 
     render();
+${webviewEventScript(["copySource","executeRoutine","dropRoutine","doExecute","hideExec"],[])}
 })();
 </script>
 </body>

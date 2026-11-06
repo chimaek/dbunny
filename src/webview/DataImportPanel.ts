@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -13,6 +14,7 @@ import { parseFile, suggestColumnMapping, importData, MAX_PREVIEW_ROWS, DEFAULT_
  * - 대용량 파일 진행률 표시
  */
 export class DataImportPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: DataImportPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -55,7 +57,7 @@ export class DataImportPanel {
         );
 
         // 초기 HTML 렌더링
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     /**
@@ -78,7 +80,7 @@ export class DataImportPanel {
             DataImportPanel.currentPanel._tableColumns = tableColumns;
             DataImportPanel.currentPanel._parsedData = null;
             DataImportPanel.currentPanel._panel.webview.html =
-                DataImportPanel.currentPanel._getHtmlContent();
+                secureWebviewHtml(DataImportPanel.currentPanel._getHtmlContent(), DataImportPanel.currentPanel._panel.webview, DataImportPanel.currentPanel._nonce);
             return;
         }
 
@@ -88,7 +90,7 @@ export class DataImportPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -241,7 +243,7 @@ export class DataImportPanel {
 
     private _getHtmlContent(): string {
         const t = (key: string, params?: Record<string, string>) => this.i18n.t(key, params);
-        const columnsJson = JSON.stringify(this._tableColumns);
+        const columnsJson = serializeForWebview(this._tableColumns);
 
         return /*html*/ `<!DOCTYPE html>
 <html lang="en">
@@ -344,7 +346,7 @@ h3 { font-size: 13px; margin: 12px 0 8px; color: var(--fg); opacity: 0.85; }
 
     <!-- 1. 파일 선택 -->
     <div class="section" id="fileSection">
-        <div class="file-drop" id="fileDrop" onclick="selectFile()">
+        <div class="file-drop" id="fileDrop" data-dbunny-click="selectFile()">
             <div class="icon">&#128196;</div>
             <div>${t('dataImport.selectFile')}</div>
             <div class="file-info">CSV, JSON, Excel (.xlsx)</div>
@@ -401,7 +403,7 @@ h3 { font-size: 13px; margin: 12px 0 8px; color: var(--fg); opacity: 0.85; }
                 <input type="number" id="batchSizeInput" value="${DEFAULT_BATCH_SIZE}" min="1" max="1000" style="width:80px;"/>
             </div>
             <div style="flex:1;"></div>
-            <button class="btn btn-primary" id="importBtn" onclick="startImport()">
+            <button class="btn btn-primary" id="importBtn" data-dbunny-click="startImport()">
                 ${t('dataImport.startImport')}
             </button>
         </div>
@@ -426,7 +428,7 @@ h3 { font-size: 13px; margin: 12px 0 8px; color: var(--fg); opacity: 0.85; }
         </div>
     </div>
 
-<script>
+<script nonce="${this._nonce}">
     const vscode = acquireVsCodeApi();
     const tableColumns = ${columnsJson};
     let currentMappings = [];
@@ -623,6 +625,7 @@ h3 { font-size: 13px; margin: 12px 0 8px; color: var(--fg); opacity: 0.85; }
         document.getElementById('resultText').textContent = 'Import failed: ' + error;
         document.getElementById('importBtn').disabled = false;
     }
+${webviewEventScript(["selectFile","startImport"],[])}
 </script>
 </body>
 </html>`;

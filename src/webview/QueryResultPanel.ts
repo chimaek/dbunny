@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewArgumentScript, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { QueryResult } from '../types/database';
 import { I18n } from '../utils/i18n';
@@ -16,6 +17,7 @@ interface ColumnSettings {
  * Webview panel for displaying query results
  */
 export class QueryResultPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: QueryResultPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -78,7 +80,7 @@ export class QueryResultPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -91,21 +93,21 @@ export class QueryResultPanel {
      * Update the panel with new query results
      */
     public updateResults(query: string, result: QueryResult): void {
-        this._panel.webview.html = this._getHtmlContent(query, result);
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(query, result), this._panel.webview, this._nonce);
     }
 
     /**
      * Show error in the panel
      */
     public showError(query: string, error: string): void {
-        this._panel.webview.html = this._getErrorHtml(query, error);
+        this._panel.webview.html = secureWebviewHtml(this._getErrorHtml(query, error), this._panel.webview, this._nonce);
     }
 
     /**
      * Show loading state
      */
     public showLoading(_query: string): void {
-        this._panel.webview.html = this._getLoadingHtml();
+        this._panel.webview.html = secureWebviewHtml(this._getLoadingHtml(), this._panel.webview, this._nonce);
     }
 
     private async _handleSaveChanges(changes: Array<{ rowIndex: number; originalRow: Record<string, unknown>; changes: Record<string, unknown> }>): Promise<void> {
@@ -1015,28 +1017,28 @@ export class QueryResultPanel {
             </div>
             <div class="actions">
                 <div class="column-manager">
-                    <button class="btn" onclick="toggleColumnPanel()" title="Manage columns">
+                    <button class="btn" data-dbunny-click="toggleColumnPanel()" title="Manage columns">
                         <span>⚙️</span> Columns
                     </button>
                     <div class="column-panel" id="columnPanel">
                         <div class="column-panel-header">
                             <h4>Column Settings</h4>
                             <div class="column-panel-actions">
-                                <button onclick="showAllColumns()">Show All</button>
-                                <button onclick="hideAllColumns()">Hide All</button>
-                                <button onclick="resetColumns()">Reset</button>
+                                <button data-dbunny-click="showAllColumns()">Show All</button>
+                                <button data-dbunny-click="hideAllColumns()">Hide All</button>
+                                <button data-dbunny-click="resetColumns()">Reset</button>
                             </div>
                         </div>
                         <div class="column-list" id="columnList"></div>
                     </div>
                 </div>
-                <button class="btn" onclick="copyResults()" title="Copy visible data">
+                <button class="btn" data-dbunny-click="copyResults()" title="Copy visible data">
                     <span>📋</span> Copy
                 </button>
-                <button class="btn" onclick="exportCSV()" title="Export visible as CSV">
+                <button class="btn" data-dbunny-click="exportCSV()" title="Export visible as CSV">
                     <span>📄</span> CSV
                 </button>
-                <button class="btn btn-primary" onclick="exportJSON()" title="Export visible as JSON">
+                <button class="btn btn-primary" data-dbunny-click="exportJSON()" title="Export visible as JSON">
                     <span>📦</span> JSON
                 </button>
             </div>
@@ -1067,10 +1069,10 @@ export class QueryResultPanel {
         <div class="filter-bar">
             <div class="search-box">
                 <span>🔍</span>
-                <input type="text" id="globalSearch" placeholder="Search all columns..." oninput="handleGlobalSearch(this.value)">
-                <button class="search-clear" onclick="clearSearch()" style="display:none" id="searchClear">×</button>
+                <input type="text" id="globalSearch" placeholder="Search all columns..." data-dbunny-input="handleGlobalSearch(this.value)">
+                <button class="search-clear" data-dbunny-click="clearSearch()" style="display:none" id="searchClear">×</button>
             </div>
-            <div class="filter-info" id="filterInfo">Showing all ${result.rows.length} rows</div>
+            <div class="filter-info" id="filterInfo">${result.truncated ? 'Result limited by dbunny.maxResults. ' : ''}Showing ${result.rows.length} rows</div>
             <div class="edit-mode-indicator" id="editModeIndicator">
                 <span>✏️</span>
                 <span>Edit Mode</span>
@@ -1085,17 +1087,17 @@ export class QueryResultPanel {
             <span id="pendingChangesCount">0 pending changes</span>
         </div>
         <div class="pending-changes-actions">
-            <button class="btn btn-discard" onclick="discardAllChanges()">
+            <button class="btn btn-discard" data-dbunny-click="discardAllChanges()">
                 <span>✖</span> Discard All
             </button>
-            <button class="btn btn-save" onclick="saveAllChanges()">
+            <button class="btn btn-save" data-dbunny-click="saveAllChanges()">
                 <span>💾</span> Save Changes
             </button>
         </div>
     </div>
 
     <div class="query-section" id="querySection">
-        <div class="query-toggle" onclick="toggleQuery()">
+        <div class="query-toggle" data-dbunny-click="toggleQuery()">
             <span class="arrow">▶</span>
             <span>Show Query</span>
         </div>
@@ -1133,8 +1135,8 @@ export class QueryResultPanel {
                     <span class="column-name" id="modalColumnName"></span>
                 </div>
                 <div class="cell-modal-actions">
-                    <button onclick="copyModalContent()" title="Copy content">📋 Copy</button>
-                    <button class="close-btn" onclick="closeCellModal()">×</button>
+                    <button data-dbunny-click="copyModalContent()" title="Copy content">📋 Copy</button>
+                    <button class="close-btn" data-dbunny-click="closeCellModal()">×</button>
                 </div>
             </div>
             <div class="cell-modal-content">
@@ -1147,13 +1149,14 @@ export class QueryResultPanel {
         </div>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
+${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
-        const resultData = ${JSON.stringify(result)};
+        const resultData = ${serializeForWebview(result)};
         const queryId = '${queryId}';
 
         // State management
-        let columns = ${JSON.stringify(columnsData)};
+        let columns = ${serializeForWebview(columnsData)};
         let sortField = null;
         let sortDirection = 'asc';
         let globalSearchTerm = '';
@@ -1197,7 +1200,7 @@ export class QueryResultPanel {
                 <div class="column-item" draggable="true" data-column="\${col.name}" data-order="\${col.order}">
                     <span class="drag-handle">⋮⋮</span>
                     <input type="checkbox" \${col.visible ? 'checked' : ''}
-                           onchange="toggleColumnVisibility('\${col.name}', this.checked)">
+                           data-dbunny-change="toggleColumnVisibility(\${webviewArgument(col.name)}, this.checked)">
                     <span class="column-name">\${escapeHtml(col.name)}</span>
                     <span class="column-type">\${col.type}</span>
                 </div>
@@ -1357,26 +1360,26 @@ export class QueryResultPanel {
             headerRow.innerHTML = '<th class="row-num-header">#</th>' + visibleColumns.map(col => \`
                 <th data-field="\${escapeHtml(col.name)}" class="\${sortField === col.name ? 'sorted-' + sortDirection : ''}">
                     <div class="th-wrapper">
-                        <div class="th-content" onclick="handleSort('\${escapeHtml(col.name)}')">
+                        <div class="th-content" data-dbunny-click="handleSort(\${webviewArgument(col.name)})">
                             <span class="th-name">\${escapeHtml(col.name)}</span>
                             <span class="th-type">\${col.type}</span>
                             <span class="sort-icon">\${sortField === col.name ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
                         </div>
                         <button class="filter-btn \${columnFilters[col.name]?.size > 0 ? 'active' : ''}"
-                                onclick="event.stopPropagation(); toggleColumnFilter('\${escapeHtml(col.name)}', this)">
+                                data-dbunny-click="event.stopPropagation(); toggleColumnFilter(\${webviewArgument(col.name)}, this)">
                             ▼
                         </button>
                     </div>
                     <div class="column-filter-dropdown" id="filter-\${escapeHtml(col.name)}">
                         <div class="column-filter-search">
                             <input type="text" placeholder="Search values..."
-                                   oninput="filterColumnValues('\${escapeHtml(col.name)}', this.value)">
+                                   data-dbunny-input="filterColumnValues(\${webviewArgument(col.name)}, this.value)">
                         </div>
                         <div class="column-filter-list" id="filterList-\${escapeHtml(col.name)}"></div>
                         <div class="column-filter-actions">
-                            <button class="btn" onclick="selectAllFilterValues('\${escapeHtml(col.name)}')">Select All</button>
-                            <button class="btn" onclick="clearColumnFilter('\${escapeHtml(col.name)}')">Clear</button>
-                            <button class="btn btn-primary" onclick="applyColumnFilter('\${escapeHtml(col.name)}')">Apply</button>
+                            <button class="btn" data-dbunny-click="selectAllFilterValues(\${webviewArgument(col.name)})">Select All</button>
+                            <button class="btn" data-dbunny-click="clearColumnFilter(\${webviewArgument(col.name)})">Clear</button>
+                            <button class="btn btn-primary" data-dbunny-click="applyColumnFilter(\${webviewArgument(col.name)})">Apply</button>
                         </div>
                     </div>
                 </th>
@@ -1482,7 +1485,7 @@ export class QueryResultPanel {
                     }
 
                     const expandBtn = showExpandBtn ?
-                        \`<button class="expand-btn" onclick="event.stopPropagation(); openCellModal('\${escapeHtml(col.name)}', currentFilteredRows[\${idx}]['\${escapeHtml(col.name)}'], \${idx})">↗</button>\` : '';
+                        \`<button class="expand-btn" data-dbunny-click="event.stopPropagation(); openCellModal(\${webviewArgument(col.name)}, currentFilteredRows[\${idx}][\${webviewArgument(col.name)}], \${idx})">↗</button>\` : '';
 
                     return \`<td class="\${className}" data-field="\${escapeHtml(col.name)}" data-original-idx="\${originalIdx}" title="\${escapeHtml(String(originalVal))}">\${displayVal}\${expandBtn}</td>\`;
                 }).join('');
@@ -1784,7 +1787,7 @@ export class QueryResultPanel {
 
             list.innerHTML = sortedValues.slice(0, 100).map(val => \`
                 <div class="column-filter-item \${selectedValues.has(val) ? 'selected' : ''}"
-                     onclick="toggleFilterValue('\${escapeHtml(columnName)}', '\${escapeHtml(val)}')">
+                     data-dbunny-click="toggleFilterValue(\${webviewArgument(columnName)}, \${webviewArgument(val)})">
                     <input type="checkbox" \${selectedValues.has(val) ? 'checked' : ''}>
                     <span>\${escapeHtml(val)}</span>
                 </div>
@@ -2140,7 +2143,8 @@ export class QueryResultPanel {
 
         // Initialize
         init();
-    </script>
+    ${webviewEventScript(["toggleColumnPanel","showAllColumns","hideAllColumns","resetColumns","copyResults","exportCSV","exportJSON","handleGlobalSearch","clearSearch","discardAllChanges","saveAllChanges","toggleQuery","copyModalContent","closeCellModal","toggleColumnVisibility","handleSort","toggleColumnFilter","filterColumnValues","selectAllFilterValues","clearColumnFilter","applyColumnFilter","openCellModal","toggleFilterValue"],["currentFilteredRows"])}
+</script>
 </body>
 </html>`;
     }

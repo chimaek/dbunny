@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { QueryResult } from '../types/database';
 import { I18n } from '../utils/i18n';
@@ -7,6 +8,7 @@ import { computeDiff, diffToMarkdown, diffToJson, DiffResult, RowDiff } from '..
  * WebView panel for comparing query results (row-level diff)
  */
 export class DiffPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: DiffPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -64,7 +66,7 @@ export class DiffPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -87,17 +89,17 @@ export class DiffPanel {
         this._rightLabel = rightLabel;
 
         this._currentDiff = computeDiff(left, right, keyColumns);
-        this._panel.webview.html = this._getHtmlContent(this._currentDiff, leftLabel, rightLabel);
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(this._currentDiff, leftLabel, rightLabel), this._panel.webview, this._nonce);
     }
 
     public showLoading(): void {
-        this._panel.webview.html = this._getLoadingHtml();
+        this._panel.webview.html = secureWebviewHtml(this._getLoadingHtml(), this._panel.webview, this._nonce);
     }
 
     private _recomputeDiff(keyColumns: string[]): void {
         if (!this._leftResult || !this._rightResult) { return; }
         this._currentDiff = computeDiff(this._leftResult, this._rightResult, keyColumns);
-        this._panel.webview.html = this._getHtmlContent(this._currentDiff, this._leftLabel, this._rightLabel);
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(this._currentDiff, this._leftLabel, this._rightLabel), this._panel.webview, this._nonce);
     }
 
     private async _handleExportDiff(format: string): Promise<void> {
@@ -129,9 +131,9 @@ export class DiffPanel {
         const hasChanges = s.added + s.removed + s.modified > 0;
 
         // 행을 JSON으로 전달 (스크립트에서 필터링)
-        const rowsJson = JSON.stringify(diff.rows);
-        const columnsJson = JSON.stringify(diff.columns);
-        const keyColumnsJson = JSON.stringify(diff.keyColumns);
+        const rowsJson = serializeForWebview(diff.rows);
+        const columnsJson = serializeForWebview(diff.columns);
+        const keyColumnsJson = serializeForWebview(diff.keyColumns);
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -383,15 +385,15 @@ export class DiffPanel {
             <span>Result Diff</span>
         </div>
         <div class="filter-group">
-            <button class="filter-btn active" onclick="filterRows('all')">All (${diff.rows.length})</button>
-            <button class="filter-btn" onclick="filterRows('added')">+ Added (${s.added})</button>
-            <button class="filter-btn" onclick="filterRows('removed')">- Removed (${s.removed})</button>
-            <button class="filter-btn" onclick="filterRows('modified')">~ Modified (${s.modified})</button>
-            <button class="filter-btn" onclick="filterRows('unchanged')">&nbsp; Unchanged (${s.unchanged})</button>
+            <button class="filter-btn active" data-dbunny-click="filterRows('all')">All (${diff.rows.length})</button>
+            <button class="filter-btn" data-dbunny-click="filterRows('added')">+ Added (${s.added})</button>
+            <button class="filter-btn" data-dbunny-click="filterRows('removed')">- Removed (${s.removed})</button>
+            <button class="filter-btn" data-dbunny-click="filterRows('modified')">~ Modified (${s.modified})</button>
+            <button class="filter-btn" data-dbunny-click="filterRows('unchanged')">&nbsp; Unchanged (${s.unchanged})</button>
         </div>
         <div class="toolbar-spacer"></div>
-        <button class="toolbar-btn" onclick="exportDiff('markdown')">Export MD</button>
-        <button class="toolbar-btn" onclick="exportDiff('json')">Export JSON</button>
+        <button class="toolbar-btn" data-dbunny-click="exportDiff('markdown')">Export MD</button>
+        <button class="toolbar-btn" data-dbunny-click="exportDiff('json')">Export JSON</button>
     </div>
 
     <div class="summary">
@@ -455,7 +457,7 @@ export class DiffPanel {
         </div>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
         const vscode = acquireVsCodeApi();
         const allRows = ${rowsJson};
         const allColumns = ${columnsJson};
@@ -514,7 +516,8 @@ export class DiffPanel {
         function exportDiff(format) {
             vscode.postMessage({ command: 'exportDiff', format: format });
         }
-    </script>
+    ${webviewEventScript(["filterRows","exportDiff"],[])}
+</script>
 </body>
 </html>`;
     }

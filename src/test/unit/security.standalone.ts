@@ -263,7 +263,7 @@ header('읽기 전용 가드 — SQL 인젝션 우회 시도');
     const check1 = isWriteQuery(bypass1);
     // 블록주석 제거 후 "SEL  ECT * FROM users; DR  OP TABLE users" — 토큰이 분할되어 미감지
     // 이는 알려진 한계: 키워드 중간에 주석을 삽입하는 패턴은 DB 자체도 실행 거부함
-    assert(check1.isWrite === false, '주석으로 분할된 키워드는 DB도 인식 불가 (알려진 한계)');
+    assert(check1.isWrite === true, '알 수 없는 명령으로 분할된 키워드는 차단');
 
     // 다중 공백/탭/줄바꿈
     const bypass2 = '   \n\t  DELETE   \n  FROM users';
@@ -285,7 +285,7 @@ header('읽기 전용 가드 — SQL 인젝션 우회 시도');
     const check5 = isWriteQuery(bypass5);
     // SELECT로 시작하므로 일부 DB에서는 쓰기이지만, 우리 가드는 첫 토큰 기반
     // 이건 false positive가 아닌 false negative — 기록용
-    assert(check5.isWrite === false, 'SELECT INTO는 현재 감지 안 됨 (알려진 한계)');
+    assert(check5.isWrite === true, 'SELECT INTO 쓰기 차단');
 
     // 대소문자 혼합으로 우회 시도
     const bypass6 = 'dElEtE fRoM users';
@@ -343,7 +343,7 @@ header('읽기 전용 가드 — DB별 공격 벡터');
         const check = checkWriteOperation(cmd, 'redis');
         const keyword = cmd.split(' ')[0];
         // 이들은 현재 감지 안 됨 — 향후 개선 가능
-        assert(check.isWrite === false, `Redis 관리 명령 미감지 (알려진 한계): ${keyword}`);
+        assert(check.isWrite === true, `Redis 관리 명령 차단: ${keyword}`);
     }
 
     for (const cmd of redisAttacks) {
@@ -363,7 +363,7 @@ header('읽기 전용 가드 — DB별 공격 벡터');
 
     // db.dropDatabase()는 db.collection.method() 패턴이 아님 — 알려진 한계
     const mongoDropDb = checkWriteOperation('db.dropDatabase()', 'mongodb');
-    assert(mongoDropDb.isWrite === false, 'db.dropDatabase()는 collection.method 패턴이 아님 (알려진 한계)');
+    assert(mongoDropDb.isWrite === true, 'db.dropDatabase() 차단');
 
     for (const q of mongoAttacks) {
         const check = checkWriteOperation(q, 'mongodb');
@@ -406,7 +406,7 @@ header('읽기 전용 가드 — 안전한 쿼리 확인');
 
         // MongoDB
         { q: 'db.users.find({})', db: 'mongodb', desc: 'MongoDB find' },
-        { q: 'db.users.aggregate([{$group:{_id:null,count:{$sum:1}}}])', db: 'mongodb', desc: 'MongoDB aggregate' },
+        { q: 'db.users.aggregate([{"$group":{"_id":null,"count":{"$sum":1}}}])', db: 'mongodb', desc: 'MongoDB aggregate' },
         { q: 'db.users.countDocuments({})', db: 'mongodb', desc: 'MongoDB countDocuments' },
     ];
 

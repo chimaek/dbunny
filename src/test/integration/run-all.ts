@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny Integration Test - 6개 DB 프로바이더 전체 기능 테스트
  *
@@ -60,12 +61,12 @@ const sqlitePath = path.resolve(__dirname, '../../../test-data/test.db');
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'test-mysql', name: 'MySQL Test', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'test-pg', name: 'PostgreSQL Test', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -75,19 +76,19 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'test-h2', name: 'H2 Test', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:test',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'test' },
     },
     mongodb: {
         id: 'test-mongo', name: 'MongoDB Test', type: 'mongodb',
-        host: 'localhost', port: 27017,
+        host: 'localhost', port: testPort('mongodb'),
         username: 'admin', password: 'mongo1234', database: 'mydb',
     },
     redis: {
         id: 'test-redis', name: 'Redis Test', type: 'redis',
-        host: 'localhost', port: 6379,
+        host: 'localhost', port: testPort('redis'),
         username: '', password: 'redis1234',
     },
 };

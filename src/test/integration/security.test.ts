@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny 보안 통합 테스트
  *
@@ -47,13 +48,13 @@ function assert(condition: boolean, msg: string) {
 
 const mysqlConfig: ConnectionConfig = {
     id: 'sec-mysql', name: 'MySQL Security', type: 'mysql',
-    host: 'localhost', port: 3306,
+    host: 'localhost', port: testPort('mysql'),
     username: 'root', password: 'root1234', database: 'mydb',
 };
 
 const pgConfig: ConnectionConfig = {
     id: 'sec-pg', name: 'PG Security', type: 'postgres',
-    host: 'localhost', port: 5432,
+    host: 'localhost', port: testPort('postgres'),
     username: 'postgres', password: 'postgres1234', database: 'mydb',
 };
 

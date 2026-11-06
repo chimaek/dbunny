@@ -11,6 +11,7 @@ dist/
 # Test outputs
 .vscode-test/
 coverage/
+test-results/
 
 # Environment files
 .env
@@ -53,3 +54,6 @@ test-data/
 !README.md
 !CHANGELOG.md
 !ROADMAP.md
+!CONTRIBUTING.md
+!AGENTS.md
+!docs/**

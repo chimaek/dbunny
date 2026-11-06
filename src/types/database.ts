@@ -127,6 +127,13 @@ export interface QueryResult {
     fields: FieldInfo[];
     rowCount: number;
     executionTime: number;
+    /** 설정된 최대 행 수로 결과가 제한되었는지 여부 */
+    truncated?: boolean;
+}
+
+export interface QueryExecutionOptions {
+    timeoutMs: number;
+    maxRows: number;
 }
 
 /**
@@ -145,7 +152,7 @@ export interface DatabaseConnection {
     config: ConnectionConfig;
     connect(): Promise<void>;
     disconnect(): Promise<void>;
-    executeQuery(query: string, database?: string): Promise<QueryResult>;
+    executeQuery(query: string, database?: string, options?: QueryExecutionOptions): Promise<QueryResult>;
     getDatabases(): Promise<string[]>;
     getTables(database: string): Promise<string[]>;
     getTableSchema(table: string, database?: string): Promise<ColumnInfo[]>;

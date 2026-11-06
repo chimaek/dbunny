@@ -1,4 +1,6 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import { QueryExecutionOptions } from '../types/database';
+import { limitSelectQuery, limitResult } from '../utils/queryLimits';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType } from '../types/database';
@@ -81,7 +83,7 @@ export class SQLiteProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string, _database?: string): Promise<QueryResult> {
+    async executeQuery(query: string, _database?: string, options?: QueryExecutionOptions): Promise<QueryResult> {
         if (!this.db) {
             throw new Error('Not connected to database');
         }
@@ -91,7 +93,7 @@ export class SQLiteProvider implements DatabaseConnection {
             const trimmedQuery = query.trim().toUpperCase();
 
             if (trimmedQuery.startsWith('SELECT') || trimmedQuery.startsWith('PRAGMA') || trimmedQuery.startsWith('WITH')) {
-                const results = this.db.exec(query);
+                const results = this.db.exec(limitSelectQuery(query, options, 'sqlite'));
                 const executionTime = Date.now() - startTime;
 
                 if (results.length === 0) {
@@ -118,12 +120,12 @@ export class SQLiteProvider implements DatabaseConnection {
                     return obj;
                 });
 
-                return {
+                return limitResult({
                     rows,
                     fields,
                     rowCount: rows.length,
                     executionTime
-                };
+                }, options);
             } else {
                 this.db.run(query);
                 const executionTime = Date.now() - startTime;

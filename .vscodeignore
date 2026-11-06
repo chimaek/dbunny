@@ -5,8 +5,11 @@ src/**
 test/**
 out/**
 coverage/**
+test-results/**
+*.log
 .github/**
 .claude/**
+.cursor/**
 
 # Config files
 .gitignore
@@ -31,6 +34,17 @@ nul
 # Test files
 test.db
 *.db
+**/*.db
+test-data/**
+docker-compose.yml
+docker-init/**
+scripts/**
+docs/**
+.vscode-test.mjs
+dist/**/*.map
+resources/demo.gif
+resources/bunny.jpeg
+resources/bunny-icon2.png
 tmpclaude-*
 
 # Documentation (except README)
@@ -61,5 +75,7 @@ node_modules/**/examples/**
 node_modules/**/.github/**
 node_modules/**/*.md
 node_modules/**/*.ts
-!node_modules/**/*.d.ts
 node_modules/**/*.map
+node_modules/xlsx/**
+node_modules/papaparse/**
+node_modules/sql-formatter/**

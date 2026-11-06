@@ -27,7 +27,7 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 
 #### Connection Management
 
-- **Encrypted Storage** — Passwords secured with AES-256-GCM, keys stored in VS Code SecretStorage
+- **Credential Storage** — Database and SSH credentials stored in VS Code SecretStorage with automatic migration
 - **Connection Grouping** — Organize into folders (dev / staging / prod)
 - **SSH Tunneling** — Connect to remote databases through SSH tunnel (local TCP server based)
 - **Schema Explorer** — Browse databases, tables, and columns in a tree view
@@ -117,8 +117,10 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 
 #### Development Tools
 
+- **Routine Browser** — Browse procedures, functions, views and triggers, including source and parameters (capabilities vary by database)
+
 - **Mock Data Generator** — Generate test data with various types (names, emails, dates, numbers, etc.)
-- **DB Migration** — Version-managed UP/DOWN scripts with rollback and SQL export
+- **DB Migration** — Version-managed UP/DOWN scripts, SQL export, and manual application/rollback records (SQL is not executed automatically)
 - **Copy Table Schema** — Copy CREATE TABLE statement to clipboard
 
 #### Monitoring
@@ -129,12 +131,13 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 
 #### Security
 
-- AES-256-GCM password encryption
+- DB and SSH credentials kept in VS Code SecretStorage
 - SQL injection prevention with parameterized queries and validated identifiers
 - XSS prevention with HTML escaping in all WebView panels
-- Content Security Policy headers on all WebViews
+- Content Security Policy on all WebViews; nonce-protected scripts and delegated events
 - Redis destructive commands (`FLUSHDB`, `FLUSHALL`) blocked
-- No data sent to external servers
+- No telemetry or analytics collection; connections use configured database and SSH endpoints
+- Read-only checks cover every entry point and CTE writes. Use database read-only roles for permission enforcement.
 
 ### Quick Start
 
@@ -142,6 +145,12 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 2. Click **+** to add a new connection
 3. Select database type and enter credentials
 4. Click **Save & Connect**
+
+### SQLite Example and Compatibility
+
+Requires VS Code 1.85 or later. Runs in a desktop or remote Node.js Extension Host; browser-only vscode.dev is not supported. H2 requires an H2 server with its PostgreSQL protocol enabled.
+
+For a server-free example, add a SQLite connection with database `:memory:` and run `SELECT 1 AS value;`. The result is one row with `value = 1`. In-memory data is discarded on disconnect; choose a file path for persistence.
 
 ### Keyboard Shortcuts
 
@@ -180,36 +189,13 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 | `dbunny.maxResults` | 1000 | Maximum result rows returned |
 | `dbunny.language` | auto | UI language (auto / en / ko) |
 
+Result previews use `dbunny.maxResults`. Single SELECT/CTE reads are bounded at the SQL server; other results are capped before display. Timeouts use PostgreSQL/H2 server limits, MySQL SELECT execution limits plus its client timeout, and MongoDB maxTimeMS. SQLite synchronous execution and Redis commands do not have a server query timeout. Exports use returned rows; increase the limit for larger exports.
+
+Read-only mode helps prevent accidental writes. PostgreSQL also uses server read-only transactions for bounded queries. Use a database account with read-only privileges for production access; SQL classification cannot determine every custom function's effects.
+
 ### Testing
 
-```bash
-# Start test DB containers (MySQL, PostgreSQL, MongoDB, Redis, H2)
-docker compose up -d
-
-# Run integration tests (121 tests across 6 DBs)
-npx tsx src/test/integration/run-all.ts
-
-# SQL autocomplete integration tests (MySQL + PostgreSQL)
-npx tsx src/test/integration/completion.test.ts
-
-# Query parameter integration tests (MySQL + PostgreSQL)
-npx tsx src/test/integration/queryParameter.test.ts
-
-# Result pinning integration tests (MySQL + PostgreSQL)
-npx tsx src/test/integration/resultPin.test.ts
-
-# SQL parser unit tests (no DB required)
-npx tsx src/test/unit/sqlParser.standalone.ts
-
-# Query parameter unit tests (no DB required)
-npx tsx src/test/unit/queryParameter.standalone.ts
-
-# Result pinning unit tests (no DB required)
-npx tsx src/test/unit/resultPin.standalone.ts
-
-# Unit tests
-npm test
-```
+Use Node.js 24 LTS. See [Contributing](CONTRIBUTING.md) for unit, Extension Host, Docker integration and VSIX tests. See [Publishing](docs/PUBLISHING.md) for release tags and OIDC setup.
 
 ### Upcoming Features
 
@@ -236,7 +222,7 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 #### 연결 관리
 
-- **암호화 저장** — AES-256-GCM으로 비밀번호 암호화, VS Code SecretStorage에 키 저장
+- **인증정보 저장** — DB·SSH 비밀번호와 개인키를 VS Code SecretStorage에 보관하고 기존 저장값을 자동 이전
 - **연결 그룹화** — 폴더별 정리 (dev / staging / prod)
 - **SSH 터널링** — SSH 터널을 통한 원격 데이터베이스 연결 (로컬 TCP 서버 기반)
 - **스키마 탐색기** — 트리 뷰로 데이터베이스, 테이블, 컬럼 탐색
@@ -326,8 +312,10 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 #### 개발 도구
 
+- **루틴 브라우저** — 저장 프로시저·함수·뷰·트리거 탐색, 소스·파라미터 확인 (지원 범위는 DB별로 다름)
+
 - **목 데이터 생성기** — 이름, 이메일, 날짜, 숫자 등 다양한 타입의 테스트 데이터 생성
-- **DB 마이그레이션** — 버전 관리 기반 UP/DOWN 스크립트, 롤백 및 SQL 내보내기
+- **DB 마이그레이션** — UP/DOWN 스크립트 버전 관리·SQL 내보내기·수동 적용/롤백 상태 기록 (SQL 자동 실행은 지원하지 않음)
 - **테이블 스키마 복사** — CREATE TABLE 구문을 클립보드에 복사
 
 #### 모니터링
@@ -338,12 +326,13 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 #### 보안
 
-- AES-256-GCM 비밀번호 암호화
+- DB·SSH 인증정보를 VS Code SecretStorage에 보관
 - 파라미터화된 쿼리 및 식별자 검증으로 SQL 인젝션 방지
 - 모든 WebView 패널에서 HTML 이스케이핑으로 XSS 방지
-- 모든 WebView에 Content Security Policy 헤더 적용
+- 모든 WebView에 CSP 적용, nonce 스크립트와 이벤트 위임 사용
 - Redis 파괴적 명령어 (`FLUSHDB`, `FLUSHALL`) 차단
-- 외부 서버로 데이터 전송 없음
+- 텔레메트리·분석 데이터 수집 없음. 사용자가 설정한 DB·SSH 서버와 통신
+- 모든 실행 경로에 읽기 전용 검사 적용, CTE 쓰기·관리 명령 차단. 권한 통제에는 DB 읽기 전용 계정을 함께 사용
 
 ### 빠른 시작
 
@@ -351,6 +340,12 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 2. **+** 버튼으로 새 연결 추가
 3. 데이터베이스 유형 선택 후 인증 정보 입력
 4. **Save & Connect** 클릭
+
+### SQLite 예제와 호환 범위
+
+VS Code 1.85 이상이 필요하며 데스크톱 또는 원격 Node.js Extension Host에서 실행됩니다. 순수 웹 환경의 vscode.dev는 지원하지 않습니다. H2는 PostgreSQL 프로토콜을 활성화한 H2 서버가 필요합니다.
+
+서버 없이 시작하려면 SQLite 연결의 데이터베이스에 `:memory:`를 입력하고 새 쿼리에서 `SELECT 1 AS value;`를 실행하세요. `value = 1`인 한 행이 나옵니다. 메모리 DB는 연결 해제 시 사라지며, 보관하려면 파일 경로를 선택해야 합니다.
 
 ### 키보드 단축키
 
@@ -389,36 +384,13 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 | `dbunny.maxResults` | 1000 | 최대 결과 행 수 |
 | `dbunny.language` | auto | UI 언어 (auto / en / ko) |
 
+조회 결과는 `dbunny.maxResults`를 따릅니다. 단일 SELECT/CTE는 SQL 서버에서 행 수를 제한하며, 다른 결과도 표시 전에 제한합니다. timeout은 PostgreSQL·H2 서버 설정, MySQL SELECT 실행 제한과 클라이언트 제한, MongoDB maxTimeMS에 적용됩니다. 동기 실행 SQLite와 Redis 명령에는 서버 쿼리 timeout이 적용되지 않습니다. 내보내기도 반환된 행을 사용하므로 필요하면 제한을 늘리세요.
+
+읽기 전용 모드는 실수로 쓰기 작업을 실행하는 것을 막는 기능입니다. PostgreSQL의 제한 조회에는 서버 읽기 전용 트랜잭션 설정도 적용합니다. 사용자 정의 함수의 모든 부작용을 SQL 분류만으로 판단할 수는 없으므로, 운영 환경에는 DB 자체의 읽기 전용 계정을 사용하세요.
+
 ### 테스트
 
-```bash
-# 테스트용 DB 컨테이너 실행 (MySQL, PostgreSQL, MongoDB, Redis, H2)
-docker compose up -d
-
-# 통합 테스트 실행 (6개 DB 대상 121개 테스트)
-npx tsx src/test/integration/run-all.ts
-
-# SQL 자동완성 통합 테스트 (MySQL + PostgreSQL)
-npx tsx src/test/integration/completion.test.ts
-
-# 쿼리 파라미터 통합 테스트 (MySQL + PostgreSQL)
-npx tsx src/test/integration/queryParameter.test.ts
-
-# 결과 고정(Pin) 통합 테스트 (MySQL + PostgreSQL)
-npx tsx src/test/integration/resultPin.test.ts
-
-# SQL 파서 유닛 테스트 (DB 불필요)
-npx tsx src/test/unit/sqlParser.standalone.ts
-
-# 쿼리 파라미터 유닛 테스트 (DB 불필요)
-npx tsx src/test/unit/queryParameter.standalone.ts
-
-# 결과 고정(Pin) 유닛 테스트 (DB 불필요)
-npx tsx src/test/unit/resultPin.standalone.ts
-
-# 단위 테스트
-npm test
-```
+개발 환경은 Node.js 24 LTS입니다. 단위·Extension Host·Docker 통합·VSIX 검증은 [개발 가이드](CONTRIBUTING.md), 릴리스 태그와 OIDC 설정은 [게시 가이드](docs/PUBLISHING.md)를 참고하세요.
 
 ### 추가 예정 기능
 

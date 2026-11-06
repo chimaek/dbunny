@@ -18,6 +18,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Initialize connection manager
     const connectionManager = new ConnectionManager(context);
+    await connectionManager.ready;
     connectionManagerInstance = connectionManager;
 
     // Register tree view providers

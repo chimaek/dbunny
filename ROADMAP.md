@@ -61,38 +61,13 @@
 
 ---
 
-## GitHub Actions 자동 배포
+## GitHub Actions 검증과 배포
 
-main 브랜치에 push하면 VS Code Marketplace에 자동 배포됩니다.
+일반 main push와 PR에서는 검증만 실행합니다. 버전과 일치하는 `v*` 태그를 push하면 검증된 동일 VSIX를 OIDC로 게시합니다. Node.js 24와 vsce 4.0.0을 사용합니다.
 
-### 사전 준비
+Marketplace trusted publishing 정책과 GitHub `marketplace` environment 준비가 필요합니다. `VSCE_PAT`는 새 워크플로에서 사용하지 않습니다.
 
-1. **Azure DevOps PAT 생성** — [dev.azure.com](https://dev.azure.com) → User Settings → Personal Access Tokens
-   - Organization: `All accessible organizations`
-   - Scopes: `Marketplace > Manage`
-
-2. **GitHub Secrets 등록** — 저장소 Settings → Secrets and variables → Actions
-   - `VSCE_PAT` : Azure DevOps PAT
-
-### 배포 규칙
-
-> **필수**: 로드맵 버전에 맞춰 작업할 때 `package.json`의 `version`을 반드시 해당 버전으로 변경한 후 배포해야 합니다. `package.json` 버전이 Marketplace에 표시되는 실제 버전입니다.
-
-```bash
-# 1. package.json 버전 변경
-#    "version": "2.0.0"
-
-# 2. CHANGELOG.md 작성
-
-# 3. 커밋 및 push → 자동 배포
-git add -A
-git commit -m "v2.0.0 - SQL 자동완성 고도화"
-git push origin main
-```
-
-### 워크플로우 파일
-
-[`.github/workflows/publish.yml`](.github/workflows/publish.yml) — main push → 빌드 → 컴파일 → Marketplace 배포
+설정과 릴리스 절차는 [게시 가이드](docs/PUBLISHING.md), 테스트는 [개발 가이드](CONTRIBUTING.md)를 참고하세요.
 
 ---
 
@@ -251,7 +226,7 @@ git push origin main
 
 ### v1.2.0 (2026-01-07)
 
-- [x] DB 마이그레이션 (버전 관리, 롤백, SQL 내보내기)
+- [x] 마이그레이션 스크립트 관리 (UP/DOWN SQL 내보내기·수동 적용/롤백 상태 기록, 자동 실행 미지원)
 - [x] 실시간 모니터링 (활성 쿼리, 서버 상태, 프로세스 종료)
 
 ### v1.1.0 (2025-01-06)

@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { TableERDInfo } from '../types/database';
 import { I18n } from '../utils/i18n';
@@ -6,6 +7,7 @@ import { I18n } from '../utils/i18n';
  * Webview panel for displaying ERD (Entity Relationship Diagram)
  */
 export class ERDPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: ERDPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -57,7 +59,7 @@ export class ERDPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -70,14 +72,14 @@ export class ERDPanel {
      * Update the ERD with table data
      */
     public updateERD(tables: TableERDInfo[], databaseName: string): void {
-        this._panel.webview.html = this._getHtmlContent(tables, databaseName);
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(tables, databaseName), this._panel.webview, this._nonce);
     }
 
     /**
      * Show loading state
      */
     public showLoading(): void {
-        this._panel.webview.html = this._getLoadingHtml();
+        this._panel.webview.html = secureWebviewHtml(this._getLoadingHtml(), this._panel.webview, this._nonce);
     }
 
     private async _handleExportSVG(svgContent: string): Promise<void> {
@@ -115,7 +117,7 @@ export class ERDPanel {
     }
 
     private _getHtmlContent(tables: TableERDInfo[], databaseName: string): string {
-        const tablesJson = JSON.stringify(tables);
+        const tablesJson = serializeForWebview(tables);
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -483,21 +485,21 @@ export class ERDPanel {
         </div>
         <div class="toolbar-spacer"></div>
         <div class="zoom-controls">
-            <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+            <button class="zoom-btn" data-dbunny-click="zoomOut()" title="Zoom Out">−</button>
             <span class="zoom-level" id="zoomLevel">100%</span>
-            <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
-            <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">↺</button>
+            <button class="zoom-btn" data-dbunny-click="zoomIn()" title="Zoom In">+</button>
+            <button class="zoom-btn" data-dbunny-click="resetZoom()" title="Reset Zoom">↺</button>
         </div>
-        <select id="layoutSelect" class="layout-select" onchange="applyLayout(this.value)" title="Select layout style">
+        <select id="layoutSelect" class="layout-select" data-dbunny-change="applyLayout(this.value)" title="Select layout style">
             <option value="grid">📐 Grid Layout</option>
             <option value="relationship">🔗 Relationship</option>
             <option value="hierarchical">📊 Hierarchical</option>
             <option value="circular">⭕ Circular</option>
         </select>
-        <button class="toolbar-btn" onclick="exportSVG()" title="Export as SVG">
+        <button class="toolbar-btn" data-dbunny-click="exportSVG()" title="Export as SVG">
             <span>📄</span> SVG
         </button>
-        <button class="toolbar-btn primary" onclick="exportPNG()" title="Export as PNG">
+        <button class="toolbar-btn primary" data-dbunny-click="exportPNG()" title="Export as PNG">
             <span>🖼️</span> PNG
         </button>
     </div>
@@ -524,7 +526,7 @@ export class ERDPanel {
         </div>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
         const vscode = acquireVsCodeApi();
         const tables = ${tablesJson};
         let zoom = 1;
@@ -1484,7 +1486,8 @@ export class ERDPanel {
                 }
             }
         });
-    </script>
+    ${webviewEventScript(["zoomOut","zoomIn","resetZoom","applyLayout","exportSVG","exportPNG"],[])}
+</script>
 </body>
 </html>`;
     }

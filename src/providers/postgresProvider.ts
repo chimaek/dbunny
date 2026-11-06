@@ -1,4 +1,6 @@
 import { Client } from 'pg';
+import { QueryExecutionOptions } from '../types/database';
+import { limitSelectQuery, limitResult } from '../utils/queryLimits';
 import * as net from 'net';
 import { Client as SSHClient } from 'ssh2';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType, RoutineParameter } from '../types/database';
@@ -11,6 +13,21 @@ export class PostgresProvider implements DatabaseConnection {
     private sshClient: SSHClient | null = null;
     private sshServer: net.Server | null = null;
     private currentDatabase: string = 'postgres';
+    private endpoint: { host: string; port: number } | null = null;
+
+    private createClient(database: string): Client {
+        if (!this.endpoint) { throw new Error('Not connected to database'); }
+        return new Client({ ...this.endpoint, user: this.config.username, password: this.config.password,
+            database, connectionTimeoutMillis: 10000 });
+    }
+
+    private async prepareQuery(client: Client, options?: QueryExecutionOptions): Promise<void> {
+        if (options) {
+            // 사용자 정의 SELECT 함수의 쓰기까지 서버 권한으로 한 번 더 제한한다.
+            await client.query(`SET default_transaction_read_only = ${this.config.readOnly ? 'on' : 'off'}`);
+            await client.query(`SET statement_timeout = ${Math.floor(options.timeoutMs)}`);
+        }
+    }
 
     constructor(public config: ConnectionConfig) {}
 
@@ -28,14 +45,8 @@ export class PostgresProvider implements DatabaseConnection {
 
             // Create PostgreSQL client
             this.currentDatabase = this.config.database || 'postgres';
-            this.client = new Client({
-                host: connectHost,
-                port: connectPort,
-                user: this.config.username,
-                password: this.config.password,
-                database: this.currentDatabase,
-                connectionTimeoutMillis: 10000
-            });
+            this.endpoint = { host: connectHost, port: connectPort };
+            this.client = this.createClient(this.currentDatabase);
 
             await this.client.connect();
         } catch (error) {
@@ -45,6 +56,7 @@ export class PostgresProvider implements DatabaseConnection {
     }
 
     async disconnect(): Promise<void> {
+        this.endpoint = null;
         try {
             if (this.client) {
                 await this.client.end();
@@ -70,22 +82,23 @@ export class PostgresProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string, database?: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string, options?: QueryExecutionOptions): Promise<QueryResult> {
         if (!this.client) {
             throw new Error('Not connected to database');
         }
 
         // If a different database is specified, use temporary connection
         if (database && database !== this.currentDatabase) {
-            return this.executeQueryOnDatabase(database, query);
+            return this.executeQueryOnDatabase(database, query, options);
         }
 
         try {
             const startTime = Date.now();
-            const result = await this.client.query(query);
+            await this.prepareQuery(this.client, options);
+            const result = await this.client.query(limitSelectQuery(query, options, 'postgres'));
             const executionTime = Date.now() - startTime;
 
-            return {
+            return limitResult({
                 rows: result.rows,
                 fields: result.fields.map(f => ({
                     name: f.name,
@@ -94,7 +107,7 @@ export class PostgresProvider implements DatabaseConnection {
                 })),
                 rowCount: result.rowCount || 0,
                 executionTime
-            };
+            }, options);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(`Query execution failed: ${message}`);
@@ -105,29 +118,23 @@ export class PostgresProvider implements DatabaseConnection {
      * Execute a query on a specific database
      * Creates a temporary connection if the target database differs from the current one
      */
-    private async executeQueryOnDatabase(database: string, query: string): Promise<QueryResult> {
+    private async executeQueryOnDatabase(database: string, query: string, options?: QueryExecutionOptions): Promise<QueryResult> {
         // If same database or no specific database requested, use current connection
         if (!database || database === this.currentDatabase) {
-            return this.executeQuery(query);
+            return this.executeQuery(query, undefined, options);
         }
 
         // Create a temporary connection to the target database
-        const tempClient = new Client({
-            host: this.config.host,
-            port: this.config.port || 5432,
-            user: this.config.username,
-            password: this.config.password,
-            database: database,
-            connectionTimeoutMillis: 10000
-        });
+        const tempClient = this.createClient(database);
 
         try {
             await tempClient.connect();
             const startTime = Date.now();
-            const result = await tempClient.query(query);
+            await this.prepareQuery(tempClient, options);
+            const result = await tempClient.query(limitSelectQuery(query, options, 'postgres'));
             const executionTime = Date.now() - startTime;
 
-            return {
+            return limitResult({
                 rows: result.rows,
                 fields: result.fields.map(f => ({
                     name: f.name,
@@ -136,7 +143,7 @@ export class PostgresProvider implements DatabaseConnection {
                 })),
                 rowCount: result.rowCount || 0,
                 executionTime
-            };
+            }, options);
         } finally {
             await tempClient.end();
         }
@@ -475,14 +482,7 @@ export class PostgresProvider implements DatabaseConnection {
             };
         }
 
-        const tempClient = new Client({
-            host: this.config.host,
-            port: this.config.port || 5432,
-            user: this.config.username,
-            password: this.config.password,
-            database: database,
-            connectionTimeoutMillis: 10000
-        });
+        const tempClient = this.createClient(database);
 
         try {
             await tempClient.connect();
@@ -546,7 +546,8 @@ export class PostgresProvider implements DatabaseConnection {
                 port: sshConfig.port || 22,
                 username: sshConfig.username,
                 password: sshConfig.password,
-                privateKey: sshConfig.privateKey
+                privateKey: sshConfig.privateKey,
+                passphrase: sshConfig.passphrase
             });
         });
     }

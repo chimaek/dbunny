@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, webviewArgumentScript, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { DatabaseConnection, ConnectionConfig } from '../types/database';
 import { I18n } from '../utils/i18n';
@@ -24,6 +25,7 @@ interface ServerStatus {
 }
 
 export class MonitoringPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: MonitoringPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -102,7 +104,7 @@ export class MonitoringPanel {
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
-                localResourceRoots: [extensionUri]
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')]
             }
         );
 
@@ -251,6 +253,10 @@ export class MonitoringPanel {
 
     private async _killProcess(processId: number | string): Promise<void> {
         try {
+            if (this._connection.config.readOnly) { throw new Error('Process termination is disabled on a read-only connection.'); }
+            if (!/^\d+$/.test(String(processId)) || !Number.isSafeInteger(Number(processId)) || Number(processId) < 1) {
+                throw new Error('Invalid process ID');
+            }
             const dbType = this._connectionConfig.type;
 
             if (dbType === 'mysql') {
@@ -272,7 +278,7 @@ export class MonitoringPanel {
     }
 
     private _update(): void {
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
         this._refreshData();
     }
 
@@ -556,16 +562,16 @@ export class MonitoringPanel {
                 <span class="refresh-indicator" id="refreshIndicator">Auto-refresh</span>
             </h1>
             <div class="controls">
-                <select id="refreshInterval" onchange="changeInterval()">
+                <select id="refreshInterval" data-dbunny-change="changeInterval()">
                     <option value="1000">1s</option>
                     <option value="5000" selected>5s</option>
                     <option value="10000">10s</option>
                     <option value="30000">30s</option>
                 </select>
-                <button class="btn btn-secondary toggle-btn active" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
+                <button class="btn btn-secondary toggle-btn active" id="autoRefreshBtn" data-dbunny-click="toggleAutoRefresh()">
                     Auto
                 </button>
-                <button class="btn btn-primary" onclick="refresh()">
+                <button class="btn btn-primary" data-dbunny-click="refresh()">
                     Refresh
                 </button>
             </div>
@@ -629,7 +635,8 @@ export class MonitoringPanel {
         </div>
     `}
 
-    <script>
+    <script nonce="${this._nonce}">
+${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
         let autoRefresh = true;
 
@@ -754,7 +761,7 @@ export class MonitoringPanel {
                             <td class="process-time \${getTimeClass(p.time)}">\${p.time}s</td>
                             <td class="process-query" title="\${(p.info || '').replace(/"/g, '&quot;')}">\${p.info || '-'}</td>
                             <td>
-                                <button class="btn btn-danger kill-btn" onclick="killProcess('\${p.id}')">Kill</button>
+                                <button class="btn btn-danger kill-btn" data-dbunny-click="killProcess(\${webviewArgument(p.id)})">Kill</button>
                             </td>
                         </tr>
                     \`).join('');
@@ -764,7 +771,8 @@ export class MonitoringPanel {
 
         // Initial state
         document.getElementById('refreshIndicator')?.classList.add('active');
-    </script>
+    ${webviewEventScript(["changeInterval","toggleAutoRefresh","refresh","killProcess"],[])}
+</script>
 </body>
 </html>`;
     }

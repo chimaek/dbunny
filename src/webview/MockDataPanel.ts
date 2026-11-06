@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewArgumentScript, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ColumnInfo } from '../types/database';
 import { I18n } from '../utils/i18n';
@@ -13,6 +14,7 @@ export interface MockDataConfig {
  * Webview panel for generating mock data
  */
 export class MockDataPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: MockDataPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -74,7 +76,7 @@ export class MockDataPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -88,7 +90,7 @@ export class MockDataPanel {
     }
 
     public showGenerator(tableName: string, columns: ColumnInfo[], dbType: string): void {
-        this._panel.webview.html = this._getHtmlContent(tableName, columns, dbType);
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(tableName, columns, dbType), this._panel.webview, this._nonce);
     }
 
     private _generateInsertSQL(tableName: string, columns: { name: string; values: unknown[] }[], rows: number): string {
@@ -127,7 +129,7 @@ export class MockDataPanel {
     }
 
     private _getHtmlContent(tableName: string, columns: ColumnInfo[], dbType: string): string {
-        const columnsJson = JSON.stringify(columns);
+        const columnsJson = serializeForWebview(columns);
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -385,13 +387,13 @@ export class MockDataPanel {
             Table: <strong>${this._escapeHtml(tableName)}</strong>
         </span>
         <div class="toolbar-spacer"></div>
-        <button class="toolbar-btn" onclick="copySQL()">
+        <button class="toolbar-btn" data-dbunny-click="copySQL()">
             <span>📋</span> Copy SQL
         </button>
-        <button class="toolbar-btn" onclick="exportSQL()">
+        <button class="toolbar-btn" data-dbunny-click="exportSQL()">
             <span>📄</span> Export
         </button>
-        <button class="toolbar-btn primary" onclick="regenerate()">
+        <button class="toolbar-btn primary" data-dbunny-click="regenerate()">
             <span>🔄</span> Regenerate
         </button>
     </div>
@@ -404,7 +406,7 @@ export class MockDataPanel {
             <div class="config-row">
                 <span class="config-label">Row Count:</span>
                 <div class="config-input">
-                    <input type="number" id="rowCount" value="10" min="1" max="1000" onchange="regenerate()">
+                    <input type="number" id="rowCount" value="10" min="1" max="1000" data-dbunny-change="regenerate()">
                 </div>
             </div>
         </div>
@@ -447,7 +449,8 @@ export class MockDataPanel {
         </div>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
+${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
         const tableName = '${this._escapeHtml(tableName)}';
         const columns = ${columnsJson};
@@ -622,7 +625,7 @@ export class MockDataPanel {
                         </td>
                         <td><span class="type-badge">\${escapeHtml(col.type)}</span></td>
                         <td>
-                            <select onchange="updateGenerator('\${col.name}', this.value)" id="gen-\${col.name}">
+                            <select data-dbunny-change="updateGenerator(\${webviewArgument(col.name)}, this.value)" id="gen-\${col.name}">
                                 <option value="auto" \${config.generator === 'auto' ? 'selected' : ''}>Auto</option>
                                 <optgroup label="Numbers">
                                     <option value="sequence" \${config.generator === 'sequence' ? 'selected' : ''}>Sequence (1, 2, 3...)</option>
@@ -676,7 +679,7 @@ export class MockDataPanel {
                                 <span class="option-label">Start:</span>
                                 <div class="option-input">
                                     <input type="number" value="\${config.options.start || 1}"
-                                           onchange="updateOption('\${colName}', 'start', parseInt(this.value))">
+                                           data-dbunny-change="updateOption(\${webviewArgument(colName)}, 'start', parseInt(this.value))">
                                 </div>
                             </div>
                         </div>
@@ -689,14 +692,14 @@ export class MockDataPanel {
                                 <span class="option-label">Min:</span>
                                 <div class="option-input">
                                     <input type="number" value="\${config.options.min || 0}"
-                                           onchange="updateOption('\${colName}', 'min', parseFloat(this.value))">
+                                           data-dbunny-change="updateOption(\${webviewArgument(colName)}, 'min', parseFloat(this.value))">
                                 </div>
                             </div>
                             <div class="option-row">
                                 <span class="option-label">Max:</span>
                                 <div class="option-input">
                                     <input type="number" value="\${config.options.max || 1000}"
-                                           onchange="updateOption('\${colName}', 'max', parseFloat(this.value))">
+                                           data-dbunny-change="updateOption(\${webviewArgument(colName)}, 'max', parseFloat(this.value))">
                                 </div>
                             </div>
                         </div>
@@ -708,7 +711,7 @@ export class MockDataPanel {
                                 <span class="option-label">Length:</span>
                                 <div class="option-input">
                                     <input type="number" value="\${config.options.length || 10}"
-                                           onchange="updateOption('\${colName}', 'length', parseInt(this.value))">
+                                           data-dbunny-change="updateOption(\${webviewArgument(colName)}, 'length', parseInt(this.value))">
                                 </div>
                             </div>
                         </div>
@@ -720,7 +723,7 @@ export class MockDataPanel {
                                 <span class="option-label">Words:</span>
                                 <div class="option-input">
                                     <input type="number" value="\${config.options.words || 5}"
-                                           onchange="updateOption('\${colName}', 'words', parseInt(this.value))">
+                                           data-dbunny-change="updateOption(\${webviewArgument(colName)}, 'words', parseInt(this.value))">
                                 </div>
                             </div>
                         </div>
@@ -733,7 +736,7 @@ export class MockDataPanel {
                                 <div class="option-input">
                                     <input type="text" value="\${config.options.values || ''}"
                                            placeholder="val1, val2, val3"
-                                           onchange="updateOption('\${colName}', 'values', this.value)">
+                                           data-dbunny-change="updateOption(\${webviewArgument(colName)}, 'values', this.value)">
                                 </div>
                             </div>
                         </div>
@@ -855,7 +858,8 @@ export class MockDataPanel {
         }
 
         init();
-    </script>
+    ${webviewEventScript(["copySQL","exportSQL","regenerate","updateGenerator","updateOption"],[])}
+</script>
 </body>
 </html>`;
     }

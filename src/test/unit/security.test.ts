@@ -187,14 +187,14 @@ suite('HTML Escaping Tests', () => {
         const malicious = '"><img src=x onerror=alert(1)>';
         const escaped = escapeHtml(malicious);
         assert.ok(!escaped.includes('<img'));
-        assert.ok(!escaped.includes('onerror'));
+        assert.ok(escaped.includes('&quot;&gt;&lt;img'));
         assert.ok(escaped.includes('&lt;img'));
     });
 
     test('Should escape event handler injection', () => {
         const malicious = "' onmouseover='alert(1)'";
         const escaped = escapeHtml(malicious);
-        assert.ok(!escaped.includes("onmouseover"));
+        assert.ok(!escaped.includes("'"));
         assert.ok(escaped.includes('&#039;'));
     });
 
@@ -233,7 +233,7 @@ suite('Identifier Escaping Tests', () => {
     });
 
     test('MySQL: Should handle empty backtick', () => {
-        assert.strictEqual(escapeIdentifierMySQL('``'), '`````````');
+        assert.strictEqual(escapeIdentifierMySQL('``'), '``````');
     });
 
     test('PostgreSQL: Should escape double quotes in identifier', () => {

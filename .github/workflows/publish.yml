@@ -2,21 +2,56 @@ name: Publish Extension
 
 on:
   push:
-    branches:
-      - main
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  validate-release:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node scripts/check-release.cjs
+
+  verify:
+    needs: validate-release
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
-          node-version: "20"
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
           cache: "npm"
 
-      - run: npm install
-      - run: npm run compile
-      - run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
+      - name: Verify release tag matches package version
+        run: node scripts/check-release.cjs
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dbunny-vsix
+      - name: Verify the downloaded package matches the release
+        run: node scripts/check-release.cjs dbunny.vsix
+      - name: Publish the verified package with trusted publishing
+        run: npm run publish-extension

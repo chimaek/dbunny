@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny 엣지 케이스 통합 테스트
  *
@@ -46,13 +47,13 @@ function assert(condition: boolean, msg: string) {
 
 const mysqlConfig: ConnectionConfig = {
     id: 'edge-mysql', name: 'MySQL Edge', type: 'mysql',
-    host: 'localhost', port: 3306,
+    host: 'localhost', port: testPort('mysql'),
     username: 'root', password: 'root1234', database: 'mydb',
 };
 
 const pgConfig: ConnectionConfig = {
     id: 'edge-pg', name: 'PG Edge', type: 'postgres',
-    host: 'localhost', port: 5432,
+    host: 'localhost', port: testPort('postgres'),
     username: 'postgres', password: 'postgres1234', database: 'mydb',
 };
 

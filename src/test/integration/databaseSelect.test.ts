@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny — 데이터베이스 선택 통합 테스트
  *
@@ -51,34 +52,34 @@ async function assert(condition: boolean, msg: string) {
 // config.database가 있는 일반 연결
 const mysqlWithDb: ConnectionConfig = {
     id: 'test-mysql-db', name: 'MySQL with DB', type: 'mysql',
-    host: 'localhost', port: 3306,
+    host: 'localhost', port: testPort('mysql'),
     username: 'root', password: 'root1234', database: 'mydb',
 };
 
 // config.database가 없는 연결 (이슈 시나리오)
 const mysqlNoDb: ConnectionConfig = {
     id: 'test-mysql-nodb', name: 'MySQL no DB', type: 'mysql',
-    host: 'localhost', port: 3306,
+    host: 'localhost', port: testPort('mysql'),
     username: 'root', password: 'root1234',
     // database 필드 없음!
 };
 
 const postgresWithDb: ConnectionConfig = {
     id: 'test-pg-db', name: 'PG with DB', type: 'postgres',
-    host: 'localhost', port: 5432,
+    host: 'localhost', port: testPort('postgres'),
     username: 'postgres', password: 'postgres1234', database: 'mydb',
 };
 
 const postgresNoDb: ConnectionConfig = {
     id: 'test-pg-nodb', name: 'PG no DB', type: 'postgres',
-    host: 'localhost', port: 5432,
+    host: 'localhost', port: testPort('postgres'),
     username: 'postgres', password: 'postgres1234',
     // database 필드 없음 → PostgreSQL 기본값 'postgres' 사용
 };
 
 const redisConfig: ConnectionConfig = {
     id: 'test-redis', name: 'Redis Test', type: 'redis',
-    host: 'localhost', port: 6379,
+    host: 'localhost', port: testPort('redis'),
     username: '', password: 'redis1234',
 };
 

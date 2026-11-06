@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -8,6 +9,7 @@ import { checkWriteOperation } from '../utils/readOnlyGuard';
  * Webview panel for editing table data
  */
 export class TableEditorPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: TableEditorPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -108,7 +110,7 @@ export class TableEditorPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -144,7 +146,7 @@ export class TableEditorPanel {
             );
 
             this._panel.title = `Table: ${this._tableName}`;
-            this._panel.webview.html = this._getHtmlContent(schema, result);
+            this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(schema, result), this._panel.webview, this._nonce);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             this._showError(message);
@@ -263,7 +265,7 @@ export class TableEditorPanel {
     }
 
     private _showError(message: string): void {
-        this._panel.webview.html = `
+        this._panel.webview.html = secureWebviewHtml(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -276,7 +278,7 @@ export class TableEditorPanel {
 <body>
     <div class="error">Error: ${this._escapeHtml(message)}</div>
 </body>
-</html>`;
+</html>`, this._panel.webview, this._nonce);
     }
 
     private _getHtmlContent(schema: any[], result: QueryResult): string {
@@ -451,8 +453,8 @@ export class TableEditorPanel {
     <div class="toolbar">
         <h3>${this._escapeHtml(this._tableName)}</h3>
         <span class="row-count">${result.rowCount} rows</span>
-        <button onclick="refresh()">Refresh</button>
-        <button class="primary" onclick="showInsertModal()">+ Insert Row</button>
+        <button data-dbunny-click="refresh()">Refresh</button>
+        <button class="primary" data-dbunny-click="showInsertModal()">+ Insert Row</button>
     </div>
 
     <div class="table-container">
@@ -476,8 +478,8 @@ export class TableEditorPanel {
                         return `<td data-col="${col}" data-value="${this._escapeHtml(String(val ?? ''))}">${display}</td>`;
                     }).join('')}
                     <td class="actions">
-                        <button onclick="editRow(${idx})">Edit</button>
-                        <button class="danger" onclick="deleteRow(${idx})">Delete</button>
+                        <button data-dbunny-click="editRow(${idx})">Edit</button>
+                        <button class="danger" data-dbunny-click="deleteRow(${idx})">Delete</button>
                     </td>
                 </tr>
                 `).join('')}
@@ -497,7 +499,7 @@ export class TableEditorPanel {
                 </div>
                 `).join('')}
                 <div class="modal-buttons">
-                    <button type="button" onclick="closeModal('insertModal')">Cancel</button>
+                    <button type="button" data-dbunny-click="closeModal('insertModal')">Cancel</button>
                     <button type="submit" class="primary">Insert</button>
                 </div>
             </form>
@@ -516,18 +518,18 @@ export class TableEditorPanel {
                 </div>
                 `).join('')}
                 <div class="modal-buttons">
-                    <button type="button" onclick="closeModal('editModal')">Cancel</button>
+                    <button type="button" data-dbunny-click="closeModal('editModal')">Cancel</button>
                     <button type="submit" class="primary">Update</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
         const vscode = acquireVsCodeApi();
-        const columns = ${JSON.stringify(columns)};
-        const primaryKeys = ${JSON.stringify(primaryKeys)};
-        const rows = ${JSON.stringify(result.rows)};
+        const columns = ${serializeForWebview(columns)};
+        const primaryKeys = ${serializeForWebview(primaryKeys)};
+        const rows = ${serializeForWebview(result.rows)};
         let editingRowIdx = -1;
 
         function refresh() {
@@ -602,7 +604,8 @@ export class TableEditorPanel {
                 if (e.target === modal) closeModal(modal.id);
             });
         });
-    </script>
+    ${webviewEventScript(["refresh","showInsertModal","editRow","deleteRow","closeModal"],[])}
+</script>
 </body>
 </html>`;
     }

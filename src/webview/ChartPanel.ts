@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -16,6 +17,7 @@ import {
  * 차트 패널 — 쿼리 결과를 막대/파이/라인 차트로 시각화
  */
 export class ChartPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: ChartPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -64,7 +66,7 @@ export class ChartPanel {
             this._disposables
         );
 
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     public static async createOrShow(
@@ -85,7 +87,7 @@ export class ChartPanel {
             ChartPanel.currentPanel._databaseName = databaseName;
             ChartPanel.currentPanel._dbType = dbType;
             ChartPanel.currentPanel._panel.webview.html =
-                ChartPanel.currentPanel._getHtmlContent();
+                secureWebviewHtml(ChartPanel.currentPanel._getHtmlContent(), ChartPanel.currentPanel._panel.webview, ChartPanel.currentPanel._nonce);
             return;
         }
 
@@ -93,7 +95,7 @@ export class ChartPanel {
             'dbunnyChart',
             `Chart: ${tableName}`,
             column,
-            { enableScripts: true, localResourceRoots: [extensionUri], retainContextWhenHidden: true }
+            { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')], retainContextWhenHidden: true }
         );
 
         ChartPanel.currentPanel = new ChartPanel(
@@ -147,7 +149,7 @@ export class ChartPanel {
                 `SELECT * FROM ${quote}${escaped}${quote}`, this._databaseName
             );
             this._result = result;
-            this._panel.webview.html = this._getHtmlContent();
+            this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
         } catch {
             // 새로고침 실패 시 기존 데이터 유지
         }
@@ -164,9 +166,9 @@ export class ChartPanel {
         const defaultValue = numericCols[0]?.name || allCols[0] || '';
         const defaultType = suggestChartType(this._result, defaultLabel, defaultValue, fields);
 
-        const fieldsJson = JSON.stringify(fields);
-        const numericColsJson = JSON.stringify(numericCols.map(c => c.name));
-        const allColsJson = JSON.stringify(allCols);
+        const fieldsJson = serializeForWebview(fields);
+        const numericColsJson = serializeForWebview(numericCols.map(c => c.name));
+        const allColsJson = serializeForWebview(allCols);
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -267,7 +269,7 @@ export class ChartPanel {
 </div>
 <div id="chartInfo" class="info"></div>
 
-<script>
+<script nonce="${this._nonce}">
 (function() {
     const vscode = acquireVsCodeApi();
     const fields = ${fieldsJson};

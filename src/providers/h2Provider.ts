@@ -1,4 +1,6 @@
 import { Client, ClientConfig } from 'pg';
+import { QueryExecutionOptions } from '../types/database';
+import { limitSelectQuery, limitResult } from '../utils/queryLimits';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType } from '../types/database';
 
 /**
@@ -108,7 +110,7 @@ export class H2Provider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string, database?: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string, options?: QueryExecutionOptions): Promise<QueryResult> {
         if (!this.client) {
             throw new Error('Not connected to database');
         }
@@ -121,10 +123,11 @@ export class H2Provider implements DatabaseConnection {
 
         try {
             const startTime = Date.now();
-            const result = await this.client.query(query);
+            if (options) { await this.client.query(`SET QUERY_TIMEOUT ${Math.floor(options.timeoutMs)}`); }
+            const result = await this.client.query(limitSelectQuery(query, options, 'h2'));
             const executionTime = Date.now() - startTime;
 
-            return {
+            return limitResult({
                 rows: result.rows,
                 fields: result.fields?.map(f => ({
                     name: f.name,
@@ -133,7 +136,7 @@ export class H2Provider implements DatabaseConnection {
                 })) || [],
                 rowCount: result.rowCount || 0,
                 executionTime
-            };
+            }, options);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(`Query execution failed: ${message}`);
@@ -333,7 +336,7 @@ export class H2Provider implements DatabaseConnection {
     }
 
     async getRoutineSource(name: string, type: RoutineType, database?: string): Promise<string> {
-        const schema = (database || 'PUBLIC').toUpperCase();
+        const _schema = (database || 'PUBLIC').toUpperCase();
         if (type === 'view') {
             // H2: try VIEW_DEFINITION first, then SQL, then empty
             try {

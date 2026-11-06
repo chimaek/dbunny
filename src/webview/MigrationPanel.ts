@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewArgumentScript, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { I18n } from '../utils/i18n';
 
@@ -17,6 +18,7 @@ export interface Migration {
  * Webview panel for database migrations
  */
 export class MigrationPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: MigrationPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -95,7 +97,7 @@ export class MigrationPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -139,6 +141,8 @@ export class MigrationPanel {
     private async _applyMigration(id: string): Promise<void> {
         const migration = this._migrations.find(m => m.id === id);
         if (!migration) { return; }
+        const confirm = this.i18n.t('common.yes');
+        if (await vscode.window.showWarningMessage(this.i18n.t('migration.recordAppliedConfirm'), { modal: true }, confirm) !== confirm) { return; }
 
         migration.status = 'applied';
         migration.appliedAt = new Date();
@@ -150,6 +154,8 @@ export class MigrationPanel {
     private async _rollbackMigration(id: string): Promise<void> {
         const migration = this._migrations.find(m => m.id === id);
         if (!migration) { return; }
+        const confirm = this.i18n.t('common.yes');
+        if (await vscode.window.showWarningMessage(this.i18n.t('migration.recordRolledBackConfirm'), { modal: true }, confirm) !== confirm) { return; }
 
         migration.status = 'rolled_back';
         migration.appliedAt = undefined;
@@ -221,11 +227,11 @@ ${migration.downScript}
     }
 
     private _updatePanel(): void {
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     private _getHtmlContent(): string {
-        const migrationsJson = JSON.stringify(this._migrations.map(m => ({
+        const migrationsJson = serializeForWebview(this._migrations.map(m => ({
             ...m,
             createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
             appliedAt: m.appliedAt instanceof Date ? m.appliedAt.toISOString() : m.appliedAt
@@ -568,18 +574,19 @@ ${migration.downScript}
     <div class="toolbar">
         <div class="toolbar-title">
             <span>📦</span>
-            <span>DB Migration Manager</span>
+            <span>Migration Script Manager</span>
         </div>
         <div class="toolbar-spacer"></div>
-        <button class="toolbar-btn" onclick="refresh()">
+        <button class="toolbar-btn" data-dbunny-click="refresh()">
             <span>🔄</span> Refresh
         </button>
-        <button class="toolbar-btn primary" onclick="showCreateModal()">
+        <button class="toolbar-btn primary" data-dbunny-click="showCreateModal()">
             <span>➕</span> New Migration
         </button>
     </div>
 
     <div class="content">
+        <p>${this.i18n.t('migration.manualNotice')}</p>
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-value" id="totalCount">0</div>
@@ -587,7 +594,7 @@ ${migration.downScript}
             </div>
             <div class="stat-card">
                 <div class="stat-value success" id="appliedCount">0</div>
-                <div class="stat-label">Applied</div>
+                <div class="stat-label">Recorded as Applied</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value warning" id="pendingCount">0</div>
@@ -595,7 +602,7 @@ ${migration.downScript}
             </div>
             <div class="stat-card">
                 <div class="stat-value danger" id="rolledBackCount">0</div>
-                <div class="stat-label">Rolled Back</div>
+                <div class="stat-label">Recorded as Rolled Back</div>
             </div>
         </div>
 
@@ -615,13 +622,14 @@ ${migration.downScript}
                 <input type="text" class="form-input" id="migrationDesc" placeholder="e.g., Create users table with basic fields">
             </div>
             <div class="modal-actions">
-                <button class="toolbar-btn" onclick="hideCreateModal()">Cancel</button>
-                <button class="toolbar-btn primary" onclick="createMigration()">Create</button>
+                <button class="toolbar-btn" data-dbunny-click="hideCreateModal()">Cancel</button>
+                <button class="toolbar-btn primary" data-dbunny-click="createMigration()">Create</button>
             </div>
         </div>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
+${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
         let migrations = ${migrationsJson};
         let expandedIds = new Set();
@@ -662,10 +670,10 @@ ${migration.downScript}
 
                 return \`
                     <div class="migration-card">
-                        <div class="migration-header" onclick="toggleMigration('\${m.id}')">
+                        <div class="migration-header" data-dbunny-click="toggleMigration(\${webviewArgument(m.id)})">
                             <span class="migration-version">v\${m.version}</span>
                             <span class="migration-name">\${escapeHtml(m.name)}</span>
-                            <span class="migration-status \${m.status}">\${m.status.replace('_', ' ').toUpperCase()}</span>
+                            <span class="migration-status \${m.status}">\${m.status === 'pending' ? 'PENDING' : 'RECORDED: ' + m.status.replace('_', ' ').toUpperCase()}</span>
                         </div>
                         <div class="migration-body \${isExpanded ? 'expanded' : ''}">
                             <div class="migration-desc">\${escapeHtml(m.description || 'No description')}</div>
@@ -675,28 +683,28 @@ ${migration.downScript}
                             </div>
                             <div class="script-tabs">
                                 <button class="script-tab \${activeScript === 'up' ? 'active' : ''}"
-                                        onclick="setActiveScript('\${m.id}', 'up')">⬆️ UP Migration</button>
+                                        data-dbunny-click="setActiveScript(\${webviewArgument(m.id)}, 'up')">⬆️ UP Migration</button>
                                 <button class="script-tab \${activeScript === 'down' ? 'active' : ''}"
-                                        onclick="setActiveScript('\${m.id}', 'down')">⬇️ DOWN Rollback</button>
+                                        data-dbunny-click="setActiveScript(\${webviewArgument(m.id)}, 'down')">⬇️ DOWN Rollback</button>
                             </div>
                             <textarea class="script-editor"
                                       id="script-\${m.id}"
-                                      onchange="saveScript('\${m.id}', '\${activeScript}')">\${escapeHtml(activeScript === 'up' ? m.upScript : m.downScript)}</textarea>
+                                      data-dbunny-change="saveScript(\${webviewArgument(m.id)}, \${webviewArgument(activeScript)})">\${escapeHtml(activeScript === 'up' ? m.upScript : m.downScript)}</textarea>
                             <div class="migration-actions">
                                 \${m.status === 'pending' ? \`
-                                    <button class="action-btn apply" onclick="applyMigration('\${m.id}')">
-                                        ▶️ Apply
+                                    <button class="action-btn apply" data-dbunny-click="applyMigration(\${webviewArgument(m.id)})">
+                                        Mark as Applied Manually
                                     </button>
                                 \` : ''}
                                 \${m.status === 'applied' ? \`
-                                    <button class="action-btn rollback" onclick="rollbackMigration('\${m.id}')">
-                                        ↩️ Rollback
+                                    <button class="action-btn rollback" data-dbunny-click="rollbackMigration(\${webviewArgument(m.id)})">
+                                        Mark as Rolled Back Manually
                                     </button>
                                 \` : ''}
-                                <button class="action-btn export" onclick="exportMigration('\${m.id}')">
+                                <button class="action-btn export" data-dbunny-click="exportMigration(\${webviewArgument(m.id)})">
                                     📄 Export
                                 </button>
-                                <button class="action-btn delete" onclick="deleteMigration('\${m.id}')">
+                                <button class="action-btn delete" data-dbunny-click="deleteMigration(\${webviewArgument(m.id)})">
                                     🗑️ Delete
                                 </button>
                             </div>
@@ -787,7 +795,8 @@ ${migration.downScript}
         }
 
         init();
-    </script>
+    ${webviewEventScript(["refresh","showCreateModal","hideCreateModal","createMigration","toggleMigration","setActiveScript","saveScript","applyMigration","rollbackMigration","exportMigration","deleteMigration"],[])}
+</script>
 </body>
 </html>`;
     }

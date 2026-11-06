@@ -73,10 +73,10 @@ function fail(msg: string, detail?: string) {
     console.log(`  ❌ ${msg}${d}`);
     failures.push(`${msg}${d}`);
 }
-function assert(cond: boolean, msg: string) { if (cond) pass(msg); else fail(msg); }
-function assertEqual<T>(a: T, b: T, msg: string) { if (a === b) pass(msg); else fail(msg, `exp=${JSON.stringify(b)} got=${JSON.stringify(a)}`); }
-function assertContains(s: string, substr: string, msg: string) { if (s.includes(substr)) pass(msg); else fail(msg, `"${s.substring(0,80)}" missing "${substr}"`); }
-function assertNotContains(s: string, substr: string, msg: string) { if (!s.includes(substr)) pass(msg); else fail(msg, `"${s.substring(0,80)}" contains forbidden "${substr}"`); }
+function assert(cond: boolean, msg: string) { if (cond) {pass(msg);} else {fail(msg);} }
+function assertEqual<T>(a: T, b: T, msg: string) { if (a === b) {pass(msg);} else {fail(msg, `exp=${JSON.stringify(b)} got=${JSON.stringify(a)}`);} }
+function assertContains(s: string, substr: string, msg: string) { if (s.includes(substr)) {pass(msg);} else {fail(msg, `"${s.substring(0,80)}" missing "${substr}"`);} }
+function assertNotContains(s: string, substr: string, msg: string) { if (!s.includes(substr)) {pass(msg);} else {fail(msg, `"${s.substring(0,80)}" contains forbidden "${substr}"`);} }
 
 // ═══════════════════════════════════════════════════════════
 // _parsePgParams

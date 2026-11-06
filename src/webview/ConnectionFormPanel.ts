@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, webviewArgument, webviewArgumentScript, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionConfig, CONNECTION_COLOR_PRESETS } from '../types/database';
 import { ConnectionManager } from '../managers/connectionManager';
@@ -7,6 +8,7 @@ import { I18n } from '../utils/i18n';
  * Webview panel for connection form (add/edit)
  */
 export class ConnectionFormPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: ConnectionFormPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -23,7 +25,7 @@ export class ConnectionFormPanel {
         this._panel = panel;
         this._extensionUri = extensionUri;
 
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
 
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -76,7 +78,7 @@ export class ConnectionFormPanel {
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri]
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')]
             }
         );
 
@@ -681,27 +683,27 @@ export class ConnectionFormPanel {
         <form id="connectionForm">
             <!-- Database Type Selector -->
             <div class="db-type-selector">
-                <div class="db-type-card ${config?.type === 'mysql' || !config ? 'selected' : ''}" data-type="mysql" onclick="selectDbType('mysql')">
+                <div class="db-type-card ${config?.type === 'mysql' || !config ? 'selected' : ''}" data-type="mysql" data-dbunny-click="selectDbType('mysql')">
                     <div class="icon">🐬</div>
                     <span class="name">MySQL</span>
                 </div>
-                <div class="db-type-card ${config?.type === 'postgres' ? 'selected' : ''}" data-type="postgres" onclick="selectDbType('postgres')">
+                <div class="db-type-card ${config?.type === 'postgres' ? 'selected' : ''}" data-type="postgres" data-dbunny-click="selectDbType('postgres')">
                     <div class="icon">🐘</div>
                     <span class="name">PostgreSQL</span>
                 </div>
-                <div class="db-type-card ${config?.type === 'sqlite' ? 'selected' : ''}" data-type="sqlite" onclick="selectDbType('sqlite')">
+                <div class="db-type-card ${config?.type === 'sqlite' ? 'selected' : ''}" data-type="sqlite" data-dbunny-click="selectDbType('sqlite')">
                     <div class="icon">🪶</div>
                     <span class="name">SQLite</span>
                 </div>
-                <div class="db-type-card ${config?.type === 'mongodb' ? 'selected' : ''}" data-type="mongodb" onclick="selectDbType('mongodb')">
+                <div class="db-type-card ${config?.type === 'mongodb' ? 'selected' : ''}" data-type="mongodb" data-dbunny-click="selectDbType('mongodb')">
                     <div class="icon">🍃</div>
                     <span class="name">MongoDB</span>
                 </div>
-                <div class="db-type-card ${config?.type === 'redis' ? 'selected' : ''}" data-type="redis" onclick="selectDbType('redis')">
+                <div class="db-type-card ${config?.type === 'redis' ? 'selected' : ''}" data-type="redis" data-dbunny-click="selectDbType('redis')">
                     <div class="icon">⚡</div>
                     <span class="name">Redis</span>
                 </div>
-                <div class="db-type-card ${config?.type === 'h2' ? 'selected' : ''}" data-type="h2" onclick="selectDbType('h2')">
+                <div class="db-type-card ${config?.type === 'h2' ? 'selected' : ''}" data-type="h2" data-dbunny-click="selectDbType('h2')">
                     <div class="icon">🗄️</div>
                     <span class="name">H2</span>
                 </div>
@@ -776,7 +778,7 @@ export class ConnectionFormPanel {
                     </label>
                     <div class="file-input-row">
                         <input type="text" id="sqlitePath" name="sqlitePath" value="${this._escapeHtml(config?.database || '')}" placeholder="/path/to/database.db">
-                        <button type="button" class="btn-browse" onclick="browseFile()">📂 Browse</button>
+                        <button type="button" class="btn-browse" data-dbunny-click="browseFile()">📂 Browse</button>
                     </div>
                 </div>
             </div>
@@ -786,7 +788,7 @@ export class ConnectionFormPanel {
                 <div class="form-section-title">H2 Options</div>
                 <div class="form-group">
                     <label for="h2DbType">Database Mode</label>
-                    <select id="h2DbType" name="h2DbType" onchange="toggleH2DbPath()">
+                    <select id="h2DbType" name="h2DbType" data-dbunny-change="toggleH2DbPath()">
                         <option value="mem" ${config?.h2Mode?.dbType === 'mem' || !config?.h2Mode ? 'selected' : ''}>In-Memory (Volatile)</option>
                         <option value="file" ${config?.h2Mode?.dbType === 'file' ? 'selected' : ''}>Embedded (File)</option>
                     </select>
@@ -823,8 +825,8 @@ export class ConnectionFormPanel {
             <div class="color-picker-section">
                 <div class="color-picker-title">🎨 ${isKo ? '연결 컬러' : 'Connection Color'}</div>
                 <div class="color-presets">
-                    <div class="color-swatch none ${!config?.color ? 'selected' : ''}" data-color-id="" data-color-hex="" title="${isKo ? '색상 없음' : 'No color'}" onclick="selectColor('', '')"></div>
-                    ${CONNECTION_COLOR_PRESETS.map(c => `<div class="color-swatch ${config?.color?.id === c.id ? 'selected' : ''}" style="background:${c.hex}" data-color-id="${c.id}" data-color-hex="${c.hex}" title="${isKo ? c.label : c.labelEn}" onclick="selectColor('${c.id}', '${c.hex}')"></div>`).join('\n                    ')}
+                    <div class="color-swatch none ${!config?.color ? 'selected' : ''}" data-color-id="" data-color-hex="" title="${isKo ? '색상 없음' : 'No color'}" data-dbunny-click="selectColor('', '')"></div>
+                    ${CONNECTION_COLOR_PRESETS.map(c => `<div class="color-swatch ${config?.color?.id === c.id ? 'selected' : ''}" style="background:${c.hex}" data-color-id="${c.id}" data-color-hex="${c.hex}" title="${isKo ? c.label : c.labelEn}" data-dbunny-click="selectColor(${webviewArgument(c.id)}, ${webviewArgument(c.hex)})"></div>`).join('\n                    ')}
                 </div>
                 <div class="color-label-input ${config?.color ? 'visible' : ''}" id="colorLabelRow">
                     <div class="color-preview" id="colorPreview" style="background:${config?.color?.hex || 'transparent'}"></div>
@@ -874,8 +876,8 @@ export class ConnectionFormPanel {
             </div>
 
             <div class="buttons">
-                <button type="button" class="btn-secondary" onclick="cancel()">${t.cancel}</button>
-                <button type="button" class="btn-test" id="testBtn" onclick="testConnection()">
+                <button type="button" class="btn-secondary" data-dbunny-click="cancel()">${t.cancel}</button>
+                <button type="button" class="btn-test" id="testBtn" data-dbunny-click="testConnection()">
                     <span class="btn-icon">🔌</span>
                     ${t.testConnection}
                 </button>
@@ -887,7 +889,8 @@ export class ConnectionFormPanel {
         </form>
     </div>
 
-    <script>
+    <script nonce="${this._nonce}">
+${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
         const form = document.getElementById('connectionForm');
         const typeInput = document.getElementById('type');
@@ -1142,7 +1145,8 @@ export class ConnectionFormPanel {
 
         // Initialize with current type
         selectDbType('${this._escapeHtml(config?.type || 'mysql')}');
-    </script>
+    ${webviewEventScript(["selectDbType","browseFile","toggleH2DbPath","selectColor","cancel","testConnection"],[])}
+</script>
 </body>
 </html>`;
     }

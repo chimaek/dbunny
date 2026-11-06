@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * v3.2.0 Routine Browser 통합 테스트
  * 실행: npx tsx src/test/integration/routine.test.ts
@@ -45,12 +46,12 @@ function assert(condition: boolean, msg: string) {
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'routine-mysql', name: 'MySQL Routine', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'routine-pg', name: 'PG Routine', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -60,7 +61,7 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'routine-h2', name: 'H2 Routine', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:routinetest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'routinetest' },
@@ -228,7 +229,7 @@ async function testH2(provider: H2Provider, _dbType: string) {
     // 3. Source (may be empty in some H2 versions — schema varies)
     if (!provider.getRoutineSource) { fail('H2: getRoutineSource not implemented'); return; }
     try {
-        const src = await provider.getRoutineSource('TEST_H2_VIEW', 'view', 'PUBLIC');
+        const _src = await provider.getRoutineSource('TEST_H2_VIEW', 'view', 'PUBLIC');
         // Source may or may not be available depending on H2 version
         pass('H2: getRoutineSource completed');
     } catch {

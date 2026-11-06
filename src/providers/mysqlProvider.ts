@@ -1,4 +1,6 @@
 import * as mysql from 'mysql2/promise';
+import { QueryExecutionOptions } from '../types/database';
+import { limitSelectQuery, limitResult } from '../utils/queryLimits';
 import * as net from 'net';
 import { Client as SSHClient } from 'ssh2';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo, ForeignKeyInfo, RoutineInfo, RoutineType } from '../types/database';
@@ -71,7 +73,7 @@ export class MySQLProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string, database?: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string, options?: QueryExecutionOptions): Promise<QueryResult> {
         if (!this.connection) {
             throw new Error('Not connected to database');
         }
@@ -79,30 +81,33 @@ export class MySQLProvider implements DatabaseConnection {
         try {
             // Switch database if specified
             if (database) {
-                await this.connection.query(`USE \`${database}\``);
+                await this.connection.query(`USE \`${database.replace(/`/g, '``')}\``);
             }
 
             const startTime = Date.now();
             // Use query() instead of execute() to avoid prepared statement protocol issues
             // Some commands like SHOW, DESCRIBE are not supported in prepared statements
-            const [rows, fields] = await this.connection.query(query);
+            if (options) {
+                await this.connection.query(`SET SESSION MAX_EXECUTION_TIME = ${Math.floor(options.timeoutMs)}`);
+            }
+            const [rows, fields] = await this.connection.query({ sql: limitSelectQuery(query, options, 'mysql'), timeout: options?.timeoutMs });
             const executionTime = Date.now() - startTime;
 
             const resultRows = Array.isArray(rows) ? rows as Record<string, unknown>[] : [];
             const resultFields = (fields && Array.isArray(fields))
-                ? fields.filter(f => f != null).map(f => ({
+                ? fields.filter(f => f !== null && f !== undefined).map(f => ({
                     name: f.name,
                     type: String(f.type),
                     table: f.table
                 }))
                 : [];
 
-            return {
+            return limitResult({
                 rows: resultRows,
                 fields: resultFields,
                 rowCount: resultRows.length,
                 executionTime
-            };
+            }, options);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(`Query execution failed: ${message}`);
@@ -355,7 +360,8 @@ export class MySQLProvider implements DatabaseConnection {
                 port: sshConfig.port || 22,
                 username: sshConfig.username,
                 password: sshConfig.password,
-                privateKey: sshConfig.privateKey
+                privateKey: sshConfig.privateKey,
+                passphrase: sshConfig.passphrase
             });
         });
     }

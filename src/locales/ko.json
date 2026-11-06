@@ -124,13 +124,16 @@
     "notSupported": "이 데이터베이스 유형에서는 DB 마이그레이션을 지원하지 않습니다",
     "loadFailed": "마이그레이션 로드 실패: {error}",
     "created": "마이그레이션 '{name}'이(가) 생성되었습니다",
-    "applied": "마이그레이션 '{name}'이(가) 적용되었습니다",
-    "rolledBack": "마이그레이션 '{name}'이(가) 롤백되었습니다",
+    "applied": "마이그레이션 '{name}'의 수동 적용 상태를 기록했습니다",
+    "rolledBack": "마이그레이션 '{name}'의 수동 롤백 상태를 기록했습니다",
     "deleted": "마이그레이션 '{name}'이(가) 삭제되었습니다",
     "deleteConfirm": "마이그레이션 '{name}'을(를) 삭제하시겠습니까?",
     "applyFailed": "마이그레이션 적용 실패: {error}",
     "rollbackFailed": "마이그레이션 롤백 실패: {error}",
-    "exported": "마이그레이션이 {path}에 저장되었습니다"
+    "exported": "마이그레이션이 {path}에 저장되었습니다",
+    "manualNotice": "이 화면은 SQL 스크립트와 수동 작업 이력을 관리합니다. SQL은 자동 실행되지 않습니다. 내보낸 SQL을 대상 DB에서 직접 실행한 뒤 상태를 기록하세요.",
+    "recordAppliedConfirm": "대상 DB에서 UP SQL을 직접 실행했습니까? 이 버튼은 적용 상태만 기록하며 SQL을 실행하지 않습니다.",
+    "recordRolledBackConfirm": "대상 DB에서 DOWN SQL을 직접 실행했습니까? 이 버튼은 롤백 상태만 기록하며 SQL을 실행하지 않습니다."
   },
   "monitoring": {
     "notSupported": "실시간 모니터링은 MySQL과 PostgreSQL에서만 지원됩니다",

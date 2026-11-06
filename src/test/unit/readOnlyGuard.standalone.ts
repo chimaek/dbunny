@@ -109,8 +109,8 @@ assert(isWriteQuery("SELECT 'DROP TABLE users' AS test").isWrite === false, 'DRO
 assert(isWriteQuery('SELECT "INSERT" FROM users').isWrite === false, 'INSERT inside double-quoted string is safe');
 
 section('isWriteQuery — edge cases');
-assert(isWriteQuery('SELECTED * FROM users').isWrite === false, 'SELECTED is not SELECT write keyword');
-assert(isWriteQuery('DELETING FROM users').isWrite === false, 'DELETING is not a write keyword');
+assert(isWriteQuery('SELECTED * FROM users').isWrite === true, 'SELECTED unknown command is blocked');
+assert(isWriteQuery('DELETING FROM users').isWrite === true, 'DELETING unknown command is blocked');
 
 // ===== Redis Write Detection =====
 
@@ -213,11 +213,9 @@ assert(isWriteQuery('\t\tINSERT INTO users VALUES(1)').isWrite === true, 'tabs +
 assert(isWriteQuery('   \n\t  UPDATE users SET a=1').isWrite === true, 'mixed whitespace + UPDATE');
 
 section('isWriteQuery — 복합 쿼리 패턴');
-// WITH ... INSERT/DELETE/UPDATE는 첫 토큰이 WITH이므로 현재 미감지
-// CTE + DML은 알려진 한계: WITH는 읽기로 분류됨
-assert(isWriteQuery('WITH cte AS (SELECT 1) INSERT INTO users SELECT * FROM cte').isWrite === false, 'CTE + INSERT 미감지 (알려진 한계 — WITH 첫 토큰)');
-assert(isWriteQuery('WITH cte AS (SELECT 1) DELETE FROM users').isWrite === false, 'CTE + DELETE 미감지 (알려진 한계)');
-assert(isWriteQuery('WITH cte AS (SELECT 1) UPDATE users SET x=1').isWrite === false, 'CTE + UPDATE 미감지 (알려진 한계)');
+assert(isWriteQuery('WITH cte AS (SELECT 1) INSERT INTO users SELECT * FROM cte').isWrite === true, 'CTE + INSERT 차단');
+assert(isWriteQuery('WITH cte AS (SELECT 1) DELETE FROM users').isWrite === true, 'CTE + DELETE 차단');
+assert(isWriteQuery('WITH cte AS (SELECT 1) UPDATE users SET x=1').isWrite === true, 'CTE + UPDATE 차단');
 
 section('isWriteQuery — 주석 유형 조합');
 assert(isWriteQuery('/* comment */ SELECT * FROM users').isWrite === false, 'block comment before SELECT');
@@ -264,7 +262,7 @@ section('isMongoWriteQuery — 추가 쓰기 메서드');
 assert(isMongoWriteQuery('db.users.findOneAndReplace({id:1},{name:"x"})').isWrite === true, 'findOneAndReplace detected');
 assert(isMongoWriteQuery('db.users.dropIndexes()').isWrite === true, 'dropIndexes detected');
 // db.dropDatabase()는 db.collection.method() 패턴이 아님 (collection이 없음)
-assert(isMongoWriteQuery('db.dropDatabase()').isWrite === false, 'dropDatabase는 collection.method 패턴 아님 (알려진 한계)');
+assert(isMongoWriteQuery('db.dropDatabase()').isWrite === true, 'dropDatabase 차단');
 assert(isMongoWriteQuery('db.createCollection("test")').isWrite === true, 'createCollection detected');
 
 section('isMongoWriteQuery — 추가 읽기 메서드');

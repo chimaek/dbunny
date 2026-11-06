@@ -1,66 +1,79 @@
-# DBunny 테스트용 데이터베이스 환경
+# DBunny 전용 테스트 환경. 다른 프로젝트 DB와 겹치지 않는 loopback 포트를 사용한다.
 # 사용법: docker compose up -d
 # 초기화: docker compose down -v && docker compose up -d (볼륨 초기화 후 init 스크립트 재실행)
 
 services:
   mysql:
-    image: mysql:8.0
-    container_name: dbunny-mysql
+    image: mysql:8.4
     environment:
       MYSQL_ROOT_PASSWORD: root1234
       MYSQL_DATABASE: mydb
       MYSQL_USER: testuser
       MYSQL_PASSWORD: testpass
     ports:
-      - "3306:3306"
+      - "127.0.0.1:${DBUNNY_TEST_MYSQL_PORT:-23306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot1234"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
     volumes:
       - dbunny-mysql-data:/var/lib/mysql
       - ./docker-init/mysql:/docker-entrypoint-initdb.d
 
   postgres:
     image: postgres:16
-    container_name: dbunny-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres1234
       POSTGRES_DB: mydb
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${DBUNNY_TEST_POSTGRES_PORT:-25432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mydb"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
     volumes:
       - dbunny-postgres-data:/var/lib/postgresql/data
       - ./docker-init/postgres:/docker-entrypoint-initdb.d
 
   mongodb:
     image: mongo:7
-    container_name: dbunny-mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: mongo1234
       MONGO_INITDB_DATABASE: mydb
     ports:
-      - "27017:27017"
+      - "127.0.0.1:${DBUNNY_TEST_MONGODB_PORT:-27027}:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
     volumes:
       - dbunny-mongo-data:/data/db
       - ./docker-init/mongo:/docker-entrypoint-initdb.d
 
   redis:
-    image: redis:7
-    container_name: dbunny-redis
+    image: redis:7.4
     command: redis-server --requirepass redis1234
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${DBUNNY_TEST_REDIS_PORT:-26379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis1234", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
     volumes:
       - dbunny-redis-data:/data
 
   h2:
-    image: oscarfonts/h2:latest
-    container_name: dbunny-h2
+    image: oscarfonts/h2:2.3.232
     environment:
       H2_OPTIONS: -tcp -tcpAllowOthers -tcpPort 9092 -pg -pgAllowOthers -pgPort 5435 -ifNotExists -baseDir /h2-data
     ports:
-      - "9092:9092"
-      - "5435:5435"
-      - "8082:81"
+      - "127.0.0.1:${DBUNNY_TEST_H2_PORT:-25435}:5435"
     volumes:
       - dbunny-h2-data:/h2-data
 

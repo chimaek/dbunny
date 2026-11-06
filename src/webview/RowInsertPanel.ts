@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -11,6 +12,7 @@ import { ColumnInfo, ForeignKeyInfo } from '../types/database';
  * - CSV 붙여넣기 일괄 삽입
  */
 export class RowInsertPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: RowInsertPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -60,7 +62,7 @@ export class RowInsertPanel {
             this._disposables
         );
 
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     public static async createOrShow(
@@ -85,7 +87,7 @@ export class RowInsertPanel {
             RowInsertPanel.currentPanel._fkValues = fkValues;
             RowInsertPanel.currentPanel._dbType = dbType;
             RowInsertPanel.currentPanel._panel.webview.html =
-                RowInsertPanel.currentPanel._getHtmlContent();
+                secureWebviewHtml(RowInsertPanel.currentPanel._getHtmlContent(), RowInsertPanel.currentPanel._panel.webview, RowInsertPanel.currentPanel._nonce);
             return;
         }
 
@@ -95,7 +97,7 @@ export class RowInsertPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true,
             }
         );
@@ -217,9 +219,9 @@ export class RowInsertPanel {
 
     private _getHtmlContent(): string {
         const t = (key: string) => this.i18n.t(key) || key;
-        const columnsJson = JSON.stringify(this._tableColumns);
-        const fkJson = JSON.stringify(this._foreignKeys);
-        const fkValuesJson = JSON.stringify(this._fkValues);
+        const columnsJson = serializeForWebview(this._tableColumns);
+        const fkJson = serializeForWebview(this._foreignKeys);
+        const fkValuesJson = serializeForWebview(this._fkValues);
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -328,7 +330,7 @@ export class RowInsertPanel {
   <div id="csvResult"></div>
 </div>
 
-<script>
+<script nonce="${this._nonce}">
 (function() {
     const vscode = acquireVsCodeApi();
     const columns = ${columnsJson};

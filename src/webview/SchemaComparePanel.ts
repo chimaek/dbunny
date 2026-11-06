@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ColumnInfo } from '../types/database';
 import { I18n } from '../utils/i18n';
@@ -18,6 +19,7 @@ export interface CompareResult {
  * Webview panel for comparing table schemas
  */
 export class SchemaComparePanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: SchemaComparePanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -63,7 +65,7 @@ export class SchemaComparePanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [extensionUri],
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')],
                 retainContextWhenHidden: true
             }
         );
@@ -79,11 +81,11 @@ export class SchemaComparePanel {
         rightSource: string
     ): void {
         const result = this._compareSchemas(leftTable.columns, rightTable.columns);
-        this._panel.webview.html = this._getHtmlContent(leftTable, rightTable, leftSource, rightSource, result);
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(leftTable, rightTable, leftSource, rightSource, result), this._panel.webview, this._nonce);
     }
 
     public showLoading(): void {
-        this._panel.webview.html = this._getLoadingHtml();
+        this._panel.webview.html = secureWebviewHtml(this._getLoadingHtml(), this._panel.webview, this._nonce);
     }
 
     private _compareSchemas(leftColumns: ColumnInfo[], rightColumns: ColumnInfo[]): CompareResult {
@@ -404,7 +406,7 @@ export class SchemaComparePanel {
             <span>Schema Compare</span>
         </div>
         <div class="toolbar-spacer"></div>
-        <button class="toolbar-btn primary" onclick="exportDiff()">
+        <button class="toolbar-btn primary" data-dbunny-click="exportDiff()">
             <span>📄</span> Export Report
         </button>
     </div>
@@ -581,7 +583,7 @@ export class SchemaComparePanel {
         </div>
     ` : ''}
 
-    <script>
+    <script nonce="${this._nonce}">
         const vscode = acquireVsCodeApi();
         const leftTable = '${this._escapeHtml(leftTable.name)}';
         const rightTable = '${this._escapeHtml(rightTable.name)}';
@@ -621,7 +623,8 @@ ${result.different.map(d => `| ${d.left.name} | ${d.differences.join(', ')} |`).
 \`;
             vscode.postMessage({ command: 'exportDiff', content });
         }
-    </script>
+    ${webviewEventScript(["exportDiff"],[])}
+</script>
 </body>
 </html>`;
     }

@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * v2.6.0 데이터 가져오기 통합 테스트
  * 실행: npx tsx src/test/integration/dataImport.test.ts
@@ -64,12 +65,12 @@ const sqlitePath = path.resolve(__dirname, '../../../test-data/import-test.db');
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'imp-mysql', name: 'MySQL Import', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'imp-pg', name: 'PG Import', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -79,7 +80,7 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'imp-h2', name: 'H2 Import', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:importtest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'importtest' },

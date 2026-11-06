@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny 프로바이더 심화 통합 테스트
  *
@@ -70,12 +71,12 @@ const sqlitePath = path.resolve(__dirname, '../../../test-data/advanced-test.db'
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'adv-mysql', name: 'MySQL Advanced', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'adv-pg', name: 'PG Advanced', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -90,19 +91,19 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'adv-h2', name: 'H2 Advanced', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:advtest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'advtest' },
     },
     mongodb: {
         id: 'adv-mongo', name: 'MongoDB Advanced', type: 'mongodb',
-        host: 'localhost', port: 27017,
+        host: 'localhost', port: testPort('mongodb'),
         username: 'admin', password: 'mongo1234', database: 'mydb',
     },
     redis: {
         id: 'adv-redis', name: 'Redis Advanced', type: 'redis',
-        host: 'localhost', port: 6379,
+        host: 'localhost', port: testPort('redis'),
         username: '', password: 'redis1234',
     },
 };

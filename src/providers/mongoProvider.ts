@@ -1,4 +1,6 @@
 import { MongoClient, Db } from 'mongodb';
+import { QueryExecutionOptions } from '../types/database';
+import { limitResult } from '../utils/queryLimits';
 import { DatabaseConnection, ConnectionConfig, QueryResult, ColumnInfo } from '../types/database';
 
 /**
@@ -37,7 +39,7 @@ export class MongoDBProvider implements DatabaseConnection {
         }
     }
 
-    async executeQuery(query: string, database?: string): Promise<QueryResult> {
+    async executeQuery(query: string, database?: string, options?: QueryExecutionOptions): Promise<QueryResult> {
         if (!this.client) {
             throw new Error('Not connected to database');
         }
@@ -61,7 +63,23 @@ export class MongoDBProvider implements DatabaseConnection {
                 command = this.parseShellQuery(trimmed);
             }
 
+            if (options) {
+                command.maxTimeMS = options.timeoutMs;
+                if (command.find) {
+                    const requested = Math.abs(Number(command.limit)) || options.maxRows + 1;
+                    command.limit = Math.min(requested, options.maxRows + 1);
+                    command.batchSize = options.maxRows + 1;
+                    command.singleBatch = true;
+                } else if (command.aggregate && Array.isArray(command.pipeline) && !/"\$(out|merge)"\s*:/.test(JSON.stringify(command.pipeline))) {
+                    command.pipeline = [...command.pipeline, { $limit: options.maxRows + 1 }];
+                    command.cursor = { batchSize: options.maxRows + 1 };
+                }
+            }
             const result = await targetDb.command(command);
+            if (result.cursor?.id && String(result.cursor.id) !== '0' && result.cursor.ns) {
+                const collection = String(result.cursor.ns).slice(targetDb.databaseName.length + 1);
+                await targetDb.command({ killCursors: collection, cursors: [result.cursor.id] });
+            }
             const executionTime = Date.now() - startTime;
 
             const rows = Array.isArray(result.cursor?.firstBatch)
@@ -76,12 +94,12 @@ export class MongoDBProvider implements DatabaseConnection {
                 }))
                 : [];
 
-            return {
+            return limitResult({
                 rows,
                 fields,
                 rowCount: rows.length,
                 executionTime
-            };
+            }, options);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(`Query execution failed: ${message}`);

@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -9,6 +10,7 @@ import { collectTableStatistics, TableStatistics, ColumnStatistics } from '../ut
  * - 상위 N개 빈출값
  */
 export class StatisticsPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: StatisticsPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -70,7 +72,7 @@ export class StatisticsPanel {
             'dbunnyStatistics',
             `Stats: ${tableName}`,
             column,
-            { enableScripts: true, localResourceRoots: [extensionUri], retainContextWhenHidden: true }
+            { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')], retainContextWhenHidden: true }
         );
 
         StatisticsPanel.currentPanel = new StatisticsPanel(
@@ -94,14 +96,14 @@ export class StatisticsPanel {
             if (!conn) { this._showError('No active connection'); return; }
 
             this._panel.title = `Stats: ${this._tableName}`;
-            this._panel.webview.html = this._getLoadingHtml();
+            this._panel.webview.html = secureWebviewHtml(this._getLoadingHtml(), this._panel.webview, this._nonce);
 
             const schema = await conn.getTableSchema(this._tableName, this._databaseName);
             const stats = await collectTableStatistics(
                 conn, this._tableName, schema, this._dbType, this._databaseName
             );
 
-            this._panel.webview.html = this._getHtmlContent(stats);
+            this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(stats), this._panel.webview, this._nonce);
         } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
             this._showError(msg);
@@ -109,8 +111,8 @@ export class StatisticsPanel {
     }
 
     private _showError(message: string): void {
-        this._panel.webview.html = `<!DOCTYPE html><html><body style="padding:20px;font-family:var(--vscode-font-family);color:var(--vscode-errorForeground);">
-            <h3>Error</h3><p>${this._escapeHtml(message)}</p></body></html>`;
+        this._panel.webview.html = secureWebviewHtml(`<!DOCTYPE html><html><body style="padding:20px;font-family:var(--vscode-font-family);color:var(--vscode-errorForeground);">
+            <h3>Error</h3><p>${this._escapeHtml(message)}</p></body></html>`, this._panel.webview, this._nonce);
     }
 
     private _getLoadingHtml(): string {
@@ -202,7 +204,7 @@ export class StatisticsPanel {
 
 ${columnsHtml}
 
-<script>
+<script nonce="${this._nonce}">
 (function() {
     const vscode = acquireVsCodeApi();
     document.getElementById('btnRefresh').addEventListener('click', () => {

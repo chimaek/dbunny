@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny 연결 생명주기 & 동시성 통합 테스트
  *
@@ -67,12 +68,12 @@ function assert(condition: boolean, msg: string) {
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'lc-mysql', name: 'MySQL Lifecycle', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'lc-pg', name: 'PG Lifecycle', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
     sqlite: {
@@ -82,19 +83,19 @@ const configs: Record<string, ConnectionConfig> = {
     },
     h2: {
         id: 'lc-h2', name: 'H2 Lifecycle', type: 'h2',
-        host: 'localhost', port: 5435,
+        host: 'localhost', port: testPort('h2'),
         username: 'sa', password: '',
         database: 'mem:lctest',
         h2Mode: { protocol: 'tcp', dbType: 'mem', dbPath: 'lctest' },
     },
     mongodb: {
         id: 'lc-mongo', name: 'MongoDB Lifecycle', type: 'mongodb',
-        host: 'localhost', port: 27017,
+        host: 'localhost', port: testPort('mongodb'),
         username: 'admin', password: 'mongo1234', database: 'mydb',
     },
     redis: {
         id: 'lc-redis', name: 'Redis Lifecycle', type: 'redis',
-        host: 'localhost', port: 6379,
+        host: 'localhost', port: testPort('redis'),
         username: '', password: 'redis1234',
     },
 };
@@ -327,7 +328,7 @@ async function testConnectionShareRoundtrip() {
         assert(imported.name === original.name, 'import — 이름 보존');
         assert(imported.type === 'mysql', 'import — 타입 보존');
         assert(imported.host === 'localhost', 'import — 호스트 보존');
-        assert(imported.port === 3306, 'import — 포트 보존');
+        assert(imported.port === testPort('mysql'), 'import — 포트 보존');
 
         // 비밀번호 수동 입력 후 연결
         imported.password = 'root1234';
@@ -622,7 +623,7 @@ async function testConfigAttributePreservation() {
         name: 'Production DB',
         type: 'postgres',
         host: 'localhost',
-        port: 5432,
+        port: testPort('postgres'),
         username: 'postgres',
         password: 'postgres1234',
         database: 'mydb',
@@ -651,7 +652,7 @@ async function testConfigAttributePreservation() {
     assert(imported.color?.hex === '#E74C3C', 'import — color.hex 보존');
     assert(imported.group === 'Production', 'import — group 보존');
     assert(imported.host === 'localhost', 'import — host 보존');
-    assert(imported.port === 5432, 'import — port 보존');
+    assert(imported.port === testPort('postgres'), 'import — port 보존');
 
     // 실제 연결에서도 속성 유지
     imported.password = 'postgres1234';
@@ -729,7 +730,7 @@ async function testInvalidImportRejection() {
             exportedAt: new Date().toISOString(),
             connections: [{
                 name: 'Valid', type: 'mysql', host: 'localhost',
-                port: 3306, username: 'root'
+                port: testPort('mysql'), username: 'root'
             }]
         }
     }));

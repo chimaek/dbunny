@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny v2.0.0 — SQL 자동완성 고도화 통합 테스트
  *
@@ -48,12 +49,12 @@ async function assert(condition: boolean, msg: string) {
 const configs: Record<string, ConnectionConfig> = {
     mysql: {
         id: 'test-mysql', name: 'MySQL Test', type: 'mysql',
-        host: 'localhost', port: 3306,
+        host: 'localhost', port: testPort('mysql'),
         username: 'root', password: 'root1234', database: 'mydb',
     },
     postgres: {
         id: 'test-pg', name: 'PostgreSQL Test', type: 'postgres',
-        host: 'localhost', port: 5432,
+        host: 'localhost', port: testPort('postgres'),
         username: 'postgres', password: 'postgres1234', database: 'mydb',
     },
 };

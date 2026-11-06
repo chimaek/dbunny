@@ -8,6 +8,8 @@ import { MongoDBProvider } from '../providers/mongoProvider';
 import { RedisProvider } from '../providers/redisProvider';
 import { H2Provider } from '../providers/h2Provider';
 import { EncryptionService } from '../utils/encryption';
+import { CredentialStore } from '../utils/credentialStore';
+import { guardConnection } from '../utils/guardedConnection';
 
 /**
  * Manages database connections using Factory Pattern
@@ -16,6 +18,8 @@ export class ConnectionManager {
     private connections: Map<string, DatabaseConnection> = new Map();
     private activeConnection: DatabaseConnection | null = null;
     private encryptionService: EncryptionService;
+    private credentialStore: CredentialStore;
+    readonly ready: Promise<void>;
     /** 트리뷰에서 선택된 데이터베이스 이름 (쿼리 실행 시 컨텍스트) */
     private _selectedDatabase: string | undefined;
 
@@ -27,20 +31,16 @@ export class ConnectionManager {
 
     constructor(public readonly context: vscode.ExtensionContext) {
         this.encryptionService = new EncryptionService(context);
-        this.loadConnections();
+        this.credentialStore = new CredentialStore(context.secrets, this.encryptionService);
+        this.ready = this.loadConnections();
     }
 
     /**
      * Add a new connection
      */
     async addConnection(config: ConnectionConfig): Promise<void> {
-        // Encrypt password before storing
-        const encryptedConfig: ConnectionConfig = {
-            ...config,
-            password: config.password
-                ? await this.encryptionService.encrypt(config.password)
-                : undefined
-        };
+        await this.ready;
+        const encryptedConfig = await this.credentialStore.save(config);
 
         const connection = this.createConnection(encryptedConfig);
         this.connections.set(config.id, connection);
@@ -52,6 +52,7 @@ export class ConnectionManager {
      * Update an existing connection
      */
     async updateConnection(config: ConnectionConfig): Promise<void> {
+        await this.ready;
         const existing = this.connections.get(config.id);
         if (!existing) {
             throw new Error(`Connection not found: ${config.id}`);
@@ -62,13 +63,7 @@ export class ConnectionManager {
             await this.disconnect();
         }
 
-        // Encrypt password if changed
-        const encryptedConfig: ConnectionConfig = {
-            ...config,
-            password: config.password
-                ? await this.encryptionService.encrypt(config.password)
-                : existing.config.password
-        };
+        const encryptedConfig = await this.credentialStore.save(config);
 
         const connection = this.createConnection(encryptedConfig);
         this.connections.set(config.id, connection);
@@ -80,6 +75,7 @@ export class ConnectionManager {
      * Delete a connection
      */
     async deleteConnection(connectionId: string): Promise<void> {
+        await this.ready;
         const connection = this.connections.get(connectionId);
         if (!connection) {
             throw new Error(`Connection not found: ${connectionId}`);
@@ -92,6 +88,7 @@ export class ConnectionManager {
 
         this.connections.delete(connectionId);
         await this.saveConnections();
+        await this.credentialStore.delete(connectionId);
         this._onDidChangeConnections.fire();
     }
 
@@ -99,6 +96,7 @@ export class ConnectionManager {
      * Connect to a database
      */
     async connect(connectionId: string): Promise<void> {
+        await this.ready;
         const connection = this.connections.get(connectionId);
         if (!connection) {
             throw new Error(`Connection not found: ${connectionId}`);
@@ -109,17 +107,16 @@ export class ConnectionManager {
             await this.disconnect();
         }
 
-        // Decrypt password before connecting
-        const decryptedConfig: ConnectionConfig = {
-            ...connection.config,
-            password: connection.config.password
-                ? await this.encryptionService.decrypt(connection.config.password)
-                : undefined
-        };
+        const decryptedConfig = await this.credentialStore.resolve(connection.config);
 
         // Create new connection with decrypted config
         const connectionWithDecryptedPassword = this.createConnection(decryptedConfig);
-        await connectionWithDecryptedPassword.connect();
+        try {
+            await connectionWithDecryptedPassword.connect();
+        } catch (error) {
+            await connectionWithDecryptedPassword.disconnect();
+            throw error;
+        }
 
         this.activeConnection = connectionWithDecryptedPassword;
         this._selectedDatabase = decryptedConfig.database;
@@ -168,15 +165,32 @@ export class ConnectionManager {
      * Throws error with details if connection fails
      */
     async testConnection(config: ConnectionConfig): Promise<boolean> {
+        await this.ready;
+        // 편집 중 비밀번호를 비워도 SecretStorage에 보관한 기존 값으로 테스트한다.
+        const stored = this.connections.get(config.id);
+        if (stored) {
+            const resolved = await this.credentialStore.resolve(stored.config);
+            config = {
+                ...config,
+                password: config.password || resolved.password,
+                ssh: config.ssh ? {
+                    ...config.ssh,
+                    password: config.ssh.password || resolved.ssh?.password,
+                    privateKey: config.ssh.privateKey || resolved.ssh?.privateKey,
+                    passphrase: config.ssh.passphrase || resolved.ssh?.passphrase
+                } : undefined
+            };
+        }
         const connection = this.createConnection(config);
         try {
             await connection.connect();
-            await connection.disconnect();
             return true;
         } catch (error) {
             // Re-throw with detailed message
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(message);
+        } finally {
+            await connection.disconnect();
         }
     }
 
@@ -184,6 +198,20 @@ export class ConnectionManager {
      * Create a database connection using Factory Pattern
      */
     private createConnection(config: ConnectionConfig): DatabaseConnection {
+        return guardConnection(this.createProvider(config), () => {
+            const settings = vscode.workspace.getConfiguration('dbunny');
+            const bounded = (name: string, fallback: number, maximum: number) => {
+                const value = settings.get<number>(name, fallback);
+                return Number.isFinite(value) ? Math.min(maximum, Math.max(1, Math.floor(value))) : fallback;
+            };
+            return {
+                timeoutMs: bounded('queryTimeout', 30000, 3600000),
+                maxRows: bounded('maxResults', 1000, 100000)
+            };
+        });
+    }
+
+    private createProvider(config: ConnectionConfig): DatabaseConnection {
         switch (config.type) {
             case 'mysql':
                 return new MySQLProvider(config);
@@ -205,11 +233,18 @@ export class ConnectionManager {
     /**
      * Load saved connections from global state
      */
-    private loadConnections(): void {
+    private async loadConnections(): Promise<void> {
         const saved = this.context.globalState.get<ConnectionConfig[]>('dbunny.connections', []);
+        const migrated: ConnectionConfig[] = [];
         for (const config of saved) {
-            const connection = this.createConnection(config);
-            this.connections.set(config.id, connection);
+            migrated.push(await this.credentialStore.migrate(config));
+        }
+        // 모든 비밀값이 안전하게 저장된 뒤에만 구버전 상태를 교체한다.
+        if (saved.length > 0) {
+            await this.context.globalState.update('dbunny.connections', migrated);
+        }
+        for (const config of migrated) {
+            this.connections.set(config.id, this.createConnection(config));
         }
     }
 
@@ -217,7 +252,7 @@ export class ConnectionManager {
      * Save connections to global state
      */
     private async saveConnections(): Promise<void> {
-        const configs = Array.from(this.connections.values()).map(conn => conn.config);
+        const configs = Array.from(this.connections.values()).map(conn => this.credentialStore.sanitize(conn.config));
         await this.context.globalState.update('dbunny.connections', configs);
     }
 
@@ -365,17 +400,14 @@ export class ConnectionManager {
      * 기존 연결을 복제 (암호화된 비밀번호 포함)
      */
     async duplicateConnection(connectionId: string): Promise<ConnectionConfig> {
+        await this.ready;
         const connection = this.connections.get(connectionId);
         if (!connection) {
             throw new Error(`Connection not found: ${connectionId}`);
         }
 
         const newId = this.generateConnectionId();
-        const duplicatedConfig: ConnectionConfig = {
-            ...connection.config,
-            id: newId,
-            name: `${connection.config.name} (Copy)`,
-        };
+        const duplicatedConfig = await this.credentialStore.duplicate(connection.config, newId);
 
         // 암호화된 비밀번호를 직접 복사하여 재암호화 없이 저장
         const newConnection = this.createConnection(duplicatedConfig);
@@ -392,9 +424,11 @@ export class ConnectionManager {
      * 외부에서 가져온 연결 설정 일괄 추가 (비밀번호 없음)
      */
     async importConnections(configs: ConnectionConfig[]): Promise<number> {
+        await this.ready;
         let count = 0;
         for (const config of configs) {
-            const connection = this.createConnection(config);
+            const metadata = this.credentialStore.sanitize(config);
+            const connection = this.createConnection(metadata);
             this.connections.set(config.id, connection);
             count++;
         }

@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * 연결별 컬러 코딩 통합 테스트 — 실제 DB 연결에 color 설정을 적용하여 검증
  *
@@ -41,7 +42,7 @@ const mysqlConfig: ConnectionConfig = {
     name: 'MySQL Production',
     type: 'mysql',
     host: 'localhost',
-    port: 3306,
+    port: testPort('mysql'),
     username: 'root',
     password: 'root1234',
     database: 'mydb',
@@ -53,7 +54,7 @@ const pgConfig: ConnectionConfig = {
     name: 'PostgreSQL Dev',
     type: 'postgres',
     host: 'localhost',
-    port: 5432,
+    port: testPort('postgres'),
     username: 'postgres',
     password: 'postgres1234',
     database: 'mydb',

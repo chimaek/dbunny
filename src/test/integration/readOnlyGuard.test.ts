@@ -1,3 +1,4 @@
+import { testPort } from './testConfig';
 /**
  * DBunny v2.3.0 — 읽기 전용 모드 통합 테스트
  *
@@ -52,7 +53,7 @@ const mysqlConfig: ConnectionConfig = {
     name: 'MySQL ReadOnly Test',
     type: 'mysql',
     host: 'localhost',
-    port: 3306,
+    port: testPort('mysql'),
     username: 'root',
     password: 'root1234',
     database: 'mydb',
@@ -64,7 +65,7 @@ const pgConfig: ConnectionConfig = {
     name: 'PostgreSQL ReadOnly Test',
     type: 'postgres',
     host: 'localhost',
-    port: 5432,
+    port: testPort('postgres'),
     username: 'postgres',
     password: 'postgres1234',
     database: 'mydb',
@@ -275,7 +276,7 @@ async function testReadOnlyConfigPersistence() {
         name: 'Persistence Test',
         type: 'mysql',
         host: 'localhost',
-        port: 3306,
+        port: testPort('mysql'),
         username: 'root',
         password: 'test',
         readOnly: true
@@ -293,7 +294,7 @@ async function testReadOnlyConfigPersistence() {
         name: 'No ReadOnly',
         type: 'postgres',
         host: 'localhost',
-        port: 5432,
+        port: testPort('postgres'),
         username: 'test',
     };
     assert(noReadOnly.readOnly === undefined, 'readOnly 미설정 시 undefined');

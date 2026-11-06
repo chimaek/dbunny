@@ -1,3 +1,4 @@
+import { createNonce, secureWebviewHtml, serializeForWebview, webviewArgumentScript, webviewEventScript } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
@@ -41,9 +42,11 @@ interface QueryResult {
     rows: Record<string, unknown>[];
     rowCount: number;
     executionTime: number;
+    truncated?: boolean;
 }
 
 export class QueryTabPanel {
+    private readonly _nonce = createNonce();
     public static currentPanel: QueryTabPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
@@ -205,7 +208,7 @@ export class QueryTabPanel {
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
-                localResourceRoots: [extensionUri]
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')]
             }
         );
 
@@ -360,13 +363,14 @@ export class QueryTabPanel {
             return;
         }
 
-        // 읽기 전용 모드 체크
+        // 치환 후 최종 SQL을 검사한다. 실제 실행 경계에서도 동일하게 차단한다.
+        const checkedQuery = paramValues ? substituteParameters(query, paramValues) : query;
         const connection0 = this._connectionManager.getActiveConnection();
         const conn0 = (connection0 && connection0.config.id === tab.connectionId)
             ? connection0
             : this._connectionManager.getConnection(tab.connectionId);
         if (conn0?.config.readOnly) {
-            const writeCheck = checkWriteOperation(query, conn0.config.type);
+            const writeCheck = checkWriteOperation(checkedQuery, conn0.config.type);
             if (writeCheck.isWrite) {
                 const connName = conn0.config.name;
                 vscode.window.showWarningMessage(
@@ -425,7 +429,8 @@ export class QueryTabPanel {
                 columns: result.fields?.map(f => f.name) || [],
                 rows: result.rows || [],
                 rowCount: result.rowCount || 0,
-                executionTime
+                executionTime,
+                truncated: result.truncated
             };
 
             // Add to history (원본 쿼리 + 치환된 쿼리 둘 다 기록)
@@ -649,13 +654,13 @@ export class QueryTabPanel {
     }
 
     private _update(): void {
-        this._panel.webview.html = this._getHtmlContent();
+        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
     }
 
     private _getHtmlContent(): string {
-        const tabsJson = JSON.stringify(this._tabs);
+        const tabsJson = serializeForWebview(this._tabs);
         const activeTabId = this._activeTabId;
-        const connectionsJson = JSON.stringify(
+        const connectionsJson = serializeForWebview(
             this._connectionManager.getAllConnections().map(c => ({
                 id: c.config.id,
                 readOnly: !!c.config.readOnly
@@ -1479,13 +1484,14 @@ export class QueryTabPanel {
 <body>
     <div class="tab-bar">
         <div class="tabs" id="tabs"></div>
-        <button class="new-tab-btn" onclick="newTab()" title="New Tab (Ctrl+T)">+</button>
+        <button class="new-tab-btn" data-dbunny-click="newTab()" title="New Tab (Ctrl+T)">+</button>
     </div>
 
     <div class="editor-container" id="editorContainer"></div>
     <div id="paramDialogContainer"></div>
 
-    <script>
+    <script nonce="${this._nonce}">
+${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
         let tabs = ${tabsJson};
         let activeTabId = '${activeTabId}';
@@ -1517,11 +1523,11 @@ export class QueryTabPanel {
                 const colorBar = cc ? \`<span class="tab-color-bar" style="background:\${cc.hex}"></span>\` : '';
                 return \`
                 <div class="tab \${tab.id === activeTabId ? 'active' : ''}"
-                     onclick="switchTab('\${tab.id}')"
-                     ondblclick="renameTab('\${tab.id}')">
+                     data-dbunny-click="switchTab(\${webviewArgument(tab.id)})"
+                     data-dbunny-dblclick="renameTab(\${webviewArgument(tab.id)})">
                     \${colorBar}
                     <span class="tab-title">\${escapeHtml(tab.name)}</span>
-                    <button class="tab-close" onclick="event.stopPropagation(); closeTab('\${tab.id}')">&times;</button>
+                    <button class="tab-close" data-dbunny-click="event.stopPropagation(); closeTab(\${webviewArgument(tab.id)})">&times;</button>
                 </div>
             \`;}).join('');
         }
@@ -1537,7 +1543,7 @@ export class QueryTabPanel {
 
             container.innerHTML = \`
                 <div class="toolbar">
-                    <select class="connection-select" onchange="setConnection('\${tab.id}', this.value)">
+                    <select class="connection-select" data-dbunny-change="setConnection(\${webviewArgument(tab.id)}, this.value)">
                         <option value="">-- Select Connection --</option>
                         \${connections.map(c => \`
                             <option value="\${c.id}" \${c.id === tab.connectionId ? 'selected' : ''}>
@@ -1546,7 +1552,7 @@ export class QueryTabPanel {
                         \`).join('')}
                     </select>
                     \${tab.databases && tab.databases.length > 0 ? \`
-                        <select class="connection-select" onchange="setDatabase('\${tab.id}', this.value)">
+                        <select class="connection-select" data-dbunny-change="setDatabase(\${webviewArgument(tab.id)}, this.value)">
                             \${tab.databases.map(db => \`
                                 <option value="\${escapeHtml(db)}" \${db === tab.databaseName ? 'selected' : ''}>
                                     \${escapeHtml(db)}
@@ -1557,9 +1563,9 @@ export class QueryTabPanel {
                     <span class="connection-badge \${tab.connectionId ? 'connected' : ''}" \${colorMap[tab.connectionId] ? 'style="background:' + colorMap[tab.connectionId].hex + '22;color:' + colorMap[tab.connectionId].hex + ';border:1px solid ' + colorMap[tab.connectionId].hex + '44"' : ''}>\${colorMap[tab.connectionId] ? '<span style="color:' + colorMap[tab.connectionId].hex + '">●</span> ' : ''}\${escapeHtml(tab.connectionName)}</span>
                     <div class="toolbar-spacer"></div>
                     <span class="keyboard-hint">Ctrl+Enter to execute</span>
-                    <button class="toolbar-btn" onclick="formatQuery('\${tab.id}')">Format</button>
-                    <button class="toolbar-btn" onclick="clearResults('\${tab.id}')">Clear</button>
-                    <button class="toolbar-btn primary" onclick="executeQuery('\${tab.id}')" \${tab.isExecuting ? 'disabled' : ''}>
+                    <button class="toolbar-btn" data-dbunny-click="formatQuery(\${webviewArgument(tab.id)})">Format</button>
+                    <button class="toolbar-btn" data-dbunny-click="clearResults(\${webviewArgument(tab.id)})">Clear</button>
+                    <button class="toolbar-btn primary" data-dbunny-click="executeQuery(\${webviewArgument(tab.id)})" \${tab.isExecuting ? 'disabled' : ''}>
                         \${tab.isExecuting ? 'Executing...' : '▶ Execute'}
                     </button>
                 </div>
@@ -1581,8 +1587,8 @@ export class QueryTabPanel {
                         <textarea class="query-editor"
                                   id="queryEditor"
                                   placeholder="Write your SQL query here..."
-                                  onkeydown="handleKeyDown(event, '\${tab.id}')"
-                                  oninput="updateQuery('\${tab.id}', this.value)">\${escapeHtml(tab.query)}</textarea>
+                                  data-dbunny-keydown="handleKeyDown(event, \${webviewArgument(tab.id)})"
+                                  data-dbunny-input="updateQuery(\${webviewArgument(tab.id)}, this.value)">\${escapeHtml(tab.query)}</textarea>
                     </div>
                     <div class="results-section">
                         \${renderPinBar(tab)}
@@ -1614,26 +1620,26 @@ export class QueryTabPanel {
                 <div class="pin-bar">
                     \${hasResults ? \`
                         <div class="pin-tab current-result \${!pinState.activeResultId ? 'active' : ''}"
-                             onclick="selectPinResult('\${tab.id}', null)">
+                             data-dbunny-click="selectPinResult(\${webviewArgument(tab.id)}, null)">
                             <span class="pin-icon">▶</span>
                             <span>Current</span>
                         </div>
                     \` : ''}
                     \${pinState.pinnedResults.map(pin => \`
                         <div class="pin-tab \${pinState.activeResultId === pin.id ? 'active' : ''}"
-                             onclick="selectPinResult('\${tab.id}', '\${pin.id}')"
+                             data-dbunny-click="selectPinResult(\${webviewArgument(tab.id)}, \${webviewArgument(pin.id)})"
                              title="\${escapeHtml(pin.query.substring(0, 100))}">
                             <span class="pin-icon">📌</span>
                             <span>\${escapeHtml(getPinLabel(pin))}</span>
-                            <span class="pin-close" onclick="event.stopPropagation(); removePinResult('\${tab.id}', '\${pin.id}')">&times;</span>
+                            <span class="pin-close" data-dbunny-click="event.stopPropagation(); removePinResult(\${webviewArgument(tab.id)}, \${webviewArgument(pin.id)})">&times;</span>
                         </div>
                     \`).join('')}
                     <div class="pin-actions">
                         \${hasPins ? \`
                             <button class="\${pinState.compareMode === 'side-by-side' ? 'active' : ''}"
-                                    onclick="toggleCompareMode('\${tab.id}')"
+                                    data-dbunny-click="toggleCompareMode(\${webviewArgument(tab.id)})"
                                     title="Side-by-side compare">⇄ Compare</button>
-                            <button onclick="clearPins('\${tab.id}')" title="Remove all pins">Clear All</button>
+                            <button data-dbunny-click="clearPins(\${webviewArgument(tab.id)})" title="Remove all pins">Clear All</button>
                         \` : ''}
                     </div>
                 </div>
@@ -1697,7 +1703,7 @@ export class QueryTabPanel {
                     <div class="side-by-side-panel">
                         <div class="panel-label">
                             <span class="label-text">\${rightResult ? '📌 ' + escapeHtml(getPinLabel(rightResult)) : 'Compare Target'}</span>
-                            <select class="compare-select" onchange="setCompareTarget('\${tab.id}', this.value)">
+                            <select class="compare-select" data-dbunny-change="setCompareTarget(\${webviewArgument(tab.id)}, this.value)">
                                 <option value="">-- Select --</option>
                                 \${!pinState.activeResultId ? '' : \`
                                     <option value="__current__" \${pinState.compareTargetId === '__current__' ? 'selected' : ''}>▶ Current Result</option>
@@ -1752,7 +1758,7 @@ export class QueryTabPanel {
                     <div class="results-spacer"></div>
                     <div class="results-search">
                         <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
-                               oninput="handleResultSearch('\${resultId}', this.value)">
+                               data-dbunny-input="handleResultSearch(\${webviewArgument(resultId)}, this.value)">
                     </div>
                 </div>
                 <div class="results-filter-info" id="filterInfo-\${resultId}"></div>
@@ -1761,7 +1767,7 @@ export class QueryTabPanel {
                         <thead>
                             <tr>
                                 \${visibleColumns.map(col => \`
-                                    <th onclick="handlePinResultSort('\${resultId}', '\${escapeHtml(col.name)}')"
+                                    <th data-dbunny-click="handlePinResultSort(\${webviewArgument(resultId)}, \${webviewArgument(col.name)})"
                                         class="\${state.sortField === col.name ? 'sorted-' + state.sortDirection : ''}">
                                         \${escapeHtml(col.name)}
                                         <span class="sort-indicator">\${state.sortField === col.name ? (state.sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
@@ -1808,7 +1814,7 @@ export class QueryTabPanel {
                     <div class="results-spacer"></div>
                     <div class="results-search">
                         <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
-                               oninput="handleResultSearch('\${resultId}', this.value)">
+                               data-dbunny-input="handleResultSearch(\${webviewArgument(resultId)}, this.value)">
                     </div>
                 </div>
                 <div class="results-filter-info" id="filterInfo-\${resultId}"></div>
@@ -1817,7 +1823,7 @@ export class QueryTabPanel {
                         <thead>
                             <tr>
                                 \${visibleColumns.map(col => \`
-                                    <th onclick="handlePinResultSort('\${resultId}', '\${escapeHtml(col.name)}')"
+                                    <th data-dbunny-click="handlePinResultSort(\${webviewArgument(resultId)}, \${webviewArgument(col.name)})"
                                         class="\${state.sortField === col.name ? 'sorted-' + state.sortDirection : ''}">
                                         \${escapeHtml(col.name)}
                                         <span class="sort-indicator">\${state.sortField === col.name ? (state.sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
@@ -1897,12 +1903,12 @@ export class QueryTabPanel {
                     <div class="results-spacer"></div>
                     <div class="results-search">
                         <input type="text" placeholder="Search..." value="\${escapeHtml(state.searchTerm)}"
-                               oninput="handleResultSearch('\${tab.id}', this.value)">
+                               data-dbunny-input="handleResultSearch(\${webviewArgument(tab.id)}, this.value)">
                     </div>
-                    <button class="results-btn" onclick="pinCurrentResult('\${tab.id}')" title="Pin this result">
+                    <button class="results-btn" data-dbunny-click="pinCurrentResult(\${webviewArgument(tab.id)})" title="Pin this result">
                         📌 Pin
                     </button>
-                    <button class="results-btn" onclick="toggleResultColumnPanel('\${tab.id}')" title="Column settings">
+                    <button class="results-btn" data-dbunny-click="toggleResultColumnPanel(\${webviewArgument(tab.id)})" title="Column settings">
                         ⚙️ \${hiddenCount > 0 ? '(' + hiddenCount + ' hidden)' : ''}
                     </button>
                 </div>
@@ -1910,15 +1916,15 @@ export class QueryTabPanel {
                     <div class="column-settings-header">
                         <span>Column Settings</span>
                         <div>
-                            <button onclick="showAllResultColumns('\${tab.id}')">Show All</button>
-                            <button onclick="hideAllResultColumns('\${tab.id}')">Hide All</button>
+                            <button data-dbunny-click="showAllResultColumns(\${webviewArgument(tab.id)})">Show All</button>
+                            <button data-dbunny-click="hideAllResultColumns(\${webviewArgument(tab.id)})">Hide All</button>
                         </div>
                     </div>
                     <div class="column-settings-list">
                         \${state.columns.sort((a,b) => a.order - b.order).map(col => \`
                             <label class="column-setting-item">
                                 <input type="checkbox" \${col.visible ? 'checked' : ''}
-                                       onchange="toggleResultColumn('\${tab.id}', '\${escapeHtml(col.name)}', this.checked)">
+                                       data-dbunny-change="toggleResultColumn(\${webviewArgument(tab.id)}, \${webviewArgument(col.name)}, this.checked)">
                                 <span>\${escapeHtml(col.name)}</span>
                             </label>
                         \`).join('')}
@@ -1930,7 +1936,7 @@ export class QueryTabPanel {
                         <thead>
                             <tr>
                                 \${visibleColumns.map(col => \`
-                                    <th onclick="handleResultSort('\${tab.id}', '\${escapeHtml(col.name)}')"
+                                    <th data-dbunny-click="handleResultSort(\${webviewArgument(tab.id)}, \${webviewArgument(col.name)})"
                                         class="\${state.sortField === col.name ? 'sorted-' + state.sortDirection : ''}">
                                         \${escapeHtml(col.name)}
                                         <span class="sort-indicator">\${state.sortField === col.name ? (state.sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
@@ -2371,7 +2377,7 @@ export class QueryTabPanel {
             }
 
             container.innerHTML = \`
-                <div class="param-overlay" onclick="if(event.target===this)closeParamDialog()">
+                <div class="param-overlay" data-dbunny-click="if(event.target===this)closeParamDialog()">
                     <div class="param-dialog">
                         <h3>Query Parameters</h3>
 
@@ -2380,10 +2386,10 @@ export class QueryTabPanel {
                                 <div class="param-section-title">Environment Profile</div>
                                 <div class="profile-tabs">
                                     <button class="profile-tab \${!currentActiveProfile ? 'active' : ''}"
-                                            onclick="selectProfile(null)">None</button>
+                                            data-dbunny-click="selectProfile(null)">None</button>
                                     \${data.profiles.map(p => \`
                                         <button class="profile-tab \${currentActiveProfile === p.name ? 'active' : ''}"
-                                                onclick="selectProfile('\${escapeHtml(p.name)}')">\${escapeHtml(p.name)}</button>
+                                                data-dbunny-click="selectProfile(\${webviewArgument(p.name)})">\${escapeHtml(p.name)}</button>
                                     \`).join('')}
                                 </div>
                             </div>
@@ -2395,9 +2401,9 @@ export class QueryTabPanel {
                                 <div class="param-presets">
                                     \${data.variableSets.map(s => \`
                                         <button class="preset-chip \${lastSet === s.name ? 'active' : ''}"
-                                                onclick="loadVariableSet('\${escapeHtml(s.name)}')">
+                                                data-dbunny-click="loadVariableSet(\${webviewArgument(s.name)})">
                                             \${escapeHtml(s.name)}
-                                            <span class="delete-preset" onclick="event.stopPropagation();deleteVariableSet('\${escapeHtml(s.name)}')">&times;</span>
+                                            <span class="delete-preset" data-dbunny-click="event.stopPropagation();deleteVariableSet(\${webviewArgument(s.name)})">&times;</span>
                                         </button>
                                     \`).join('')}
                                 </div>
@@ -2412,15 +2418,15 @@ export class QueryTabPanel {
                                     <input class="param-input" id="param-\${escapeHtml(name)}"
                                            value="\${escapeHtml(prefillValues[name] || '')}"
                                            placeholder="Enter value..."
-                                           onkeydown="if(event.key==='Enter')submitParams()">
+                                           data-dbunny-keydown="if(event.key==='Enter')submitParams()">
                                 </div>
                             \`).join('')}
                         </div>
 
                         <div class="save-set-row">
                             <input class="save-set-input" id="saveSetName" placeholder="Save as variable set..."
-                                   onkeydown="if(event.key==='Enter')saveCurrentSet()">
-                            <button class="param-btn secondary" onclick="saveCurrentSet()">Save</button>
+                                   data-dbunny-keydown="if(event.key==='Enter')saveCurrentSet()">
+                            <button class="param-btn secondary" data-dbunny-click="saveCurrentSet()">Save</button>
                         </div>
 
                         \${currentActiveProfile ? \`
@@ -2428,13 +2434,13 @@ export class QueryTabPanel {
                                 <span style="flex:1;font-size:11px;color:var(--vscode-descriptionForeground)">
                                     Save to profile: \${escapeHtml(currentActiveProfile)}
                                 </span>
-                                <button class="param-btn secondary" onclick="saveToProfile()">Save to Profile</button>
+                                <button class="param-btn secondary" data-dbunny-click="saveToProfile()">Save to Profile</button>
                             </div>
                         \` : ''}
 
                         <div class="param-actions">
-                            <button class="param-btn secondary" onclick="closeParamDialog()">Cancel</button>
-                            <button class="param-btn primary" onclick="submitParams()">Execute</button>
+                            <button class="param-btn secondary" data-dbunny-click="closeParamDialog()">Cancel</button>
+                            <button class="param-btn primary" data-dbunny-click="submitParams()">Execute</button>
                         </div>
                     </div>
                 </div>
@@ -2606,7 +2612,8 @@ export class QueryTabPanel {
         });
 
         init();
-    </script>
+    ${webviewEventScript(["newTab","switchTab","renameTab","closeTab","setConnection","setDatabase","formatQuery","clearResults","executeQuery","handleKeyDown","updateQuery","selectPinResult","removePinResult","toggleCompareMode","clearPins","setCompareTarget","handleResultSearch","handlePinResultSort","pinCurrentResult","toggleResultColumnPanel","showAllResultColumns","hideAllResultColumns","toggleResultColumn","handleResultSort","closeParamDialog","selectProfile","loadVariableSet","deleteVariableSet","submitParams","saveCurrentSet","saveToProfile"],[])}
+</script>
 </body>
 </html>`;
     }
