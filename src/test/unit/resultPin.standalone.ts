@@ -228,8 +228,9 @@ assertEqual(cmpState.compareTargetId, leftPin.id, '비교 대상 변경됨');
 
 header('formatTimestamp');
 
-assertEqual(formatTimestamp('2026-03-14T10:30:45.000Z'), '19:30:45', 'UTC → 로컬 시간 변환 (KST+9)');
-// 참고: 로컬 타임존에 따라 다를 수 있으므로 형식만 검증
+// 실행 환경의 로컬 시각을 입력으로 만든다. CI의 시간대를 한국으로 가정하지 않는다.
+const localTimestamp = new Date(2026, 2, 14, 19, 30, 45).toISOString();
+assertEqual(formatTimestamp(localTimestamp), '19:30:45', '실행 환경의 로컬 시각 보존');
 const ts = formatTimestamp('2026-03-14T00:00:00.000Z');
 assert(/^\d{2}:\d{2}:\d{2}$/.test(ts), `형식 HH:MM:SS 맞음: ${ts}`);
 
