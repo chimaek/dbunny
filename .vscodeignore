@@ -79,3 +79,8 @@ node_modules/**/*.map
 node_modules/xlsx/**
 node_modules/papaparse/**
 node_modules/sql-formatter/**
+
+# Native helper build sources are not used by the packaged runtime.
+# Preserve cpu-features/lib and any compiled build/Release binary.
+node_modules/cpu-features/deps/**
+node_modules/cpu-features/src/**

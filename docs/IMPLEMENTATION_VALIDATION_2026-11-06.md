@@ -27,13 +27,19 @@
 - CI·게시 workflow와 Compose YAML 파싱 및 태그 전용/OIDC 권한 확인: 통과.
 - `git diff --check`: 통과.
 - `npm audit --omit=dev`: **0건**.
-- 전체 `npm audit`: 15개 패키지 경고에서 **13개**로 감소. high 1, moderate 11, low 1. 남은 high는 Mocha 계열의 `serialize-javascript` 개발 의존성이다. 전체 취약점 해소를 주장하지 않는다.
+- 전체 `npm audit`: Azure 인증 의존성 업데이트로 high 경고가 3개에서 **1개**로 감소했다. 이후 최신 CI 테스트 도구를 포함한 전체 경고는 **15개**(high 1, moderate 13, low 1)다. 남은 high는 Mocha 계열의 `serialize-javascript` 개발 의존성이다. 전체 취약점 해소를 주장하지 않는다.
 
 ## CI 시간대 회귀 수정
 
 첫 GitHub CI에서는 DB 통합 검사가 통과했지만 6개 OS/VS Code 조합이 모두 결과 고정 시간 테스트에서 실패했다. 테스트가 한국 시간 값을 고정으로 기대하고 UTC 실행 환경을 고려하지 않은 것이 원인이었다. 제품의 로컬 시간 표시 동작은 유지하고 테스트 입력을 실행 환경의 로컬 시각으로 수정했다.
 
 추가로 UTC·서울·뉴욕의 알려진 변환값과 날짜 경계·DST를 검증하는 별도 프로세스 회귀 검사 6개를 추가했다. 전체 단위 검사를 세 시간대에서 각각 실행해 **Mocha 195개와 standalone 16개** 통과를 확인했고, 타입·린트·번들과 최신 Host 3개도 통과했다.
+
+### 후속 패키지·macOS 실행 수정
+
+단위 검사 다음 단계에서 CI의 새 의존성 설치에 포함된 선택적 `cpu-features`의 빌드 소스가 VSIX에 섞인 문제가 드러났다. 개발 파일 검사를 완화하지 않고 `deps`·`src` 디렉터리를 패키지에서 제외했다. 런타임의 `lib`와 생성된 `build/Release` 바이너리는 유지한다.
+
+macOS stable은 기존 test-electron 2.5.2가 `Contents/MacOS/Electron`을 고정으로 사용해 실행 파일을 찾지 못했다. 공식 도구 test-electron 3.1.0과 test-cli 0.0.15로 갱신했다. 새 test-electron은 앱의 Info.plist와 실제 실행 파일을 확인하며 구버전 경로도 지원한다. 공식 근거는 [확장 테스트 문서](https://code.visualstudio.com/api/working-with-extensions/testing-extension)와 [vscode-test 소스](https://github.com/microsoft/vscode-test)다.
 
 ## 재실행
 

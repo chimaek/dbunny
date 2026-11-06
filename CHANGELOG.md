@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Make pinned-result timestamp tests independent of the runner timezone and verify UTC, Seoul, and New York conversions.
+- Update the official VS Code test runner for current macOS executable names and exclude optional cpu-features build sources from VSIX packages.
 - Make SQL read-only checks dialect-aware; block PostgreSQL side-effect functions and use server-enforced read-only queries.
 - Reuse PostgreSQL SSH tunnel endpoints when switching databases or reading metadata; forward encrypted-key passphrases.
 - Validate monitoring process IDs and reject termination on read-only connections.

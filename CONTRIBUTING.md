@@ -4,6 +4,7 @@
 
 - Node.js 24 LTS와 npm을 사용한다. 게시 도구 vsce 4는 Node.js 22 이상이 필요하다.
 - 확장은 VS Code 1.85 이상을 대상으로 한다. 개발용 Node 버전과 Extension Host 내장 Node 버전은 다르다.
+- 테스트 도구는 `@vscode/test-cli` 0.0.15와 `@vscode/test-electron` 3.1.0을 사용하며 Node.js 22 이상을 요구한다. 구버전 test-electron의 macOS `Electron` 경로 가정은 최신 VS Code 앱 구조와 맞지 않는다.
 - 저장소에서 `npm ci`로 잠금 파일의 의존성을 설치한다.
 
 ```powershell
