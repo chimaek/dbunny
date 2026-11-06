@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { createRequire } = require('node:module');
+const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const yauzl = require('yauzl');
 const { runTests } = require('@vscode/test-electron');
@@ -45,12 +45,13 @@ async function main() {
         for (const file of ['dist/extension.js', 'src/locales/en.json', 'src/locales/ko.json', 'resources/bunny-icon.png']) {
             assert.ok(fs.existsSync(path.join(extension, file)), `Required runtime file: ${file}`);
         }
-        const runtimeRequire = createRequire(path.join(extension, 'package.json'));
-        for (const driver of ['mysql2', 'pg', 'mongodb', 'redis', 'ssh2']) { runtimeRequire(driver); }
-        const SQL = await runtimeRequire('sql.js')();
-        const database = new SQL.Database();
-        try { assert.equal(database.exec('SELECT 1 AS value')[0].values[0][0], 1); }
-        finally { database.close(); }
+        // Windows는 로드한 .node 파일을 프로세스 종료까지 잠근다.
+        // 드라이버/WASM을 자식 프로세스에서 검사하고 종료 후 임시 파일을 정리한다.
+        const runtime = spawnSync(process.execPath, [path.join(__dirname, 'verify-vsix-runtime.cjs'), extension], {
+            stdio: 'inherit', timeout: 30000
+        });
+        if (runtime.error) { throw runtime.error; }
+        assert.equal(runtime.status, 0, 'Packaged driver/WASM verification failed');
         await runTests({
             version: process.env.VSCODE_TEST_VERSION || 'stable',
             extensionDevelopmentPath: extension,
@@ -62,7 +63,7 @@ async function main() {
         // 삭제 대상은 이 실행에서 만든 임시 디렉터리로만 제한한다.
         assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
         assert.ok(path.basename(directory).startsWith('dbunny-vsix-'));
-        fs.rmSync(directory, { recursive: true, force: true });
+        await fs.promises.rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

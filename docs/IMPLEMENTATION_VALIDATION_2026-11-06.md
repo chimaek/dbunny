@@ -41,6 +41,8 @@
 
 macOS stable은 기존 test-electron 2.5.2가 `Contents/MacOS/Electron`을 고정으로 사용해 실행 파일을 찾지 못했다. 공식 도구 test-electron 3.1.0과 test-cli 0.0.15로 갱신했다. 새 test-electron은 앱의 Info.plist와 실제 실행 파일을 확인하며 구버전 경로도 지원한다. 공식 근거는 [확장 테스트 문서](https://code.visualstudio.com/api/working-with-extensions/testing-extension)와 [vscode-test 소스](https://github.com/microsoft/vscode-test)다.
 
+그다음 Windows의 기능 검사는 통과했지만 검증 프로세스가 로드한 네이티브 파일의 잠금 때문에 임시 폴더 정리에서 실패했다. 드라이버/WASM 검증을 자식 프로세스로 격리하고 종료 후 정리하도록 수정했다. 임시 경로 검증을 유지하고 일시적인 잠금은 제한된 횟수만 재시도한다. 검증 실패나 지속되는 정리 오류는 여전히 실패로 처리한다.
+
 ## 재실행
 
 ```powershell
