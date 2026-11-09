@@ -5,55 +5,50 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0] - Unreleased
-
-### Fixed
-
-- Make pinned-result timestamp tests independent of the runner timezone and verify UTC, Seoul, and New York conversions.
-- Update the official VS Code test runner for current macOS executable names and exclude optional cpu-features build sources from VSIX packages.
-- Isolate packaged native-driver checks in a child process so Windows can remove temporary VSIX files after validation.
-- Make SQL read-only checks dialect-aware; block PostgreSQL side-effect functions and use server-enforced read-only queries.
-- Reuse PostgreSQL SSH tunnel endpoints when switching databases or reading metadata; forward encrypted-key passphrases.
-- Validate monitoring process IDs and reject termination on read-only connections.
-- Clarify that migration scripts are exported and run manually; require confirmation when recording their status.
-- Run every integration suite against isolated Docker database ports, including real SSH and execution-policy regressions.
-- Update vsce to 4.1.0 and verify both release tags and the downloaded VSIX identity before OIDC publishing.
-
-### Security
-
-- Enforce read-only policy at the shared execution boundary, including CTE writes, JSON MongoDB commands and administrative operations.
-- Move DB and SSH secrets to SecretStorage with legacy migration and independent duplication/deletion.
-- Add nonce-based Webview CSP, safe JSON embedding and delegated events without eval.
-- Update MySQL2 and use the official SheetJS 0.20.3 distribution.
-
-### Changed
-
-- Select CI checks by changed paths; retain full release verification while sharing one VSIX and test harness across platforms.
-- Install dependencies once per OS, cancel superseded branch checks, and shorten artifact retention.
-- Keep personal development settings local to the checkout.
-- Restore unit and isolated Extension Host tests and cross-platform/package CI.
-- Read query limits from settings and apply server limits where supported.
-- Publish verified VSIX artifacts only from matching release tags using OIDC and Node.js 24.
-- Exclude test databases, Docker assets, source maps and duplicate bundled dependencies.
-
+## [3.2.0] - 2026-11-09
 
 ### Added
 
-- **Routine Browser**: Explore stored procedures, functions, views, and triggers in the explorer tree
-  - Database nodes now group children into 📦 Tables / 📦 Routines / 📦 Triggers
-  - Click to view syntax-highlighted source code in RoutinePanel
-  - Execute stored procedures with parameter input forms
-  - Drop routines with confirmation dialog (PROCEDURE, FUNCTION, VIEW, TRIGGER)
-  - MySQL: full support (information_schema + SHOW CREATE + CALL)
-  - PostgreSQL: full support (pg_catalog + pg_get_functiondef + SELECT/CALL)
-  - SQLite: views and triggers (sqlite_master)
-  - H2: views, function aliases, and triggers (INFORMATION_SCHEMA)
-- **DatabaseConnection Interface**: 6 new optional methods
-  - `getRoutines()`, `getRoutineSource()`, `executeRoutine()`, `dropRoutine()`, `getTriggers()`, `getTriggerSource()`
-- **RoutinePanel**: New WebView panel with source code viewer, parameter form, and Execute/Drop/Copy actions
-- **Commands**: `dbunny.viewRoutine`, `dbunny.executeRoutine`, `dbunny.dropRoutine`
-- **i18n**: 18 routine-related translation keys in Korean and English
-- **Tests**: 203 tests (141 standalone + 24 Mocha + 38 Docker integration)
+- Routine browser for stored procedures, functions, views, and triggers, with source viewing and copying.
+- Parameter input, execution, and deletion for supported routine types. MySQL/PostgreSQL support procedures and functions; SQLite supports views and triggers; H2 exposes views, aliases, and available trigger metadata.
+- Korean and English routine labels and parameter descriptions.
+
+### Security
+
+- Store database passwords, SSH passwords, private keys, and passphrases in VS Code SecretStorage. Existing saved credentials migrate on first activation.
+- Enforce read-only checks at the shared execution boundary, including CTE writes, MongoDB JSON commands and aggregation output stages, and Redis administrative commands.
+- Apply PostgreSQL server read-only settings to bounded queries and block known side-effect and process-management functions in read-only mode.
+- Add nonce-based Content Security Policy, safer JSON embedding, and delegated Webview event handlers.
+- Update MySQL2 and the official SheetJS distribution.
+
+### Fixed
+
+- Reuse the SSH tunnel when PostgreSQL switches databases or queries metadata. Forward stored SSH key passphrases to the client.
+- Validate process IDs and reject monitoring termination requests on read-only connections.
+- Remove timezone assumptions from pinned-result tests.
+- Fix current macOS test-editor executable detection and Windows temporary VSIX cleanup.
+- Clarify migration-script behavior: export UP/DOWN SQL and record manual application/rollback; SQL is not executed automatically.
+
+### Changed
+
+- Apply configured result limits and supported server query timeouts. Exported data uses the returned result set.
+- Verify one release VSIX across Windows, macOS, and Linux with VS Code 1.85.0 and stable before OIDC publishing.
+- Select everyday CI checks by changed files, cancel superseded branch checks, and install dependencies once per OS.
+- Exclude test databases, development scripts, native build sources, source maps, and duplicate assets from the release package.
+
+### Upgrade notes
+
+- Keep the extension ID `chimaek.dbunny`; existing connections and saved queries remain under the same extension identity.
+- An empty password field when editing keeps the stored password. Shared connection exports do not include DB passwords or SSH secrets.
+- Read-only mode prevents accidental operations; use a database account with read-only privileges for production access.
+- SQLite synchronous queries and Redis commands do not have a server query timeout. Result previews and exports are bounded by `dbunny.maxResults`.
+- Exact publication time, release workflow, and package checksum are recorded in the [release record](https://github.com/chimaek/dbunny/releases/tag/v3.2.0) after Marketplace publication.
+
+### Validation
+
+- 195 Mocha unit tests, 16 standalone suites, and 12 CI-policy tests.
+- 22 database integration suites, including actual PostgreSQL read-only enforcement and SSH forwarding.
+- Packaged driver/WASM/activation checks on three operating systems and both supported VS Code test versions.
 
 ## [3.1.0] - 2026-05-03
 

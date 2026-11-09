@@ -2,7 +2,7 @@
 
 > "Hop into your databases!"
 
-![DBunny Demo](resources/demo.gif)
+![DBunny Demo](https://raw.githubusercontent.com/chimaek/dbunny/v3.2.0/resources/demo.gif)
 
 **[English](#english)** | **[한국어](#한국어)**
 
@@ -11,6 +11,13 @@
 ## English
 
 A fast and friendly database management extension for VS Code. Connect to 6 different databases, write queries, visualize schemas, and manage your data — all without leaving the editor.
+
+### v3.2.0 release — 2026-11-09
+
+- Browse SQL routines and inspect their source and parameters.
+- Keep DB/SSH credentials in SecretStorage and enforce shared read-only checks.
+- Fix PostgreSQL SSH database switching and clarify manual migration-script records.
+- [Full changelog](https://github.com/chimaek/dbunny/blob/v3.2.0/CHANGELOG.md) · [Publication time and release record](https://github.com/chimaek/dbunny/releases/tag/v3.2.0)
 
 ### Supported Databases
 
@@ -29,7 +36,7 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 
 - **Credential Storage** — Database and SSH credentials stored in VS Code SecretStorage with automatic migration
 - **Connection Grouping** — Organize into folders (dev / staging / prod)
-- **SSH Tunneling** — Connect to remote databases through SSH tunnel (local TCP server based)
+- **SSH Tunneling (MySQL / PostgreSQL)** — Connect through a local TCP forwarding tunnel
 - **Schema Explorer** — Browse databases, tables, and columns in a tree view
 - **Table Favorites** — Star frequently used tables for quick access
 - **Read-Only Mode** — Lock connections to prevent accidental writes on production databases
@@ -79,7 +86,7 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 - **Query Execution Plan** — EXPLAIN support for MySQL, PostgreSQL, SQLite (Ctrl+Alt+E)
 - **Query History** — Track and reuse previously executed queries
 - **Query Bookmarks** — Save frequently used queries with categories
-- **MongoDB Shell Syntax** — `db.collection.find()` style commands with chaining (`.limit()`, `.sort()`)
+- **MongoDB Shell-Style Commands** — `db.collection.find()` style commands with `.limit()` / `.sort()`. Arguments use JSON syntax with quoted keys; JavaScript expressions are not evaluated.
 - **Query Parameters** — `{{variable}}` placeholder syntax with pre-execution input dialog
   - Save/load named variable sets per connection
   - Environment profiles (dev / staging / prod)
@@ -126,15 +133,15 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 #### Monitoring
 
 - **Real-time Monitor** — View active processes and server status dashboard (MySQL / PostgreSQL)
-- **Process Management** — Kill long-running queries directly from the monitor
+- **Process Management** — Terminate supported server processes when the connection is writable and the account has permission
 - **Auto-refresh** — Configurable refresh intervals
 
 #### Security
 
 - DB and SSH credentials kept in VS Code SecretStorage
-- SQL injection prevention with parameterized queries and validated identifiers
-- XSS prevention with HTML escaping in all WebView panels
-- Content Security Policy on all WebViews; nonce-protected scripts and delegated events
+- Parameterized metadata queries and identifier escaping/validation in supported operations
+- HTML escaping and safer serialization for Webview content
+- Webview Content Security Policy with nonce-protected scripts and delegated events
 - Redis destructive commands (`FLUSHDB`, `FLUSHALL`) blocked
 - No telemetry or analytics collection; connections use configured database and SSH endpoints
 - Read-only checks cover every entry point and CTE writes. Use database read-only roles for permission enforcement.
@@ -144,7 +151,8 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 1. Click the **DBunny** icon in the Activity Bar
 2. Click **+** to add a new connection
 3. Select database type and enter credentials
-4. Click **Save & Connect**
+4. Save the connection.
+5. In **Connections**, click **Connect** (the plug icon) next to the saved connection.
 
 ### SQLite Example and Compatibility
 
@@ -167,19 +175,13 @@ For a server-free example, add a SQLite connection with database `:memory:` and 
 
 ### Context Menu
 
-**Right-click on tables:**
+**Connection:** Connect, edit/delete, toggle read-only, organize groups, duplicate/export, or save a template.
 
-- Edit Table Data
-- Copy Table Schema
-- Show ERD Diagram
-- Generate Mock Data
-- Query Execution Plan
+**Database:** Open a query, show ERD, manage migration scripts, open supported monitoring, or export data.
 
-**Right-click on connections:**
+**SQL table:** Edit data, copy CREATE TABLE, compare schema, generate mock data, import/export rows, insert a row, or view statistics/charts.
 
-- Show Real-time Monitor
-- Compare Schema
-- DB Migration
+Use the SQL editor and the execution-plan shortcut for EXPLAIN. Available actions depend on the database type.
 
 ### Settings
 
@@ -195,17 +197,24 @@ Read-only mode helps prevent accidental writes. PostgreSQL also uses server read
 
 ### Testing
 
-Use Node.js 24 LTS. See [Contributing](CONTRIBUTING.md) for unit, Extension Host, Docker integration and VSIX tests. See [Publishing](docs/PUBLISHING.md) for release tags and OIDC setup.
+Use Node.js 24 LTS. See [Contributing](https://github.com/chimaek/dbunny/blob/v3.2.0/CONTRIBUTING.md) for unit, Extension Host, Docker integration and VSIX tests. See [Publishing](https://github.com/chimaek/dbunny/blob/v3.2.0/docs/PUBLISHING.md) for release tags and OIDC setup.
 
 ### Upcoming Features
 
-See [ROADMAP.md](ROADMAP.md) for the full version-by-version plan.
+See [ROADMAP.md](https://github.com/chimaek/dbunny/blob/v3.2.0/ROADMAP.md) for the full version-by-version plan.
 
 ---
 
 ## 한국어
 
 VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고, 스키마를 시각화하고, 데이터를 관리할 수 있는 빠르고 친근한 확장 프로그램입니다.
+
+### v3.2.0 릴리스 — 2026-11-09
+
+- SQL 루틴을 탐색하고 소스·파라미터를 확인할 수 있습니다.
+- DB·SSH 인증정보를 SecretStorage에 보관하고 공통 실행 경계에서 읽기 전용을 검사합니다.
+- PostgreSQL SSH 연결의 DB 전환을 수정하고, 마이그레이션 스크립트는 수동 작업 기록임을 명확히 했습니다.
+- [전체 변경 이력](https://github.com/chimaek/dbunny/blob/v3.2.0/CHANGELOG.md) · [실제 게시 시각과 릴리스 기록](https://github.com/chimaek/dbunny/releases/tag/v3.2.0)
 
 ### 지원 데이터베이스
 
@@ -224,7 +233,7 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 - **인증정보 저장** — DB·SSH 비밀번호와 개인키를 VS Code SecretStorage에 보관하고 기존 저장값을 자동 이전
 - **연결 그룹화** — 폴더별 정리 (dev / staging / prod)
-- **SSH 터널링** — SSH 터널을 통한 원격 데이터베이스 연결 (로컬 TCP 서버 기반)
+- **SSH 터널링 (MySQL / PostgreSQL)** — 로컬 TCP 포워딩 터널을 통한 원격 연결
 - **스키마 탐색기** — 트리 뷰로 데이터베이스, 테이블, 컬럼 탐색
 - **테이블 즐겨찾기** — 별표로 자주 사용하는 테이블 상단 고정
 - **읽기 전용 모드** — 프로덕션 DB 보호를 위한 쓰기 쿼리 차단
@@ -263,7 +272,7 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 
 #### 쿼리 편집기
 
-- **멀티탭 쿼리 에디터** — 탭별 연결 할당, 여러 쿼리를 동시에 작업 (Ctrl+Alt+T)
+- **멀티탭 쿼리 에디터** — 탭별로 연결을 선택하고 여러 쿼리를 정리 (Ctrl+Alt+T)
 - **SQL 자동완성** — 스키마 인식 기반 테이블, 컬럼, 키워드 자동 제안
   - 별칭(Alias) 인식 (`SELECT u.` → `users` 컬럼 제안)
   - FK 기반 JOIN ON 자동 제안
@@ -274,7 +283,7 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 - **쿼리 실행 계획** — MySQL, PostgreSQL, SQLite EXPLAIN 지원 (Ctrl+Alt+E)
 - **쿼리 히스토리** — 이전 실행 쿼리 추적 및 재사용
 - **쿼리 북마크** — 카테고리별 자주 사용하는 쿼리 저장
-- **MongoDB Shell 문법** — `db.collection.find()` 스타일 명령어, 체이닝 지원 (`.limit()`, `.sort()`)
+- **MongoDB Shell 스타일 명령** — `db.collection.find()`와 `.limit()` / `.sort()` 지원. 인자는 키를 따옴표로 감싼 JSON 문법을 사용하며 JavaScript 표현식은 실행하지 않습니다.
 - **쿼리 파라미터** — `{{변수명}}` 플레이스홀더 문법, 실행 전 입력 다이얼로그
   - 연결별 변수 세트 저장 및 재사용
   - 환경 프로필 (dev / staging / prod)
@@ -321,15 +330,15 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 #### 모니터링
 
 - **실시간 모니터** — 활성 프로세스 및 서버 상태 대시보드 (MySQL / PostgreSQL)
-- **프로세스 관리** — 모니터에서 장시간 실행 쿼리 직접 종료
+- **프로세스 관리** — 쓰기 가능한 연결에서 DB 계정 권한이 허용하는 서버 프로세스 종료
 - **자동 새로고침** — 설정 가능한 갱신 주기
 
 #### 보안
 
 - DB·SSH 인증정보를 VS Code SecretStorage에 보관
-- 파라미터화된 쿼리 및 식별자 검증으로 SQL 인젝션 방지
-- 모든 WebView 패널에서 HTML 이스케이핑으로 XSS 방지
-- 모든 WebView에 CSP 적용, nonce 스크립트와 이벤트 위임 사용
+- 지원되는 작업에 파라미터화된 메타데이터 쿼리와 식별자 이스케이핑·검증 적용
+- Webview 콘텐츠에 HTML 이스케이핑과 안전한 직렬화 적용
+- Webview CSP, nonce 스크립트와 이벤트 위임 사용
 - Redis 파괴적 명령어 (`FLUSHDB`, `FLUSHALL`) 차단
 - 텔레메트리·분석 데이터 수집 없음. 사용자가 설정한 DB·SSH 서버와 통신
 - 모든 실행 경로에 읽기 전용 검사 적용, CTE 쓰기·관리 명령 차단. 권한 통제에는 DB 읽기 전용 계정을 함께 사용
@@ -339,7 +348,8 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 1. Activity Bar에서 **DBunny** 아이콘 클릭
 2. **+** 버튼으로 새 연결 추가
 3. 데이터베이스 유형 선택 후 인증 정보 입력
-4. **Save & Connect** 클릭
+4. 연결을 저장합니다.
+5. **Connections** 목록에서 저장한 연결 옆의 **Connect**(플러그 아이콘)를 클릭합니다.
 
 ### SQLite 예제와 호환 범위
 
@@ -362,19 +372,13 @@ VS Code 1.85 이상이 필요하며 데스크톱 또는 원격 Node.js Extension
 
 ### 컨텍스트 메뉴
 
-**테이블 우클릭:**
+**연결:** 연결하기, 편집·삭제, 읽기 전용 전환, 그룹 관리, 복제·내보내기, 템플릿 저장.
 
-- 테이블 데이터 편집
-- 테이블 스키마 복사
-- ERD 다이어그램 표시
-- 목 데이터 생성
-- 쿼리 실행 계획
+**데이터베이스:** 새 쿼리, ERD, 마이그레이션 스크립트 관리, 지원되는 모니터링, 데이터 내보내기.
 
-**연결 우클릭:**
+**SQL 테이블:** 데이터 편집, CREATE TABLE 복사, 스키마 비교, 목 데이터, 가져오기·내보내기, 행 삽입, 통계·차트.
 
-- 실시간 모니터 표시
-- 스키마 비교
-- DB 마이그레이션
+실행 계획은 SQL 편집기와 실행 계획 단축키에서 확인합니다. DB 종류에 따라 사용할 수 있는 작업이 다릅니다.
 
 ### 설정
 
@@ -390,18 +394,18 @@ VS Code 1.85 이상이 필요하며 데스크톱 또는 원격 Node.js Extension
 
 ### 테스트
 
-개발 환경은 Node.js 24 LTS입니다. 단위·Extension Host·Docker 통합·VSIX 검증은 [개발 가이드](CONTRIBUTING.md), 릴리스 태그와 OIDC 설정은 [게시 가이드](docs/PUBLISHING.md)를 참고하세요.
+개발 환경은 Node.js 24 LTS입니다. 단위·Extension Host·Docker 통합·VSIX 검증은 [개발 가이드](https://github.com/chimaek/dbunny/blob/v3.2.0/CONTRIBUTING.md), 릴리스 태그와 OIDC 설정은 [게시 가이드](https://github.com/chimaek/dbunny/blob/v3.2.0/docs/PUBLISHING.md)를 참고하세요.
 
 ### 추가 예정 기능
 
-버전별 상세 계획은 [ROADMAP.md](ROADMAP.md)를 참조하세요.
+버전별 상세 계획은 [ROADMAP.md](https://github.com/chimaek/dbunny/blob/v3.2.0/ROADMAP.md)를 참조하세요.
 
 ---
 
 ## License / 라이선스
 
-See [LICENSE](https://files.chimaek.net/api/public/dl/53IQI0eG?inline=true) file.
-[LICENSE](https://files.chimaek.net/api/public/dl/53IQI0eG?inline=true) 파일을 참조하세요.
+See [LICENSE](https://github.com/chimaek/dbunny/blob/v3.2.0/LICENSE) file.
+[LICENSE](https://github.com/chimaek/dbunny/blob/v3.2.0/LICENSE) 파일을 참조하세요.
 
 ---
 
