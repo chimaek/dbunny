@@ -50,4 +50,12 @@ npm run test:ci-policy
 
 개선 전 기준은 성공 실행 `42176847759`다. 작업 시작~마지막 완료 345초, 작업 시간 합계 1,021초였고 Windows npm ci가 161초·259초를 차지했다. 일반 변경은 Linux·조건부 DB 작업만 사용한다. 전체 변경도 설치 횟수를 7회에서 4회로, VSIX 생성을 6회에서 1회로 줄였다. 실제 속도는 설치·캐시·러너 상태에 따라 달라지므로 실행 기록을 기준으로 비교한다.
 
+### 실측 예시 — 2026-11-09
+
+- [전체 호환 검사](https://github.com/chimaek/dbunny/actions/runs/42567938225): 모든 선택된 작업 성공. 최소/stable 6개 OS·버전 조합과 DB 통합 묶음을 유지하면서 전체 경과 시간 287초(4분 47초), 작업 시간 합계 504초였다.
+- [일반 변경용 빠른 검사](https://github.com/chimaek/dbunny/actions/runs/42568464247): Linux stable의 패키지 검사와 DB 통합 묶음, 공통 결과 체크 성공. 전체 경과 시간 147초(2분 27초), 작업 시간 합계 203초였다. Windows·macOS 호환 검사는 계획대로 생략됐다.
+- 이전에 매번 전체 검사를 실행하던 기준과 비교하면 빠른 검사의 경과 시간은 약 57%, 작업 시간 합계는 약 80% 줄었다. 일반 검사에서는 전체 호환 검사를 릴리스·환경에 민감한 변경 시점으로 나누므로 검사 범위가 서로 다르다.
+
+경과 시간은 첫 작업 시작부터 마지막 작업 완료까지이고, 작업 시간 합계는 실행된 작업만 합산했다. 생략된 작업은 포함하지 않았다. 서로 다른 시점의 1회 실행 자료로, 캐시·설치·러너 상태에 따른 차이를 포함하며 동일 환경 대조 실험은 아니다.
+
 공식 근거: [동시 실행 제어](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), [조건과 재사용 workflow](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax), [artifact 보관](https://github.com/actions/upload-artifact).
