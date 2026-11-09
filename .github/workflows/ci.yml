@@ -4,57 +4,132 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run every OS and supported VS Code version
+        type: boolean
+        default: false
   workflow_call:
+    inputs:
+      full:
+        description: Require full release verification
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        vscode: ['1.85.0', stable]
-    runs-on: ${{ matrix.os }}
-    env:
-      VSCODE_TEST_VERSION: ${{ matrix.vscode }}
+  plan:
+    name: Select checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.plan.outputs.code }}
+      database: ${{ steps.plan.outputs.database }}
+      full: ${{ steps.plan.outputs.full }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: node --test scripts/ci-policy.test.cjs
+      - id: plan
+        run: node scripts/ci-plan.cjs
+        env:
+          CI_FORCE_FULL: ${{ inputs.full || false }}
+
+  build:
+    name: Linux checks and package
+    needs: plan
+    if: needs.plan.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VSCODE_TEST_VERSIONS: ${{ needs.plan.outputs.full == 'true' && '["1.85.0","stable"]' || '["stable"]' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
       - run: npm ci
       - run: npm run compile-tests
-      - run: npm run compile
       - run: npm run test:unit
-      - name: Extension Host tests (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a npm run test:extension
-      - name: Extension Host tests (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:extension
       - run: npm audit --omit=dev
+      # vsce prepublish performs type/lint checks and the production build once.
       - run: npm run package-extension -- --out dbunny.vsix
-      - name: Test packaged runtime (Linux)
-        if: runner.os == 'Linux'
+      - name: Verify packaged runtime and Extension Host
         run: xvfb-run -a npm run test:package -- dbunny.vsix
-      - name: Test packaged runtime (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:package -- dbunny.vsix
-      - name: Retain verified release package
-        if: runner.os == 'Linux' && matrix.vscode == 'stable'
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: dbunny-vsix
           path: dbunny.vsix
+          retention-days: 7
+          if-no-files-found: error
+      - name: Share compiled test harness for compatibility checks
+        if: needs.plan.outputs.full == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dbunny-test-harness
+          path: out/
+          retention-days: 1
           if-no-files-found: error
 
-  integration:
-    runs-on: ubuntu-latest
+  compatibility:
+    name: Compatibility (${{ matrix.os }})
+    needs: [plan, build]
+    if: needs.plan.outputs.full == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      VSCODE_TEST_VERSIONS: '["1.85.0","stable"]'
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      # One install per OS, shared by both VS Code versions.
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dbunny-vsix
+      - uses: actions/download-artifact@v8
+        with:
+          name: dbunny-test-harness
+          path: out
+      - run: npm run test:unit
+      - name: Verify the same VSIX on minimum and stable VS Code
+        run: npm run test:package -- dbunny.vsix
+
+  integration:
+    name: Database integration
+    needs: plan
+    if: needs.plan.outputs.database == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -62,15 +137,36 @@ jobs:
       - run: npm ci
       - run: npm run compile-tests
       - run: docker compose -p dbunny-ci up -d --wait --wait-timeout 180
-      - name: Wait for database readiness and run integration tests
+      - name: Run all database integration suites
         run: npm run test:integration
-      - if: always()
+      - name: Retain failed integration logs
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: integration-logs
           path: test-results/integration
+          retention-days: 3
           if-no-files-found: warn
-      - if: always()
+      - if: failure()
         run: docker compose -p dbunny-ci logs --no-color
       - if: always()
         run: docker compose -p dbunny-ci stop
+
+  result:
+    name: CI result
+    needs: [plan, build, compatibility, integration]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Require every selected check to succeed
+        run: node scripts/ci-result.cjs
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}

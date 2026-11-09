@@ -49,9 +49,9 @@ npm audit --omit=dev
 4. 게시할 때만 버전과 같은 태그를 만든다. 예를 들어 매니페스트가 3.2.0이라면 `v3.2.0`이다.
 5. 게시 권한을 가진 사람이 준비된 커밋과 태그를 원격에 올린다.
 
-일반 `main` push와 PR은 검증만 실행한다. **`v*` 태그 push가 게시를 시작한다.** 먼저 태그명과 package.json 버전을 확인하고, 전체 CI 통과 후 내려받은 VSIX 안의 publisher/name/version도 다시 비교한다. 불일치하면 게시하지 않는다.
+일반 `main` push와 PR은 변경 범위에 맞는 검증만 실행한다. **`v*` 태그 push가 게시를 시작한다.** 게시 workflow는 `full: true`로 재사용 CI를 호출하므로 문서 변경이나 일반 CI의 빠른 모드와 관계없이 전체 검사를 요구한다. 먼저 태그명과 package.json 버전을 확인하고, 전체 CI 통과 후 내려받은 VSIX 안의 publisher/name/version도 다시 비교한다. 불일치하면 게시하지 않는다.
 
-게시 job은 CI가 생성·검증한 `dbunny.vsix`를 artifact에서 받아 그대로 사용한다. 게시 단계에서 다시 번들링하지 않는다.
+게시 job은 CI가 생성·검증한 `dbunny.vsix`를 artifact에서 받아 그대로 사용한다. Linux에서 한 번 생성한 동일 파일을 3개 OS의 최소/stable 6개 조합에서 검증하며, 게시 단계에서 다시 번들링하지 않는다. 태그 검증과 게시 실행에는 자동 취소를 적용하지 않는다.
 
 ```text
 태그 일치 검사 → CI 통과 → 검증된 VSIX 다운로드 → VSIX ID/버전 검사

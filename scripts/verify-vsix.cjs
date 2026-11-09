@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const yauzl = require('yauzl');
 const { runTests } = require('@vscode/test-electron');
+const { getTestVersions } = require('./test-versions.cjs');
 
 async function extract(archive, directory) {
     return new Promise((resolve, reject) => {
@@ -34,6 +35,7 @@ async function extract(archive, directory) {
     });
 }
 async function main() {
+    const versions = getTestVersions();
     const archive = path.resolve(process.argv[2] || 'dbunny.vsix');
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dbunny-vsix-'));
     try {
@@ -52,12 +54,15 @@ async function main() {
         });
         if (runtime.error) { throw runtime.error; }
         assert.equal(runtime.status, 0, 'Packaged driver/WASM verification failed');
-        await runTests({
-            version: process.env.VSCODE_TEST_VERSION || 'stable',
-            extensionDevelopmentPath: extension,
-            extensionTestsPath: path.resolve(__dirname, '../out/test/suite/index.js'),
-            launchArgs: ['--disable-extensions', '--skip-welcome', '--skip-release-notes']
-        });
+        for (const version of versions) {
+            await runTests({
+                version,
+                extensionDevelopmentPath: extension,
+                extensionTestsPath: path.resolve(__dirname, '../out/test/suite/index.js'),
+                launchArgs: ['--disable-extensions', '--skip-welcome', '--skip-release-notes']
+            });
+            console.log(`PASS packaged Extension Host: ${version}`);
+        }
         console.log(`Verified packaged runtime, SQLite WASM, locales and activation: ${manifest.publisher}.${manifest.name}@${manifest.version}`);
     } finally {
         // 삭제 대상은 이 실행에서 만든 임시 디렉터리로만 제한한다.

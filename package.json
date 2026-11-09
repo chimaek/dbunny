@@ -723,6 +723,7 @@
     "lint:fix": "eslint src --fix",
     "test": "npm run test:unit && npm run test:extension",
     "test:unit": "node scripts/run-unit-tests.cjs",
+    "test:ci-policy": "node --test scripts/ci-policy.test.cjs",
     "test:extension": "vscode-test",
     "test:integration": "node scripts/run-integration-tests.cjs",
     "test:package": "node scripts/verify-vsix.cjs",

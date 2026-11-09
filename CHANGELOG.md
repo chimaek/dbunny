@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Select CI checks by changed paths; retain full release verification while sharing one VSIX and test harness across platforms.
+- Install dependencies once per OS, cancel superseded branch checks, and shorten artifact retention.
+- Keep personal development settings local to the checkout.
 - Restore unit and isolated Extension Host tests and cross-platform/package CI.
 - Read query limits from settings and apply server limits where supported.
 - Publish verified VSIX artifacts only from matching release tags using OIDC and Node.js 24.

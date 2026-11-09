@@ -13,7 +13,6 @@
 - 통합 테스트 러너가 기존 누락 파일과 새 회귀 검사를 포함해 전체 묶음을 실행하고 로그를 남기도록 했다.
 - vsce 4.1.0과 Azure 인증 의존성의 호환 보안 업데이트를 적용했다.
 - 태그 확인 → 전체 CI → 검증 VSIX 다운로드 → 패키지 ID/버전 확인 → OIDC 게시 흐름을 구성했다.
-- `AGENTS.md`와 `.cursor/rules/git-delivery.mdc`에 검증 후 사용자 정보로 한글 커밋·push하는 규칙을 추가했다. 확인된 Git/GitHub 사용자는 `chimaek <pipiru100@gmail.com>`이다.
 
 ## 실행 결과
 

@@ -75,6 +75,18 @@ npm audit --omit=dev
 - 패키지 안의 sql.js와 WASM으로 `SELECT 1` 실행.
 - 패키지 안의 번들을 격리된 Extension Host에서 활성화하고 명령 등록 검증.
 
-CI는 Windows·macOS·Linux에서 최소 버전과 stable을 검증한다. 게시 job은 Linux stable에서 검증한 동일 VSIX를 내려받아 게시한다.
+일반 CI는 변경 범위를 판정한 뒤 Linux stable에서 단위·패키지 Host 검사를 수행한다. DB 관련 변경에는 통합 검사를 병렬로 추가하고, 문서만 변경한 경우 무거운 검사는 생략한다. 의존성·CI/빌드 설정·SSH/파일 처리 등 환경에 민감한 변경과 릴리스에는 전체 호환 검사를 수행한다.
+
+전체 검사는 OS마다 한 번만 의존성을 설치하고 최소 버전과 stable을 순서대로 실행한다. Linux에서 만든 동일 VSIX와 컴파일한 테스트 파일을 Windows·macOS에서도 재사용한다. 게시 job도 이 VSIX를 그대로 내려받는다.
+
+패키지의 두 버전을 로컬에서 한 번에 검증하려면 다음처럼 실행한다.
+
+```powershell
+$env:VSCODE_TEST_VERSIONS = '["1.85.0","stable"]'
+npm run test:package -- dbunny.vsix
+Remove-Item Env:VSCODE_TEST_VERSIONS
+```
+
+GitHub의 `Verify DBunny` workflow는 수동 실행도 지원한다. `full=false`는 Linux와 전체 DB 통합 검사, `full=true`는 모든 OS·버전 검사다. 태그의 검사는 항상 전체 범위로 실행된다. 자세한 변경 범위와 보관 정책은 [CI 가이드](./docs/CI.md)를 따른다.
 
 배포 계정 설정과 릴리스 절차는 [게시 가이드](./docs/PUBLISHING.md)를 따른다.
