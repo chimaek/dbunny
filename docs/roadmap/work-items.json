@@ -1,0 +1,3648 @@
+{
+  "schemaVersion": 1,
+  "targetMinutes": [
+    20,
+    30
+  ],
+  "priorities": [
+    "D001",
+    "D108",
+    "D008",
+    "D105",
+    "D115"
+  ],
+  "parents": [
+    {
+      "id": "D001",
+      "title": "연결 A → B → A 쿼리 탭 복구",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D001-1",
+          "goal": "실행 대상 연결을 확보하는 작은 함수와 회귀 검사",
+          "target": "src/managers/connectionManager.ts",
+          "after": []
+        },
+        {
+          "id": "D001-2",
+          "goal": "쿼리 탭 실행 한 곳에 연결 확보 함수 적용",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D001-1"
+          ]
+        },
+        {
+          "id": "D001-3",
+          "goal": "재접속 실패 때 다른 DB 실행을 차단하고 복구",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D001-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D002",
+      "title": "이미 연결된 대상을 선택할 때 재접속 방지",
+      "dependsOn": [
+        "D001"
+      ],
+      "units": [
+        {
+          "id": "D002-1",
+          "goal": "동일 활성 연결의 재접속 생략",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D001"
+          ]
+        },
+        {
+          "id": "D002-2",
+          "goal": "설정 편집 뒤에는 새 세션을 만드는 경계 유지",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D002-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D003",
+      "title": "같은 탭의 중복 쿼리 실행 차단",
+      "dependsOn": [
+        "D001"
+      ],
+      "units": [
+        {
+          "id": "D003-1",
+          "goal": "Host의 중복 실행 요청 차단",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D001"
+          ]
+        },
+        {
+          "id": "D003-2",
+          "goal": "오류·파라미터 제출 후 실행 잠금 복구",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D003-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D004",
+      "title": "실행 중 다른 연결로 전환하는 동작 정리",
+      "dependsOn": [
+        "D002",
+        "D003"
+      ],
+      "units": [
+        {
+          "id": "D004-1",
+          "goal": "실행 중 연결 전환 차단",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D002",
+            "D003"
+          ]
+        },
+        {
+          "id": "D004-2",
+          "goal": "완료·오류 뒤 전환 잠금 해제",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D004-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D005",
+      "title": "실행 중 내부 쿼리 탭 닫기 보호",
+      "dependsOn": [
+        "D003"
+      ],
+      "units": [
+        {
+          "id": "D005-1",
+          "goal": "실행 중 내부 탭 닫기 차단",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D003"
+          ]
+        },
+        {
+          "id": "D005-2",
+          "goal": "완료·오류 뒤 해당 탭 닫기 복구",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D005-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D006",
+      "title": "수정한 SQL의 내부 탭 닫기 확인",
+      "dependsOn": [
+        "D005"
+      ],
+      "units": [
+        {
+          "id": "D006-1",
+          "goal": "SQL 변경 여부를 추적하는 dirty 상태",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D005"
+          ]
+        },
+        {
+          "id": "D006-2",
+          "goal": "내부 탭 닫기의 버리기·계속 편집 선택",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D006-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D007",
+      "title": "연결 배지와 상태바의 상태 일치",
+      "dependsOn": [
+        "D001",
+        "D004"
+      ],
+      "units": [
+        {
+          "id": "D007-1",
+          "goal": "끊김·연결 중 배지 표시",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D001",
+            "D004"
+          ]
+        },
+        {
+          "id": "D007-2",
+          "goal": "실패·탭 전환의 상태바 일치",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D007-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D008",
+      "title": "연결 오류의 비밀값 제거와 원인 분류",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D008-1",
+          "goal": "안전한 오류 원인 분류 함수",
+          "target": "src/utils/connectionError.ts (신규)",
+          "after": []
+        },
+        {
+          "id": "D008-2",
+          "goal": "URI·비밀번호·키 내용 제거 함수",
+          "target": "src/utils/connectionError.ts (신규)",
+          "after": [
+            "D008-1"
+          ]
+        },
+        {
+          "id": "D008-3",
+          "goal": "연결 실패 메시지 한 경로에 적용",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D008-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D009",
+      "title": "안전한 진단 OutputChannel 제공",
+      "dependsOn": [
+        "D008"
+      ],
+      "units": [
+        {
+          "id": "D009-1",
+          "goal": "가려진 진단 채널 생성과 dispose",
+          "target": "src/utils/diagnostics.ts (신규)",
+          "after": [
+            "D008"
+          ]
+        },
+        {
+          "id": "D009-2",
+          "goal": "연결 실패의 진단 보기 행동 연결",
+          "target": "src/utils/diagnostics.ts (신규)",
+          "after": [
+            "D009-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D010",
+      "title": "연결 안정성 배포 후보의 회귀 시나리오",
+      "dependsOn": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D009"
+      ],
+      "units": [
+        {
+          "id": "D010-1",
+          "goal": "A/B 전환·실패 복구 시나리오 정리",
+          "target": "src/test/host/queryLifecycle.test.ts (신규)",
+          "after": [
+            "D001",
+            "D002",
+            "D003",
+            "D004",
+            "D005",
+            "D006",
+            "D007",
+            "D008",
+            "D009"
+          ]
+        },
+        {
+          "id": "D010-2",
+          "goal": "검증한 안정성 변화의 배포 후보 노트",
+          "target": "src/test/host/queryLifecycle.test.ts (신규)",
+          "after": [
+            "D010-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D011",
+      "title": "서버 없이 여는 샘플 SQLite 명령",
+      "dependsOn": [
+        "D001"
+      ],
+      "units": [
+        {
+          "id": "D011-1",
+          "goal": "샘플 파일 경계와 중복 방지 함수",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D001"
+          ]
+        },
+        {
+          "id": "D011-2",
+          "goal": "샘플 생성·연결 명령 등록",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D011-1"
+          ]
+        },
+        {
+          "id": "D011-3",
+          "goal": "실제 VSIX의 샘플 경로 보존",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D011-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D012",
+      "title": "한글 주문 예제 데이터와 JOIN 쿼리",
+      "dependsOn": [
+        "D011"
+      ],
+      "units": [
+        {
+          "id": "D012-1",
+          "goal": "3개 테이블과 고정 seed 데이터",
+          "target": "src/utils/demoDatabase.ts",
+          "after": [
+            "D011"
+          ]
+        },
+        {
+          "id": "D012-2",
+          "goal": "JOIN 예제와 정확한 기대 결과",
+          "target": "src/utils/demoDatabase.ts",
+          "after": [
+            "D012-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D013",
+      "title": "실제 성공과 연결된 기본 Walkthrough",
+      "dependsOn": [
+        "D012"
+      ],
+      "units": [
+        {
+          "id": "D013-1",
+          "goal": "3단계 Walkthrough 진입점",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D012"
+          ]
+        },
+        {
+          "id": "D013-2",
+          "goal": "성공한 쿼리만 완료 이벤트로 처리",
+          "target": "package.json",
+          "after": [
+            "D013-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D014",
+      "title": "DB 종류별 연결 폼 인라인 검증",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D014-1",
+          "goal": "DB별 필수 필드 검증 함수",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": []
+        },
+        {
+          "id": "D014-2",
+          "goal": "오류 필드·인라인 문구와 포커스",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D014-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D015",
+      "title": "저장과 저장 후 연결 행동 구분",
+      "dependsOn": [
+        "D014",
+        "D001"
+      ],
+      "units": [
+        {
+          "id": "D015-1",
+          "goal": "저장만 하는 버튼과 Host 경로",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D014",
+            "D001"
+          ]
+        },
+        {
+          "id": "D015-2",
+          "goal": "저장 후 연결 버튼의 성공·실패 상태",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D015-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D016",
+      "title": "연결 테스트의 진행·실패·재시도 UX",
+      "dependsOn": [
+        "D008",
+        "D014"
+      ],
+      "units": [
+        {
+          "id": "D016-1",
+          "goal": "테스트 중 중복 요청과 진행 표시",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D008",
+            "D014"
+          ]
+        },
+        {
+          "id": "D016-2",
+          "goal": "실패 후 입력 유지·재시도 복구",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D016-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D017",
+      "title": "빈 화면에서 다음 행동 안내",
+      "dependsOn": [
+        "D012"
+      ],
+      "units": [
+        {
+          "id": "D017-1",
+          "goal": "연결 없는 화면의 샘플 열기",
+          "target": "src/views/queryHistoryView.ts",
+          "after": [
+            "D012"
+          ]
+        },
+        {
+          "id": "D017-2",
+          "goal": "히스토리 없음·미실행·0행 문구 구분",
+          "target": "src/views/queryHistoryView.ts",
+          "after": [
+            "D017-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D018",
+      "title": "반복 환영 알림을 줄이고 다시 찾기 제공",
+      "dependsOn": [
+        "D013"
+      ],
+      "units": [
+        {
+          "id": "D018-1",
+          "goal": "매 활성화 환영 알림 반복 제거",
+          "target": "src/extension.ts",
+          "after": [
+            "D013"
+          ]
+        },
+        {
+          "id": "D018-2",
+          "goal": "안내 다시 열기 명령",
+          "target": "src/extension.ts",
+          "after": [
+            "D018-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D019",
+      "title": "명령과 설정의 한·영 현지화",
+      "dependsOn": [
+        "D013",
+        "D018"
+      ],
+      "units": [
+        {
+          "id": "D019-1",
+          "goal": "명령·뷰 이름 현지화 키",
+          "target": "package.json",
+          "after": [
+            "D013",
+            "D018"
+          ]
+        },
+        {
+          "id": "D019-2",
+          "goal": "설정 설명·fallback 키 동등성",
+          "target": "package.json",
+          "after": [
+            "D019-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D020",
+      "title": "설치 후 첫 JOIN까지의 체험 가이드",
+      "dependsOn": [
+        "D011",
+        "D012",
+        "D013",
+        "D014",
+        "D015",
+        "D016",
+        "D017",
+        "D018",
+        "D019"
+      ],
+      "units": [
+        {
+          "id": "D020-1",
+          "goal": "첫 JOIN 체험의 짧은 안내",
+          "target": "README.md",
+          "after": [
+            "D011",
+            "D012",
+            "D013",
+            "D014",
+            "D015",
+            "D016",
+            "D017",
+            "D018",
+            "D019"
+          ]
+        },
+        {
+          "id": "D020-2",
+          "goal": "실제 화면·시간·막힌 지점 반영",
+          "target": "README.md",
+          "after": [
+            "D020-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D021",
+      "title": "연결 폼의 label과 키보드 순서",
+      "dependsOn": [
+        "D014"
+      ],
+      "units": [
+        {
+          "id": "D021-1",
+          "goal": "연결 폼 label과 오류 설명 연결",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D014"
+          ]
+        },
+        {
+          "id": "D021-2",
+          "goal": "Tab 순서와 키보드 버튼 실행",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D021-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D022",
+      "title": "쿼리 탭 다시 그리기 후 포커스 보존",
+      "dependsOn": [
+        "D006",
+        "D007"
+      ],
+      "units": [
+        {
+          "id": "D022-1",
+          "goal": "갱신 전후 커서·선택 영역 보존",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D006",
+            "D007"
+          ]
+        },
+        {
+          "id": "D022-2",
+          "goal": "탭 왕복의 스크롤·한글 조합 보존",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D022-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D023",
+      "title": "결과 그리드 키보드 이동과 편집 진입",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D023-1",
+          "goal": "현재 셀과 방향키 이동",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": []
+        },
+        {
+          "id": "D023-2",
+          "goal": "편집 진입·취소·원래 값 복사",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D023-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D024",
+      "title": "결과 패널의 밝음·어두움·고대비 대응",
+      "dependsOn": [
+        "D023"
+      ],
+      "units": [
+        {
+          "id": "D024-1",
+          "goal": "한 패널의 테마 token 적용",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D023"
+          ]
+        },
+        {
+          "id": "D024-2",
+          "goal": "고대비·확대에서 선택과 오류 구분",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D024-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D025",
+      "title": "연결 저장 메시지의 런타임 검증",
+      "dependsOn": [
+        "D014"
+      ],
+      "units": [
+        {
+          "id": "D025-1",
+          "goal": "save 메시지 구조·값 검증",
+          "target": "src/utils/webviewMessages.ts (신규)",
+          "after": [
+            "D014"
+          ]
+        },
+        {
+          "id": "D025-2",
+          "goal": "test 메시지 검증과 안전한 거절",
+          "target": "src/utils/webviewMessages.ts (신규)",
+          "after": [
+            "D025-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D026",
+      "title": "쿼리 실행 메시지의 탭·SQL 검증",
+      "dependsOn": [
+        "D025",
+        "D003"
+      ],
+      "units": [
+        {
+          "id": "D026-1",
+          "goal": "tabId·SQL 타입과 길이 검사",
+          "target": "src/utils/webviewMessages.ts",
+          "after": [
+            "D025",
+            "D003"
+          ]
+        },
+        {
+          "id": "D026-2",
+          "goal": "파라미터 모양과 최종 읽기 전용 경계",
+          "target": "src/utils/webviewMessages.ts",
+          "after": [
+            "D026-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D027",
+      "title": "행 편집 메시지의 컬럼과 키 경계 검증",
+      "dependsOn": [
+        "D025"
+      ],
+      "units": [
+        {
+          "id": "D027-1",
+          "goal": "수정 컬럼·PK를 메타데이터와 대조",
+          "target": "src/utils/webviewMessages.ts",
+          "after": [
+            "D025"
+          ]
+        },
+        {
+          "id": "D027-2",
+          "goal": "변조된 대상과 무효 값의 쓰기 차단",
+          "target": "src/utils/webviewMessages.ts",
+          "after": [
+            "D027-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D028",
+      "title": "읽기 전용에서 불가능한 행동의 이유 표시",
+      "dependsOn": [
+        "D023",
+        "D026",
+        "D027"
+      ],
+      "units": [
+        {
+          "id": "D028-1",
+          "goal": "읽기 전용 비활성 이유 표시",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D023",
+            "D026",
+            "D027"
+          ]
+        },
+        {
+          "id": "D028-2",
+          "goal": "키보드·직접 메시지 우회 차단",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D028-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D029",
+      "title": "결과의 로딩·빈 결과·제한·오류 상태 구분",
+      "dependsOn": [
+        "D023"
+      ],
+      "units": [
+        {
+          "id": "D029-1",
+          "goal": "로딩·미실행·0행 표시",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D023"
+          ]
+        },
+        {
+          "id": "D029-2",
+          "goal": "제한·오류와 이전 결과 구분",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D029-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D030",
+      "title": "행 삭제 확인에 대상과 영향 표시",
+      "dependsOn": [
+        "D027",
+        "D028"
+      ],
+      "units": [
+        {
+          "id": "D030-1",
+          "goal": "삭제 대상·건수·키 확인",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D027",
+            "D028"
+          ]
+        },
+        {
+          "id": "D030-2",
+          "goal": "취소·성공·PK 없음의 경계",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D030-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D031",
+      "title": "PostgreSQL 자기 쿼리 취소 컴포넌트",
+      "dependsOn": [
+        "D004"
+      ],
+      "units": [
+        {
+          "id": "D031-1",
+          "goal": "실행 핸들과 자기 backend 식별 계약",
+          "target": "src/types/database.ts",
+          "after": [
+            "D004"
+          ]
+        },
+        {
+          "id": "D031-2",
+          "goal": "자기 실행만 취소하는 provider 경로",
+          "target": "src/types/database.ts",
+          "after": [
+            "D031-1"
+          ]
+        },
+        {
+          "id": "D031-3",
+          "goal": "늦은 취소와 이미 끝난 핸들 거절",
+          "target": "src/types/database.ts",
+          "after": [
+            "D031-2"
+          ]
+        },
+        {
+          "id": "D031-4",
+          "goal": "취소 실패·권한 부족의 연결 정리",
+          "target": "src/types/database.ts",
+          "after": [
+            "D031-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D032",
+      "title": "PostgreSQL 실행 취소 버튼과 상태 복구",
+      "dependsOn": [
+        "D031",
+        "D003",
+        "D026"
+      ],
+      "units": [
+        {
+          "id": "D032-1",
+          "goal": "PG 실행 중 취소 버튼",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D031",
+            "D003",
+            "D026"
+          ]
+        },
+        {
+          "id": "D032-2",
+          "goal": "취소 중·완료·실패 상태",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D032-1"
+          ]
+        },
+        {
+          "id": "D032-3",
+          "goal": "늦은 응답이 다음 실행에 섞이지 않게 처리",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D032-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D033",
+      "title": "MySQL 자기 쿼리 취소 컴포넌트",
+      "dependsOn": [
+        "D031"
+      ],
+      "units": [
+        {
+          "id": "D033-1",
+          "goal": "자기 MySQL 실행 세션 식별",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D031"
+          ]
+        },
+        {
+          "id": "D033-2",
+          "goal": "query 취소 제어 연결",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D033-1"
+          ]
+        },
+        {
+          "id": "D033-3",
+          "goal": "SSH 제어 경로와 해제",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D033-2"
+          ]
+        },
+        {
+          "id": "D033-4",
+          "goal": "권한 부족·늦은 취소의 복구",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D033-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D034",
+      "title": "MySQL 취소 UX 연결",
+      "dependsOn": [
+        "D032",
+        "D033"
+      ],
+      "units": [
+        {
+          "id": "D034-1",
+          "goal": "MySQL 취소 버튼 연결",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D032",
+            "D033"
+          ]
+        },
+        {
+          "id": "D034-2",
+          "goal": "취소 실패 뒤 재실행 복구",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D034-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D035",
+      "title": "실행 전 대기 요청의 취소",
+      "dependsOn": [
+        "D032",
+        "D034"
+      ],
+      "units": [
+        {
+          "id": "D035-1",
+          "goal": "대기 중 요청의 취소 표시",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D032",
+            "D034"
+          ]
+        },
+        {
+          "id": "D035-2",
+          "goal": "취소된 요청을 SQL 전송 전에 제거",
+          "target": "src/managers/connectionManager.ts",
+          "after": [
+            "D035-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D036",
+      "title": "timeout·취소·연결 끊김의 구분",
+      "dependsOn": [
+        "D032",
+        "D034",
+        "D008"
+      ],
+      "units": [
+        {
+          "id": "D036-1",
+          "goal": "timeout·취소·끊김 분류",
+          "target": "src/utils/connectionError.ts",
+          "after": [
+            "D032",
+            "D034",
+            "D008"
+          ]
+        },
+        {
+          "id": "D036-2",
+          "goal": "원인별 안내와 수동 재시도",
+          "target": "src/utils/connectionError.ts",
+          "after": [
+            "D036-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D037",
+      "title": "SQLite 읽기 worker의 실행 계약",
+      "dependsOn": [
+        "D031"
+      ],
+      "units": [
+        {
+          "id": "D037-1",
+          "goal": "worker 요청·결과 계약",
+          "target": "src/providers/sqliteReadWorker.ts (신규)",
+          "after": [
+            "D031"
+          ]
+        },
+        {
+          "id": "D037-2",
+          "goal": "스냅샷 SELECT worker",
+          "target": "src/providers/sqliteReadWorker.ts (신규)",
+          "after": [
+            "D037-1"
+          ]
+        },
+        {
+          "id": "D037-3",
+          "goal": "클라이언트 오류·종료 수명",
+          "target": "src/providers/sqliteReadWorker.ts (신규)",
+          "after": [
+            "D037-2"
+          ]
+        },
+        {
+          "id": "D037-4",
+          "goal": "패키지 WASM 경로와 로딩",
+          "target": "src/providers/sqliteReadWorker.ts (신규)",
+          "after": [
+            "D037-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D038",
+      "title": "SQLite worker 읽기 경로의 제한적 연결",
+      "dependsOn": [
+        "D037"
+      ],
+      "units": [
+        {
+          "id": "D038-1",
+          "goal": "지원하는 단일 SELECT만 worker로 연결",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D037"
+          ]
+        },
+        {
+          "id": "D038-2",
+          "goal": "최신 스냅샷과 쓰기 후 읽기",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D038-1"
+          ]
+        },
+        {
+          "id": "D038-3",
+          "goal": "혼합 SQL·트랜잭션의 명시적 경계",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D038-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D039",
+      "title": "SQLite worker 취소와 자원 정리",
+      "dependsOn": [
+        "D038",
+        "D032"
+      ],
+      "units": [
+        {
+          "id": "D039-1",
+          "goal": "자기 worker 종료와 재생성",
+          "target": "src/providers/sqliteWorkerClient.ts",
+          "after": [
+            "D038",
+            "D032"
+          ]
+        },
+        {
+          "id": "D039-2",
+          "goal": "지원 범위에 맞는 취소 UI",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D039-1"
+          ]
+        },
+        {
+          "id": "D039-3",
+          "goal": "반복 취소의 자원 누수 방지",
+          "target": "src/providers/sqliteWorkerClient.ts",
+          "after": [
+            "D039-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D040",
+      "title": "취소와 Extension Host 응답성 측정",
+      "dependsOn": [
+        "D032",
+        "D034",
+        "D035",
+        "D036",
+        "D039"
+      ],
+      "units": [
+        {
+          "id": "D040-1",
+          "goal": "PG/MySQL 자기 세션 취소 증거",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D032",
+            "D034",
+            "D035",
+            "D036",
+            "D039"
+          ]
+        },
+        {
+          "id": "D040-2",
+          "goal": "SQLite Host 응답성 측정과 제약",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D040-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D041",
+      "title": "페이지 조회와 결과 제한의 계약 분리",
+      "dependsOn": [
+        "D029"
+      ],
+      "units": [
+        {
+          "id": "D041-1",
+          "goal": "페이지 요청·응답 타입",
+          "target": "src/types/database.ts",
+          "after": [
+            "D029"
+          ]
+        },
+        {
+          "id": "D041-2",
+          "goal": "hasMore·제한·알 수 없는 전체 수",
+          "target": "src/types/database.ts",
+          "after": [
+            "D041-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D042",
+      "title": "MySQL 단일 PK 테이블 페이지 조회",
+      "dependsOn": [
+        "D041"
+      ],
+      "units": [
+        {
+          "id": "D042-1",
+          "goal": "MySQL 식별자·cursor 검증",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D041"
+          ]
+        },
+        {
+          "id": "D042-2",
+          "goal": "단일 PK bounded 조회",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D042-1"
+          ]
+        },
+        {
+          "id": "D042-3",
+          "goal": "마지막 페이지·변조 cursor 처리",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D042-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D043",
+      "title": "PostgreSQL 단일 PK 테이블 페이지 조회",
+      "dependsOn": [
+        "D041"
+      ],
+      "units": [
+        {
+          "id": "D043-1",
+          "goal": "PG schema·PK 식별",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D041"
+          ]
+        },
+        {
+          "id": "D043-2",
+          "goal": "bounded keyset 조회",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D043-1"
+          ]
+        },
+        {
+          "id": "D043-3",
+          "goal": "다른 schema·무효 cursor 처리",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D043-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D044",
+      "title": "SQLite 단일 PK 테이블 페이지 조회",
+      "dependsOn": [
+        "D041"
+      ],
+      "units": [
+        {
+          "id": "D044-1",
+          "goal": "SQLite PK·cursor 계약",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D041"
+          ]
+        },
+        {
+          "id": "D044-2",
+          "goal": "bounded 조회와 종료",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D044-1"
+          ]
+        },
+        {
+          "id": "D044-3",
+          "goal": "원본 파일 보존·타입 경계",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D044-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D045",
+      "title": "테이블 페이지 이동 UI",
+      "dependsOn": [
+        "D042",
+        "D043",
+        "D044"
+      ],
+      "units": [
+        {
+          "id": "D045-1",
+          "goal": "다음 페이지와 로딩 표시",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D042",
+            "D043",
+            "D044"
+          ]
+        },
+        {
+          "id": "D045-2",
+          "goal": "이전 페이지·크기 변경",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D045-1"
+          ]
+        },
+        {
+          "id": "D045-3",
+          "goal": "이동 때 선택 행 초기화",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D045-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D046",
+      "title": "결과 그리드 렌더링 행 수 제한",
+      "dependsOn": [
+        "D023",
+        "D041"
+      ],
+      "units": [
+        {
+          "id": "D046-1",
+          "goal": "행 렌더러를 작은 컴포넌트로 분리",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D023",
+            "D041"
+          ]
+        },
+        {
+          "id": "D046-2",
+          "goal": "DOM 행 수 제한",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D046-1"
+          ]
+        },
+        {
+          "id": "D046-3",
+          "goal": "스크롤과 안정된 행 키",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D046-2"
+          ]
+        },
+        {
+          "id": "D046-4",
+          "goal": "키보드·복사 대상 일치",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D046-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D047",
+      "title": "숫자 정밀도와 NULL 표시·복사 보존",
+      "dependsOn": [
+        "D023"
+      ],
+      "units": [
+        {
+          "id": "D047-1",
+          "goal": "정밀 숫자·NULL 표시 함수",
+          "target": "src/utils/valueDisplay.ts (신규)",
+          "after": [
+            "D023"
+          ]
+        },
+        {
+          "id": "D047-2",
+          "goal": "실제 값 복사와 driver 경계",
+          "target": "src/utils/valueDisplay.ts (신규)",
+          "after": [
+            "D047-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D048",
+      "title": "큰 JSON·텍스트 셀의 제한된 보기",
+      "dependsOn": [
+        "D047"
+      ],
+      "units": [
+        {
+          "id": "D048-1",
+          "goal": "큰 셀의 요약·길이 제한",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D047"
+          ]
+        },
+        {
+          "id": "D048-2",
+          "goal": "펼치기·닫기·안전한 복사",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D048-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D049",
+      "title": "결과 필터·정렬·컬럼 상태의 범위 고정",
+      "dependsOn": [
+        "D046"
+      ],
+      "units": [
+        {
+          "id": "D049-1",
+          "goal": "연결·결과별 UI 상태 키",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D046"
+          ]
+        },
+        {
+          "id": "D049-2",
+          "goal": "스키마 변경 때 무효 컬럼 상태 제거",
+          "target": "src/webview/QueryResultPanel.ts",
+          "after": [
+            "D049-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D050",
+      "title": "10만 행 샘플의 페이지·렌더링 측정",
+      "dependsOn": [
+        "D045",
+        "D046",
+        "D047",
+        "D048",
+        "D049"
+      ],
+      "units": [
+        {
+          "id": "D050-1",
+          "goal": "10만 행 fixture와 페이지 측정",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D045",
+            "D046",
+            "D047",
+            "D048",
+            "D049"
+          ]
+        },
+        {
+          "id": "D050-2",
+          "goal": "DOM·메모리 원자료와 병목 정리",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D050-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D051",
+      "title": "미리보기와 전체 CSV 내보내기의 계약",
+      "dependsOn": [
+        "D041"
+      ],
+      "units": [
+        {
+          "id": "D051-1",
+          "goal": "preview/full 내보내기 계약",
+          "target": "src/types/database.ts",
+          "after": [
+            "D041"
+          ]
+        },
+        {
+          "id": "D051-2",
+          "goal": "취소·부분 파일·미지원 범위",
+          "target": "src/types/database.ts",
+          "after": [
+            "D051-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D052",
+      "title": "MySQL 테이블 CSV의 bounded 내보내기",
+      "dependsOn": [
+        "D051",
+        "D042"
+      ],
+      "units": [
+        {
+          "id": "D052-1",
+          "goal": "MySQL bounded 배치 읽기",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D051",
+            "D042"
+          ]
+        },
+        {
+          "id": "D052-2",
+          "goal": "CSV 순차 쓰기와 backpressure",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D052-1"
+          ]
+        },
+        {
+          "id": "D052-3",
+          "goal": "취소와 연결 해제",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D052-2"
+          ]
+        },
+        {
+          "id": "D052-4",
+          "goal": "파일 오류·부분 결과 안내",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D052-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D053",
+      "title": "PostgreSQL 테이블 CSV의 bounded 내보내기",
+      "dependsOn": [
+        "D051",
+        "D043"
+      ],
+      "units": [
+        {
+          "id": "D053-1",
+          "goal": "PG bounded 읽기와 schema",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D051",
+            "D043"
+          ]
+        },
+        {
+          "id": "D053-2",
+          "goal": "CSV 순차 쓰기",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D053-1"
+          ]
+        },
+        {
+          "id": "D053-3",
+          "goal": "취소·SSH 수명",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D053-2"
+          ]
+        },
+        {
+          "id": "D053-4",
+          "goal": "동시 변경·파일 오류 한계",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D053-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D054",
+      "title": "SQLite 테이블 CSV와 전체 내보내기 진입점",
+      "dependsOn": [
+        "D051",
+        "D044",
+        "D052",
+        "D053"
+      ],
+      "units": [
+        {
+          "id": "D054-1",
+          "goal": "SQLite bounded CSV 읽기",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D051",
+            "D044",
+            "D052",
+            "D053"
+          ]
+        },
+        {
+          "id": "D054-2",
+          "goal": "중단·원본 파일 보존",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D054-1"
+          ]
+        },
+        {
+          "id": "D054-3",
+          "goal": "검증한 DB만 전체 CSV 메뉴",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D054-2"
+          ]
+        },
+        {
+          "id": "D054-4",
+          "goal": "preview/full 문구와 실제 행 수",
+          "target": "src/providers/sqliteProvider.ts",
+          "after": [
+            "D054-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D055",
+      "title": "Excel 내보내기의 크기 한도와 대안",
+      "dependsOn": [
+        "D051"
+      ],
+      "units": [
+        {
+          "id": "D055-1",
+          "goal": "Excel 크기 한도 판단",
+          "target": "src/utils/dataExport.ts",
+          "after": [
+            "D051"
+          ]
+        },
+        {
+          "id": "D055-2",
+          "goal": "초과 안내와 CSV 대안",
+          "target": "src/utils/dataExport.ts",
+          "after": [
+            "D055-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D056",
+      "title": "한글 CSV의 BOM·구분자 선택",
+      "dependsOn": [
+        "D054"
+      ],
+      "units": [
+        {
+          "id": "D056-1",
+          "goal": "BOM·구분자 옵션과 escaping",
+          "target": "src/utils/dataExport.ts",
+          "after": [
+            "D054"
+          ]
+        },
+        {
+          "id": "D056-2",
+          "goal": "한글·개행 round-trip와 수식 정책",
+          "target": "src/utils/dataExport.ts",
+          "after": [
+            "D056-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D057",
+      "title": "가져오기 dry run과 행별 오류 미리보기",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D057-1",
+          "goal": "dry run의 컬럼·필수 값 검사",
+          "target": "src/utils/dataImport.ts",
+          "after": []
+        },
+        {
+          "id": "D057-2",
+          "goal": "오류 행 번호·미리보기·쓰기 0회",
+          "target": "src/utils/dataImport.ts",
+          "after": [
+            "D057-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D058",
+      "title": "MySQL 가져오기 배치 트랜잭션",
+      "dependsOn": [
+        "D057"
+      ],
+      "units": [
+        {
+          "id": "D058-1",
+          "goal": "MySQL 배치 값 바인딩 계약",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D057"
+          ]
+        },
+        {
+          "id": "D058-2",
+          "goal": "배치 BEGIN·commit 경계",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D058-1"
+          ]
+        },
+        {
+          "id": "D058-3",
+          "goal": "행 오류 때 rollback",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D058-2"
+          ]
+        },
+        {
+          "id": "D058-4",
+          "goal": "부분 반영 수와 읽기 전용 경계",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D058-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D059",
+      "title": "PostgreSQL 가져오기 배치 트랜잭션",
+      "dependsOn": [
+        "D057",
+        "D058"
+      ],
+      "units": [
+        {
+          "id": "D059-1",
+          "goal": "PG 바인딩 배치",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D057",
+            "D058"
+          ]
+        },
+        {
+          "id": "D059-2",
+          "goal": "배치 트랜잭션 경계",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D059-1"
+          ]
+        },
+        {
+          "id": "D059-3",
+          "goal": "aborted transaction 복구",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D059-2"
+          ]
+        },
+        {
+          "id": "D059-4",
+          "goal": "schema·반영 수·읽기 전용 경계",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D059-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D060",
+      "title": "가져오기 취소·부분 완료·재시도 안내",
+      "dependsOn": [
+        "D058",
+        "D059"
+      ],
+      "units": [
+        {
+          "id": "D060-1",
+          "goal": "배치 사이 취소",
+          "target": "src/utils/dataImport.ts",
+          "after": [
+            "D058",
+            "D059"
+          ]
+        },
+        {
+          "id": "D060-2",
+          "goal": "부분 commit·오류 건수 표시",
+          "target": "src/utils/dataImport.ts",
+          "after": [
+            "D060-1"
+          ]
+        },
+        {
+          "id": "D060-3",
+          "goal": "재시도의 시작 범위·중복 정책",
+          "target": "src/utils/dataImport.ts",
+          "after": [
+            "D060-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D061",
+      "title": "Redis 키 목록의 KEYS를 SCAN으로 교체",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D061-1",
+          "goal": "Redis 탐색용 SCAN 계약",
+          "target": "src/providers/redisProvider.ts",
+          "after": []
+        },
+        {
+          "id": "D061-2",
+          "goal": "KEYS 없는 기본 목록 경로",
+          "target": "src/providers/redisProvider.ts",
+          "after": [
+            "D061-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D062",
+      "title": "Redis 더 보기와 cursor 상태",
+      "dependsOn": [
+        "D061"
+      ],
+      "units": [
+        {
+          "id": "D062-1",
+          "goal": "더 보기와 연결별 cursor",
+          "target": "src/views/connectionTreeView.ts",
+          "after": [
+            "D061"
+          ]
+        },
+        {
+          "id": "D062-2",
+          "goal": "중복·빈 페이지·DB 전환 reset",
+          "target": "src/views/connectionTreeView.ts",
+          "after": [
+            "D062-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D063",
+      "title": "Redis namespace·pattern 필터",
+      "dependsOn": [
+        "D062"
+      ],
+      "units": [
+        {
+          "id": "D063-1",
+          "goal": "SCAN pattern 검색",
+          "target": "src/views/connectionTreeView.ts",
+          "after": [
+            "D062"
+          ]
+        },
+        {
+          "id": "D063-2",
+          "goal": "namespace 표시와 필터 변경 reset",
+          "target": "src/views/connectionTreeView.ts",
+          "after": [
+            "D063-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D064",
+      "title": "Redis TTL의 읽기 전용 표시",
+      "dependsOn": [
+        "D062"
+      ],
+      "units": [
+        {
+          "id": "D064-1",
+          "goal": "TTL 없음·만료됨 값 분류",
+          "target": "src/providers/redisProvider.ts",
+          "after": [
+            "D062"
+          ]
+        },
+        {
+          "id": "D064-2",
+          "goal": "키가 사라진 경계와 읽기 전용 표시",
+          "target": "src/providers/redisProvider.ts",
+          "after": [
+            "D064-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D065",
+      "title": "Redis string 값의 제한된 뷰어",
+      "dependsOn": [
+        "D064"
+      ],
+      "units": [
+        {
+          "id": "D065-1",
+          "goal": "큰 string의 길이·미리보기",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D064"
+          ]
+        },
+        {
+          "id": "D065-2",
+          "goal": "binary·복사·키 소멸 처리",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D065-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D066",
+      "title": "Redis hash HSCAN 페이지 보기",
+      "dependsOn": [
+        "D062",
+        "D065"
+      ],
+      "units": [
+        {
+          "id": "D066-1",
+          "goal": "HSCAN provider와 읽기 정책",
+          "target": "src/providers/redisProvider.ts",
+          "after": [
+            "D062",
+            "D065"
+          ]
+        },
+        {
+          "id": "D066-2",
+          "goal": "hash 페이지와 타입 변경 안내",
+          "target": "src/providers/redisProvider.ts",
+          "after": [
+            "D066-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D067",
+      "title": "MongoDB 컬렉션의 _id 기반 페이지",
+      "dependsOn": [
+        "D041"
+      ],
+      "units": [
+        {
+          "id": "D067-1",
+          "goal": "BSON cursor의 Host 계약",
+          "target": "src/providers/mongoProvider.ts",
+          "after": [
+            "D041"
+          ]
+        },
+        {
+          "id": "D067-2",
+          "goal": "ObjectId bounded 페이지",
+          "target": "src/providers/mongoProvider.ts",
+          "after": [
+            "D067-1"
+          ]
+        },
+        {
+          "id": "D067-3",
+          "goal": "변조·혼합 타입·연결 변경 경계",
+          "target": "src/providers/mongoProvider.ts",
+          "after": [
+            "D067-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D068",
+      "title": "MongoDB Extended JSON 표시와 복사",
+      "dependsOn": [
+        "D067",
+        "D048"
+      ],
+      "units": [
+        {
+          "id": "D068-1",
+          "goal": "EJSON 표시와 타입 보존",
+          "target": "src/providers/mongoProvider.ts",
+          "after": [
+            "D067",
+            "D048"
+          ]
+        },
+        {
+          "id": "D068-2",
+          "goal": "복사 round-trip와 큰 문서 한도",
+          "target": "src/providers/mongoProvider.ts",
+          "after": [
+            "D068-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D069",
+      "title": "MongoDB 집계 입력의 엄격한 JSON 검증",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D069-1",
+          "goal": "pipeline JSON 구조·크기 검증",
+          "target": "src/providers/mongoProvider.ts",
+          "after": []
+        },
+        {
+          "id": "D069-2",
+          "goal": "쓰기 stage·JS 표현식 차단",
+          "target": "src/providers/mongoProvider.ts",
+          "after": [
+            "D069-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D070",
+      "title": "MongoDB 제한된 단계 미리보기",
+      "dependsOn": [
+        "D068",
+        "D069"
+      ],
+      "units": [
+        {
+          "id": "D070-1",
+          "goal": "제한된 stage 미리보기 계약",
+          "target": "src/webview/MongoPipelinePanel.ts (신규)",
+          "after": [
+            "D068",
+            "D069"
+          ]
+        },
+        {
+          "id": "D070-2",
+          "goal": "선택 stage 결과 UI",
+          "target": "src/webview/MongoPipelinePanel.ts (신규)",
+          "after": [
+            "D070-1"
+          ]
+        },
+        {
+          "id": "D070-3",
+          "goal": "오류·timeout·쓰기 stage 안내",
+          "target": "src/webview/MongoPipelinePanel.ts (신규)",
+          "after": [
+            "D070-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D071",
+      "title": "히스토리 저장 끄기와 보관 개수 설정",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D071-1",
+          "goal": "히스토리 저장 끄기",
+          "target": "src/views/queryHistoryView.ts",
+          "after": []
+        },
+        {
+          "id": "D071-2",
+          "goal": "보관 개수·기존 기록 삭제 확인",
+          "target": "src/views/queryHistoryView.ts",
+          "after": [
+            "D071-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D072",
+      "title": "히스토리의 연결 필터와 검색",
+      "dependsOn": [
+        "D071"
+      ],
+      "units": [
+        {
+          "id": "D072-1",
+          "goal": "연결·텍스트 로컬 검색",
+          "target": "src/views/queryHistoryView.ts",
+          "after": [
+            "D071"
+          ]
+        },
+        {
+          "id": "D072-2",
+          "goal": "없어진 연결 안내와 실행 없는 열기",
+          "target": "src/views/queryHistoryView.ts",
+          "after": [
+            "D072-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D073",
+      "title": "비밀 쿼리 변수의 저장 경계",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D073-1",
+          "goal": "비밀 변수 SecretStorage 계약",
+          "target": "src/utils/secretQueryVariables.ts (신규)",
+          "after": []
+        },
+        {
+          "id": "D073-2",
+          "goal": "일반 메타데이터와 값 분리",
+          "target": "src/utils/secretQueryVariables.ts (신규)",
+          "after": [
+            "D073-1"
+          ]
+        },
+        {
+          "id": "D073-3",
+          "goal": "조회·삭제·누락 오류",
+          "target": "src/utils/secretQueryVariables.ts (신규)",
+          "after": [
+            "D073-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D074",
+      "title": "비밀 변수 입력과 실행 기록 보호",
+      "dependsOn": [
+        "D073",
+        "D026",
+        "D071"
+      ],
+      "units": [
+        {
+          "id": "D074-1",
+          "goal": "비밀 변수 가린 입력",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D073",
+            "D026",
+            "D071"
+          ]
+        },
+        {
+          "id": "D074-2",
+          "goal": "실행에만 값 제공",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D074-1"
+          ]
+        },
+        {
+          "id": "D074-3",
+          "goal": "히스토리·진단·내보내기 값 제거",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D074-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D075",
+      "title": "Webview 상태 복원과 드래프트 저장 선택",
+      "dependsOn": [
+        "D022",
+        "D074"
+      ],
+      "units": [
+        {
+          "id": "D075-1",
+          "goal": "안전한 탭 메타데이터 상태 복원",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D022",
+            "D074"
+          ]
+        },
+        {
+          "id": "D075-2",
+          "goal": "SQL 드래프트 opt-in",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D075-1"
+          ]
+        },
+        {
+          "id": "D075-3",
+          "goal": "재시작 범위·serializer와 자동 실행 금지",
+          "target": "src/webview/QueryTabPanel.ts",
+          "after": [
+            "D075-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D076",
+      "title": "미저장 테이블 편집의 새로고침 보호",
+      "dependsOn": [
+        "D030"
+      ],
+      "units": [
+        {
+          "id": "D076-1",
+          "goal": "미저장 편집의 이동 확인",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D030"
+          ]
+        },
+        {
+          "id": "D076-2",
+          "goal": "저장 실패·버리기·취소의 값 보존",
+          "target": "src/webview/TableEditorPanel.ts",
+          "after": [
+            "D076-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D077",
+      "title": "MySQL 단일 PK 행 수정의 값 바인딩",
+      "dependsOn": [
+        "D027"
+      ],
+      "units": [
+        {
+          "id": "D077-1",
+          "goal": "MySQL 단일 행 바인딩 API",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D027"
+          ]
+        },
+        {
+          "id": "D077-2",
+          "goal": "편집 경로 한 곳 연결",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D077-1"
+          ]
+        },
+        {
+          "id": "D077-3",
+          "goal": "정밀 값·식별자·읽기 전용 경계",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D077-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D078",
+      "title": "PostgreSQL 단일 PK 행 수정의 값 바인딩",
+      "dependsOn": [
+        "D027",
+        "D077"
+      ],
+      "units": [
+        {
+          "id": "D078-1",
+          "goal": "PG schema-qualified 바인딩 API",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D027",
+            "D077"
+          ]
+        },
+        {
+          "id": "D078-2",
+          "goal": "편집 경로 연결",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D078-1"
+          ]
+        },
+        {
+          "id": "D078-3",
+          "goal": "NULL·키·읽기 전용 경계",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D078-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D079",
+      "title": "PostgreSQL 편집 충돌 감지",
+      "dependsOn": [
+        "D078"
+      ],
+      "units": [
+        {
+          "id": "D079-1",
+          "goal": "PG 조건부 UPDATE 계약",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D078"
+          ]
+        },
+        {
+          "id": "D079-2",
+          "goal": "충돌 때 덮어쓰기 차단",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D079-1"
+          ]
+        },
+        {
+          "id": "D079-3",
+          "goal": "충돌 안내·재조회·편집값 복사",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D079-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D080",
+      "title": "MySQL 편집 충돌과 no-op 구분",
+      "dependsOn": [
+        "D077",
+        "D079"
+      ],
+      "units": [
+        {
+          "id": "D080-1",
+          "goal": "MySQL 조건부 UPDATE",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D077",
+            "D079"
+          ]
+        },
+        {
+          "id": "D080-2",
+          "goal": "matched/changed rows 구분",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D080-1"
+          ]
+        },
+        {
+          "id": "D080-3",
+          "goal": "충돌·no-op·삭제된 행 안내",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D080-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D081",
+      "title": "SSH 서버 지문 신뢰 모델과 검증 함수",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D081-1",
+          "goal": "SSH fingerprint 저장 형식",
+          "target": "src/types/database.ts",
+          "after": []
+        },
+        {
+          "id": "D081-2",
+          "goal": "공개키 지문 비교 함수",
+          "target": "src/types/database.ts",
+          "after": [
+            "D081-1"
+          ]
+        },
+        {
+          "id": "D081-3",
+          "goal": "최초·일치·불일치 정책",
+          "target": "src/types/database.ts",
+          "after": [
+            "D081-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D082",
+      "title": "MySQL SSH 지문 확인과 연결",
+      "dependsOn": [
+        "D081",
+        "D008"
+      ],
+      "units": [
+        {
+          "id": "D082-1",
+          "goal": "최초 지문 확인 경계",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D081",
+            "D008"
+          ]
+        },
+        {
+          "id": "D082-2",
+          "goal": "승인·취소 UI",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D082-1"
+          ]
+        },
+        {
+          "id": "D082-3",
+          "goal": "MySQL hostVerifier 연결",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D082-2"
+          ]
+        },
+        {
+          "id": "D082-4",
+          "goal": "불일치·인증 실패의 자원 정리",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D082-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D083",
+      "title": "PostgreSQL SSH 지문 정책 재사용",
+      "dependsOn": [
+        "D082"
+      ],
+      "units": [
+        {
+          "id": "D083-1",
+          "goal": "PG에 공통 신뢰 정책 연결",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D082"
+          ]
+        },
+        {
+          "id": "D083-2",
+          "goal": "DB 전환의 같은 host 검증",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D083-1"
+          ]
+        },
+        {
+          "id": "D083-3",
+          "goal": "거절 뒤 listener·연결 해제",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D083-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D084",
+      "title": "암호화 SSH 개인키 passphrase 연결",
+      "dependsOn": [
+        "D082",
+        "D083"
+      ],
+      "units": [
+        {
+          "id": "D084-1",
+          "goal": "passphrase 입력과 공란 유지",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D082",
+            "D083"
+          ]
+        },
+        {
+          "id": "D084-2",
+          "goal": "MySQL 암호화 키 인증",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D084-1"
+          ]
+        },
+        {
+          "id": "D084-3",
+          "goal": "PG 인증과 삭제·내보내기 경계",
+          "target": "src/webview/ConnectionFormPanel.ts",
+          "after": [
+            "D084-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D085",
+      "title": "PostgreSQL TLS의 CA·서버 이름 검증",
+      "dependsOn": [
+        "D083"
+      ],
+      "units": [
+        {
+          "id": "D085-1",
+          "goal": "PG CA·서버 이름 옵션",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D083"
+          ]
+        },
+        {
+          "id": "D085-2",
+          "goal": "직접 TLS 검증",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D085-1"
+          ]
+        },
+        {
+          "id": "D085-3",
+          "goal": "SSH의 실제 TLS 이름",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D085-2"
+          ]
+        },
+        {
+          "id": "D085-4",
+          "goal": "오류·파일 경로 안내",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D085-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D086",
+      "title": "MySQL TLS의 같은 사용자 계약",
+      "dependsOn": [
+        "D085"
+      ],
+      "units": [
+        {
+          "id": "D086-1",
+          "goal": "MySQL CA·이름 검증 옵션",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D085"
+          ]
+        },
+        {
+          "id": "D086-2",
+          "goal": "SSH TLS 연결",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D086-1"
+          ]
+        },
+        {
+          "id": "D086-3",
+          "goal": "폼·오류와 지원 차이",
+          "target": "src/providers/mysqlProvider.ts",
+          "after": [
+            "D086-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D087",
+      "title": "Workspace Trust와 원격 파일 위치 명시",
+      "dependsOn": [
+        "D011",
+        "D075"
+      ],
+      "units": [
+        {
+          "id": "D087-1",
+          "goal": "Restricted Mode 경계",
+          "target": "package.json",
+          "after": [
+            "D011",
+            "D075"
+          ]
+        },
+        {
+          "id": "D087-2",
+          "goal": "원격 Host의 파일 경로 안내",
+          "target": "package.json",
+          "after": [
+            "D087-1"
+          ]
+        },
+        {
+          "id": "D087-3",
+          "goal": "실제 확인 환경과 미확인 지원표",
+          "target": "package.json",
+          "after": [
+            "D087-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D088",
+      "title": "의존성 보안·호환성의 작은 갱신",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D088-1",
+          "goal": "의존성 공지·도달 경로 조사",
+          "target": "package.json",
+          "after": []
+        },
+        {
+          "id": "D088-2",
+          "goal": "호환 patch 한 묶음 반영",
+          "target": "package.json",
+          "after": [
+            "D088-1"
+          ]
+        },
+        {
+          "id": "D088-3",
+          "goal": "실제 검증·버전·결정 근거",
+          "target": "package.json",
+          "after": [
+            "D088-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D089",
+      "title": "활성화·패키지 비용의 기준 측정",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D089-1",
+          "goal": "활성화 기준 측정",
+          "target": "docs/engineering/case-studies.md",
+          "after": []
+        },
+        {
+          "id": "D089-2",
+          "goal": "번들·VSIX 파일 비용 측정",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D089-1"
+          ]
+        },
+        {
+          "id": "D089-3",
+          "goal": "측정된 병목 한 개 선정",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D089-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D090",
+      "title": "측정한 모듈 한 곳만 지연 로딩",
+      "dependsOn": [
+        "D089"
+      ],
+      "units": [
+        {
+          "id": "D090-1",
+          "goal": "측정한 모듈 한 곳 지연 로딩",
+          "target": "src/commands/index.ts 또는 src/extension.ts",
+          "after": [
+            "D089"
+          ]
+        },
+        {
+          "id": "D090-2",
+          "goal": "첫 호출·반복 호출·전후 측정",
+          "target": "src/commands/index.ts 또는 src/extension.ts",
+          "after": [
+            "D090-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D091",
+      "title": "README 첫 화면의 핵심 가치 정리",
+      "dependsOn": [
+        "D020"
+      ],
+      "units": [
+        {
+          "id": "D091-1",
+          "goal": "README 첫 가치·설치 행동",
+          "target": "README.md",
+          "after": [
+            "D020"
+          ]
+        },
+        {
+          "id": "D091-2",
+          "goal": "한·영 출시 범위와 제약 링크",
+          "target": "README.md",
+          "after": [
+            "D091-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D092",
+      "title": "실제 화면으로 짧은 데모 교체",
+      "dependsOn": [
+        "D020",
+        "D091"
+      ],
+      "units": [
+        {
+          "id": "D092-1",
+          "goal": "한 흐름의 실제 데모 촬영",
+          "target": "resources/demo.gif",
+          "after": [
+            "D020",
+            "D091"
+          ]
+        },
+        {
+          "id": "D092-2",
+          "goal": "용량·읽기성·버전 링크 정리",
+          "target": "resources/demo.gif",
+          "after": [
+            "D092-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D093",
+      "title": "비밀정보 없는 이슈 양식",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D093-1",
+          "goal": "안전한 버그 양식",
+          "target": ".github/ISSUE_TEMPLATE/bug_report.yml (신규)",
+          "after": []
+        },
+        {
+          "id": "D093-2",
+          "goal": "기능 요청 양식과 문법 확인",
+          "target": ".github/ISSUE_TEMPLATE/bug_report.yml (신규)",
+          "after": [
+            "D093-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D094",
+      "title": "사용자 피드백의 우선순위 기준",
+      "dependsOn": [
+        "D093"
+      ],
+      "units": [
+        {
+          "id": "D094-1",
+          "goal": "피드백 판단 기준",
+          "target": "docs/roadmap/feedback.md (신규)",
+          "after": [
+            "D093"
+          ]
+        },
+        {
+          "id": "D094-2",
+          "goal": "실제 이슈 근거와 다음 작업 조정",
+          "target": "docs/roadmap/feedback.md (신규)",
+          "after": [
+            "D094-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D095",
+      "title": "SQL 입문자의 주문 데이터 실습",
+      "dependsOn": [
+        "D020",
+        "D091"
+      ],
+      "units": [
+        {
+          "id": "D095-1",
+          "goal": "WHERE·JOIN 입문 예제",
+          "target": "docs/guides/sql-practice.md (신규)",
+          "after": [
+            "D020",
+            "D091"
+          ]
+        },
+        {
+          "id": "D095-2",
+          "goal": "GROUP BY·대표 오류와 실행 결과",
+          "target": "docs/guides/sql-practice.md (신규)",
+          "after": [
+            "D095-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D096",
+      "title": "백엔드 개발자의 PG/MySQL 확인 가이드",
+      "dependsOn": [
+        "D010"
+      ],
+      "units": [
+        {
+          "id": "D096-1",
+          "goal": "PG의 스키마·쿼리·Pin 흐름",
+          "target": "docs/guides/backend-workflow.md (신규)",
+          "after": [
+            "D010"
+          ]
+        },
+        {
+          "id": "D096-2",
+          "goal": "MySQL 흐름과 지원 차이",
+          "target": "docs/guides/backend-workflow.md (신규)",
+          "after": [
+            "D096-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D097",
+      "title": "Redis/MongoDB의 QA 데이터 확인 예제",
+      "dependsOn": [
+        "D066",
+        "D070"
+      ],
+      "units": [
+        {
+          "id": "D097-1",
+          "goal": "Redis 탐색·TTL 읽기 예제",
+          "target": "docs/guides/nosql-workflow.md (신규)",
+          "after": [
+            "D066",
+            "D070"
+          ]
+        },
+        {
+          "id": "D097-2",
+          "goal": "Mongo 페이지·집계·문법 예제",
+          "target": "docs/guides/nosql-workflow.md (신규)",
+          "after": [
+            "D097-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D098",
+      "title": "대상별 한·영 소개와 공개 초안",
+      "dependsOn": [
+        "D091",
+        "D092",
+        "D095",
+        "D096",
+        "D097"
+      ],
+      "units": [
+        {
+          "id": "D098-1",
+          "goal": "입문자용 한·영 소개 초안",
+          "target": "docs/marketing/launch-kit.md (신규)",
+          "after": [
+            "D091",
+            "D092",
+            "D095",
+            "D096",
+            "D097"
+          ]
+        },
+        {
+          "id": "D098-2",
+          "goal": "백엔드용 소개와 사실·링크 점검",
+          "target": "docs/marketing/launch-kit.md (신규)",
+          "after": [
+            "D098-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D099",
+      "title": "출시 후보의 사용자 흐름과 배포 자료",
+      "dependsOn": [
+        "D010",
+        "D020",
+        "D030",
+        "D040",
+        "D050",
+        "D060",
+        "D070",
+        "D080",
+        "D086",
+        "D087",
+        "D088",
+        "D090",
+        "D098"
+      ],
+      "units": [
+        {
+          "id": "D099-1",
+          "goal": "완료한 변경의 후보 범위·노트",
+          "target": "CHANGELOG.md",
+          "after": [
+            "D010",
+            "D020",
+            "D030",
+            "D040",
+            "D050",
+            "D060",
+            "D070",
+            "D080",
+            "D086",
+            "D087",
+            "D088",
+            "D090",
+            "D098"
+          ]
+        },
+        {
+          "id": "D099-2",
+          "goal": "첫 체험·기존 설정 업그레이드",
+          "target": "CHANGELOG.md",
+          "after": [
+            "D099-1"
+          ]
+        },
+        {
+          "id": "D099-3",
+          "goal": "동일 VSIX·전체 CI 증거",
+          "target": "CHANGELOG.md",
+          "after": [
+            "D099-2"
+          ]
+        },
+        {
+          "id": "D099-4",
+          "goal": "검증된 자료와 남은 결함 정리",
+          "target": "CHANGELOG.md",
+          "after": [
+            "D099-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D100",
+      "title": "포트폴리오 근거와 다음 10개 재선정",
+      "dependsOn": [
+        "D094",
+        "D099"
+      ],
+      "units": [
+        {
+          "id": "D100-1",
+          "goal": "실제 문제 해결 사례 3개",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D094",
+            "D099"
+          ]
+        },
+        {
+          "id": "D100-2",
+          "goal": "관측 자료와 다음 10개 재선정",
+          "target": "docs/engineering/case-studies.md",
+          "after": [
+            "D100-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D101",
+      "title": "루틴 브라우저의 연결 대상 고정",
+      "dependsOn": [
+        "D100",
+        "D001"
+      ],
+      "units": [
+        {
+          "id": "D101-1",
+          "goal": "루틴 소스의 연결·schema 고정",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D100",
+            "D001"
+          ]
+        },
+        {
+          "id": "D101-2",
+          "goal": "실행 대상·동명 루틴 경계",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D101-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D102",
+      "title": "PostgreSQL 루틴 입력 파라미터 정보",
+      "dependsOn": [
+        "D101"
+      ],
+      "units": [
+        {
+          "id": "D102-1",
+          "goal": "PG 루틴 인자 catalog",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D101"
+          ]
+        },
+        {
+          "id": "D102-2",
+          "goal": "overload 식별",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D102-1"
+          ]
+        },
+        {
+          "id": "D102-3",
+          "goal": "IN/OUT·기본값 표시",
+          "target": "src/providers/postgresProvider.ts",
+          "after": [
+            "D102-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D103",
+      "title": "루틴 인자 입력의 NULL·값 검증",
+      "dependsOn": [
+        "D102",
+        "D025"
+      ],
+      "units": [
+        {
+          "id": "D103-1",
+          "goal": "NULL·빈 문자열·기본값 입력",
+          "target": "src/webview/RoutinePanel.ts",
+          "after": [
+            "D102",
+            "D025"
+          ]
+        },
+        {
+          "id": "D103-2",
+          "goal": "Host 인자 검증",
+          "target": "src/webview/RoutinePanel.ts",
+          "after": [
+            "D103-1"
+          ]
+        },
+        {
+          "id": "D103-3",
+          "goal": "실행 전 대상·값 확인",
+          "target": "src/webview/RoutinePanel.ts",
+          "after": [
+            "D103-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D104",
+      "title": "행 삽입 폼의 FK 값 검색",
+      "dependsOn": [
+        "D100",
+        "D025"
+      ],
+      "units": [
+        {
+          "id": "D104-1",
+          "goal": "PG FK 후보 검색 API",
+          "target": "src/webview/RowInsertPanel.ts",
+          "after": [
+            "D100",
+            "D025"
+          ]
+        },
+        {
+          "id": "D104-2",
+          "goal": "검색·추가 조회 UI",
+          "target": "src/webview/RowInsertPanel.ts",
+          "after": [
+            "D104-1"
+          ]
+        },
+        {
+          "id": "D104-3",
+          "goal": "label/키 구분과 삽입 경계",
+          "target": "src/webview/RowInsertPanel.ts",
+          "after": [
+            "D104-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D105",
+      "title": "통계 수집 실패를 실제 0과 구분",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D105-1",
+          "goal": "통계의 실패·미계산 상태 타입",
+          "target": "src/utils/dataStatistics.ts",
+          "after": []
+        },
+        {
+          "id": "D105-2",
+          "goal": "집계 실패를 0과 구분해 전달",
+          "target": "src/utils/dataStatistics.ts",
+          "after": [
+            "D105-1"
+          ]
+        },
+        {
+          "id": "D105-3",
+          "goal": "통계 화면의 실패 안내",
+          "target": "src/webview/StatisticsPanel.ts",
+          "after": [
+            "D105-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D106",
+      "title": "통계에서 선택한 컬럼만 계산",
+      "dependsOn": [
+        "D105"
+      ],
+      "units": [
+        {
+          "id": "D106-1",
+          "goal": "선택 컬럼·항목 집계 옵션",
+          "target": "src/utils/dataStatistics.ts",
+          "after": [
+            "D105"
+          ]
+        },
+        {
+          "id": "D106-2",
+          "goal": "진행·취소·재실행 UI",
+          "target": "src/webview/StatisticsPanel.ts",
+          "after": [
+            "D106-1"
+          ]
+        },
+        {
+          "id": "D106-3",
+          "goal": "호출 수·실제 집계 범위",
+          "target": "src/utils/dataStatistics.ts",
+          "after": [
+            "D106-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D107",
+      "title": "차트의 데이터 범위와 범주 상한 표시",
+      "dependsOn": [
+        "D100",
+        "D047"
+      ],
+      "units": [
+        {
+          "id": "D107-1",
+          "goal": "차트 데이터 범위·범주 상한",
+          "target": "src/webview/ChartPanel.ts",
+          "after": [
+            "D100",
+            "D047"
+          ]
+        },
+        {
+          "id": "D107-2",
+          "goal": "비수치·NULL·빈 결과 안내",
+          "target": "src/webview/ChartPanel.ts",
+          "after": [
+            "D107-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D108",
+      "title": "결과 Diff의 중복 키 감지",
+      "dependsOn": [],
+      "units": [
+        {
+          "id": "D108-1",
+          "goal": "Diff 중복 키를 보존·감지하는 결과 계약",
+          "target": "src/utils/resultDiff.ts",
+          "after": []
+        },
+        {
+          "id": "D108-2",
+          "goal": "중복 건수와 키 변경 안내",
+          "target": "src/webview/DiffPanel.ts",
+          "after": [
+            "D108-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D109",
+      "title": "결과 Diff의 복합 키 선택",
+      "dependsOn": [
+        "D108"
+      ],
+      "units": [
+        {
+          "id": "D109-1",
+          "goal": "충돌 없는 복합 키 직렬화",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D108"
+          ]
+        },
+        {
+          "id": "D109-2",
+          "goal": "여러 키 선택과 취소",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D109-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D110",
+      "title": "핀 결과의 메모리 예산",
+      "dependsOn": [
+        "D100",
+        "D048"
+      ],
+      "units": [
+        {
+          "id": "D110-1",
+          "goal": "핀 결과의 총량 예산",
+          "target": "src/utils/resultPin.ts",
+          "after": [
+            "D100",
+            "D048"
+          ]
+        },
+        {
+          "id": "D110-2",
+          "goal": "초과·제거·비교 중 삭제 안내",
+          "target": "src/utils/resultPin.ts",
+          "after": [
+            "D110-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D111",
+      "title": "ERD의 테이블 선택과 큰 스키마 제한",
+      "dependsOn": [
+        "D100"
+      ],
+      "units": [
+        {
+          "id": "D111-1",
+          "goal": "ERD 테이블 선택",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D100"
+          ]
+        },
+        {
+          "id": "D111-2",
+          "goal": "선택 노드·관계만 구성",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D111-1"
+          ]
+        },
+        {
+          "id": "D111-3",
+          "goal": "개수 제한·제외 관계 안내",
+          "target": "src/commands/index.ts",
+          "after": [
+            "D111-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D112",
+      "title": "ERD의 schema-qualified 관계 식별",
+      "dependsOn": [
+        "D111"
+      ],
+      "units": [
+        {
+          "id": "D112-1",
+          "goal": "schema-qualified 노드 키",
+          "target": "src/webview/ERDPanel.ts",
+          "after": [
+            "D111"
+          ]
+        },
+        {
+          "id": "D112-2",
+          "goal": "교차 schema FK 연결",
+          "target": "src/webview/ERDPanel.ts",
+          "after": [
+            "D112-1"
+          ]
+        },
+        {
+          "id": "D112-3",
+          "goal": "export의 관계 일치",
+          "target": "src/webview/ERDPanel.ts",
+          "after": [
+            "D112-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D113",
+      "title": "스키마 비교의 지원 범위와 안전한 출력",
+      "dependsOn": [
+        "D100"
+      ],
+      "units": [
+        {
+          "id": "D113-1",
+          "goal": "실제 비교 항목의 지원표",
+          "target": "src/webview/SchemaComparePanel.ts",
+          "after": [
+            "D100"
+          ]
+        },
+        {
+          "id": "D113-2",
+          "goal": "미비교 항목과 차이 표시",
+          "target": "src/webview/SchemaComparePanel.ts",
+          "after": [
+            "D113-1"
+          ]
+        },
+        {
+          "id": "D113-3",
+          "goal": "검토용 SQL 출력·실행 0회",
+          "target": "src/webview/SchemaComparePanel.ts",
+          "after": [
+            "D113-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D114",
+      "title": "마이그레이션 스크립트의 미저장 편집 보호",
+      "dependsOn": [
+        "D100",
+        "D006"
+      ],
+      "units": [
+        {
+          "id": "D114-1",
+          "goal": "UP/DOWN 편집 dirty 상태",
+          "target": "src/webview/MigrationPanel.ts",
+          "after": [
+            "D100",
+            "D006"
+          ]
+        },
+        {
+          "id": "D114-2",
+          "goal": "내부 전환·삭제 때 저장/버리기/취소",
+          "target": "src/webview/MigrationPanel.ts",
+          "after": [
+            "D114-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D115",
+      "title": "모니터 숨김과 느린 refresh의 중복 방지",
+      "dependsOn": [
+        "D008"
+      ],
+      "units": [
+        {
+          "id": "D115-1",
+          "goal": "느린 refresh의 중첩 방지",
+          "target": "src/webview/MonitoringPanel.ts",
+          "after": [
+            "D008"
+          ]
+        },
+        {
+          "id": "D115-2",
+          "goal": "숨김·닫힘 때 주기 조회 중지",
+          "target": "src/webview/MonitoringPanel.ts",
+          "after": [
+            "D115-1"
+          ]
+        },
+        {
+          "id": "D115-3",
+          "goal": "반복 오류 알림 줄이기",
+          "target": "src/webview/MonitoringPanel.ts",
+          "after": [
+            "D115-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D116",
+      "title": "모니터 프로세스 종료 확인과 stale 대상 보호",
+      "dependsOn": [
+        "D115"
+      ],
+      "units": [
+        {
+          "id": "D116-1",
+          "goal": "관리용 종료 대상 검증",
+          "target": "src/webview/MonitoringPanel.ts",
+          "after": [
+            "D115"
+          ]
+        },
+        {
+          "id": "D116-2",
+          "goal": "확인·취소·stale 대상 처리",
+          "target": "src/webview/MonitoringPanel.ts",
+          "after": [
+            "D116-1"
+          ]
+        },
+        {
+          "id": "D116-3",
+          "goal": "읽기 전용·변조 PID 차단",
+          "target": "src/webview/MonitoringPanel.ts",
+          "after": [
+            "D116-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D117",
+      "title": "목 데이터 생성의 재현 가능한 seed",
+      "dependsOn": [
+        "D100"
+      ],
+      "units": [
+        {
+          "id": "D117-1",
+          "goal": "seed를 받는 작은 생성 함수",
+          "target": "src/webview/MockDataPanel.ts",
+          "after": [
+            "D100"
+          ]
+        },
+        {
+          "id": "D117-2",
+          "goal": "한 생성기에 seed 연결",
+          "target": "src/webview/MockDataPanel.ts",
+          "after": [
+            "D117-1"
+          ]
+        },
+        {
+          "id": "D117-3",
+          "goal": "생성 SQL의 실제 값·타입 경계",
+          "target": "src/webview/MockDataPanel.ts",
+          "after": [
+            "D117-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D118",
+      "title": "SQL 자동완성의 연결·DB 캐시 무효화",
+      "dependsOn": [
+        "D100",
+        "D001"
+      ],
+      "units": [
+        {
+          "id": "D118-1",
+          "goal": "연결·DB·schema 캐시 키",
+          "target": "src/providers/completionProvider.ts",
+          "after": [
+            "D100",
+            "D001"
+          ]
+        },
+        {
+          "id": "D118-2",
+          "goal": "전환·갱신 때 범위 무효화",
+          "target": "src/providers/completionProvider.ts",
+          "after": [
+            "D118-1"
+          ]
+        },
+        {
+          "id": "D118-3",
+          "goal": "취소된 완성 요청 결과 제거",
+          "target": "src/providers/completionProvider.ts",
+          "after": [
+            "D118-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D119",
+      "title": "저장 쿼리 검색과 없어진 연결 안내",
+      "dependsOn": [
+        "D100",
+        "D072"
+      ],
+      "units": [
+        {
+          "id": "D119-1",
+          "goal": "저장 쿼리 이름·카테고리 검색",
+          "target": "src/views/savedQueriesView.ts",
+          "after": [
+            "D100",
+            "D072"
+          ]
+        },
+        {
+          "id": "D119-2",
+          "goal": "없어진 연결 선택과 실행 없는 열기",
+          "target": "src/views/savedQueriesView.ts",
+          "after": [
+            "D119-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D120",
+      "title": "H2의 지원 범위와 대표 시나리오 확인",
+      "dependsOn": [
+        "D100"
+      ],
+      "units": [
+        {
+          "id": "D120-1",
+          "goal": "H2 기본 탐색·조회 범위",
+          "target": "src/providers/h2Provider.ts",
+          "after": [
+            "D100"
+          ]
+        },
+        {
+          "id": "D120-2",
+          "goal": "읽기 전용·파일/메모리 경계",
+          "target": "src/providers/h2Provider.ts",
+          "after": [
+            "D120-1"
+          ]
+        },
+        {
+          "id": "D120-3",
+          "goal": "실제 버전·응답의 지원표",
+          "target": "src/providers/h2Provider.ts",
+          "after": [
+            "D120-2"
+          ]
+        }
+      ]
+    }
+  ]
+}

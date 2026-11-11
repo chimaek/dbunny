@@ -1,6 +1,6 @@
 # DBunny 개발 및 검증
 
-다음 개발 순서는 [제품 로드맵](ROADMAP.md)과 [일일 작업 카드](docs/roadmap/daily-cards.md), 작업 크기·완료 기록은 [일일 개발 절차](docs/roadmap/execution.md)를 따른다.
+일일 작업은 [NEXT](docs/roadmap/NEXT.md)의 작은 목표 하나에서 시작한다. 전체 방향은 [제품 로드맵](ROADMAP.md), 부모 기능별 하위 작업은 [카드 목록](docs/roadmap/daily-cards.md), 검증·전달은 [일일 절차](docs/roadmap/execution.md)를 필요한 부분만 확인한다.
 
 ## 1. 개발 환경
 
