@@ -277,6 +277,22 @@ export class ConnectionManager {
         return this.activeConnection;
     }
 
+    /** 저장용 객체 대신 요청한 ID의 실제 연결을 확보한다. */
+    async ensureConnection(connectionId: string): Promise<DatabaseConnection> {
+        await this.ready;
+        if (!this.connections.has(connectionId)) {
+            throw new Error(`Connection not found: ${connectionId}`);
+        }
+        if (this.activeConnection?.config.id !== connectionId || !this.activeConnection.isConnected()) {
+            await this.connect(connectionId);
+        }
+        const connection = this.activeConnection;
+        if (!connection || connection.config.id !== connectionId || !connection.isConnected()) {
+            throw new Error(`Connection not available: ${connectionId}`);
+        }
+        return connection;
+    }
+
     /**
      * Check if a connection is active
      */

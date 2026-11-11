@@ -1,7 +1,22 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D001-1",
-  "lastWork": null,
+  "currentTask": "D001-2",
+  "lastWork": {
+    "id": "D001-1",
+    "status": "VERIFYING",
+    "dateKst": "2026-11-12",
+    "baseCommit": "6d068db4d173eab502d72bc0d6a45dc70b61013a",
+    "summary": "ensureConnection이 요청한 실제 연결을 확보하고 복원·재사용·실패 경계를 검사한다. QueryTabPanel 연결은 다음 단계다.",
+    "localChecks": {
+      "types": "passed",
+      "lint": "passed",
+      "build": "passed",
+      "unitMocha": 195,
+      "standaloneSuites": 16,
+      "extensionHost": 5,
+      "databaseIntegrationSuites": 22
+    }
+  },
   "progress": {},
   "targetMinutes": [
     20,
@@ -67,7 +82,10 @@
           "target": "src/webview/QueryTabPanel.ts",
           "after": [
             "D001-1"
-          ]
+          ],
+          "acceptance": "쿼리 탭 실행 한 곳에서 ensureConnection(tab.connectionId)을 사용한다. A/B 탭 왕복 실행이 각 DB의 결과를 표시한다.",
+          "verification": "타입·린트·단위·Host와 전용 Docker 통합 검사. 실제 UI의 A/B 탭 왕복은 확인한 범위만 보고한다.",
+          "stopAt": "연결 폼·배지·다른 명령·오류 문구는 변경하지 않는다. 오류 후 UI 복구 보완은 D001-3이다."
         },
         {
           "id": "D001-3",
