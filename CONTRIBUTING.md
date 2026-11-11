@@ -1,5 +1,7 @@
 # DBunny 개발 및 검증
 
+다음 개발 순서는 [제품 로드맵](ROADMAP.md)과 [일일 작업 카드](docs/roadmap/daily-cards.md), 작업 크기·완료 기록은 [일일 개발 절차](docs/roadmap/execution.md)를 따른다.
+
 ## 1. 개발 환경
 
 - Node.js 24 LTS와 npm을 사용한다. 게시 도구 vsce 4는 Node.js 22 이상이 필요하다.

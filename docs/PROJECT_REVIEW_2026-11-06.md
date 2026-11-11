@@ -1,6 +1,6 @@
 # DBunny 프로젝트 점검 및 다음 작업
 
-> 이 문서는 개선 전 점검 스냅샷이다. 후속 수정과 실제 Docker 검증 결과는 [구현 개선 및 검증 결과](./IMPLEMENTATION_VALIDATION_2026-11-06.md)를 따른다.
+> 이 문서는 2026-11-06 개선 전 점검 스냅샷이다. 후속 수정과 Docker 검증은 [구현 개선 및 검증 결과](./IMPLEMENTATION_VALIDATION_2026-11-06.md), 현재 공개 배포는 [3.2.0 게시 기록](releases/3.2.0.md), 이후 계획은 [제품 로드맵](../ROADMAP.md)을 따른다. 아래의 당시 미해결 항목을 현재 실패 상태로 읽지 않는다.
 
 점검일: **2026-11-06 (한국 시간)**
 대상: `C:\Users\pipir\OneDrive\Desktop\projects\dbunny`

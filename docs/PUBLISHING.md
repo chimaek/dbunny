@@ -1,13 +1,13 @@
 # DBunny 게시 절차
 
-공식 문서 확인일: **2026-11-06**. Node.js 24와 vsce 4.1.0을 사용한다. Marketplace 신뢰 정책 등록과 태그 push는 실제 게시를 시작하는 별도 작업이다.
+공식 문서 확인일: **2026-11-11**. Node.js 24와 vsce 4.1.0을 사용한다. Marketplace 신뢰 정책 등록과 태그 push는 실제 게시를 시작하는 별도 작업이다. [3.2.0 실제 게시 기록](releases/3.2.0.md)에서 시각·태그·검증 결과를 확인할 수 있다.
 
 ## 1. 게시 대상과 인증 방식
 
 - 확장 ID: `chimaek.dbunny`.
 - publisher와 확장 이름을 유지한다.
 - Node.js 24 LTS, 잠금 파일의 vsce 4.1.0을 사용한다. vsce 4는 Node.js 22 이상을 요구한다.
-- GitHub Actions OIDC로 인증한다. 저장소에 장기 PAT를 보관하지 않는다.
+- 게시 job은 GitHub Actions OIDC로 인증하며 장기 PAT를 사용하지 않는다.
 
 공식 근거: [VS Code 게시 가이드](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#publish-with-github-actions-and-trusted-publishing), [vsce Trusted Publishing](https://github.com/microsoft/vscode-vsce#trusted-publishing), [Microsoft 전환 가이드](https://developer.microsoft.com/blog/trusted-publishing-visual-studio-marketplace/).
 
@@ -60,6 +60,10 @@ npm audit --omit=dev
 ```
 
 게시 후 [Marketplace](https://marketplace.visualstudio.com/items?itemName=chimaek.dbunny)의 버전·변경 이력과 새 프로필의 설치 동작을 확인한다.
+
+`vsce`의 성공 로그와 Marketplace의 공개 검증 완료는 시점이 다를 수 있다. 관리 화면이 `Verifying`이면 공개 완료로 기록하지 않는다. 공식 Gallery 응답의 버전별 `lastUpdated`와 공개 페이지의 `Last updated`를 확인하고, 게시 로그 시각과 함께 UTC/KST로 남긴다. 페이지의 최초 `Released on`을 해당 버전의 게시일로 쓰지 않는다.
+
+공식 Gallery에서 게시 버전의 VSIX를 내려받아 검증 artifact와 SHA-256을 비교하고, 다운로드한 파일로 패키지 Host 검사를 수행한다. 공개 README의 이미지·링크·한/영 설명도 확인한다. `docs/releases/<version>.md`와 JSON에 실제 소스 태그·SHA·workflow·해시·제약을 기록하고, 같은 VSIX와 기록을 GitHub Release에 첨부한다. 사후 기록을 위해 이미 게시된 태그를 옮기거나 같은 버전을 재포장하지 않는다.
 
 기존 3.1.0에서 업데이트한 사용자의 DB·SSH 비밀값 이전도 확인한다. 수정 배포는 더 높은 patch 버전으로 진행한다. 버전 태그·커밋·CI artifact를 릴리스 이력에 남긴다.
 

@@ -1,0 +1,34 @@
+{
+  "extensionId": "chimaek.dbunny",
+  "version": "3.2.0",
+  "sourceTag": "v3.2.0",
+  "sourceCommit": "6faf50adf52825e439588259015180c91e9b2e1f",
+  "workflowRunId": 42570752385,
+  "workflowUrl": "https://github.com/chimaek/dbunny/actions/runs/42570752385",
+  "marketplaceUrl": "https://marketplace.visualstudio.com/items?itemName=chimaek.dbunny",
+  "publishCommandCompletedAtUtc": "2026-11-09T06:09:52.7363754Z",
+  "marketplaceVersionLastUpdatedUtc": "2026-11-09T06:20:51.337Z",
+  "marketplaceVersionLastUpdatedKst": "2026-11-09 15:20:51 KST",
+  "verifiedAtUtc": "2026-11-11T10:16:12.1594346Z",
+  "verifiedVsixSha256": "7f5e33d32524dc419d3984ba1666806b3fbdc85e0ae7273ccf965329f6cead91",
+  "marketplaceVsixSha256": "7f5e33d32524dc419d3984ba1666806b3fbdc85e0ae7273ccf965329f6cead91",
+  "payloadMatch": true,
+  "payloadSha256": {
+    "extension/changelog.md": "dafe8e2c1867331d81fd96724db7a20415a7caf299bf3c71456c30eef1b8a0c5",
+    "extension/readme.md": "e7b5bad8b44269aabbf2b6ed80e62305e829cf1c5d114845cd5d651bb11ef1af",
+    "extension/package.json": "3ee4bef5e4097136aa7eada3af5dbb814c72e5281623dc1bd23e12e7ec7d2af7",
+    "extension/dist/extension.js": "66b7dd775602cab44915de922e99cfaeefd9894328c9e398121e513f74020990",
+    "extension/src/locales/en.json": "9421213238d9fb7c41df793f8b6c9288d03bd8a0c30fa555cfe3b8db437e3290",
+    "extension/src/locales/ko.json": "545b31f76178ad3c6c2560db7c2979d6116766070c24b8c9e8807a3e41aebbb9"
+  },
+  "postPublishRuntime": {
+    "verifiedDateKst": "2026-11-11",
+    "os": "Windows",
+    "vscodeVersions": [
+      "1.85.0",
+      "stable"
+    ],
+    "status": "passed",
+    "command": "npm run test:package -- test-results/releases/v3.2.0/dbunny-3.2.0-marketplace.vsix"
+  }
+}
