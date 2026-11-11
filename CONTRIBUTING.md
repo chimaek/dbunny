@@ -38,7 +38,7 @@ docker compose -p dbunny-verify up -d --wait --wait-timeout 180
 npm run test:integration
 ```
 
-전용 계정·포트만 사용한다. MySQL 23306, PostgreSQL 25432, MongoDB 27027, Redis 26379, H2 25435는 127.0.0.1에만 노출하며 SQLite는 로컬 파일이다. 포트 충돌 시 DBUNNY_TEST_MYSQL_PORT/POSTGRES_PORT/MONGODB_PORT/REDIS_PORT/H2_PORT를 Compose와 테스트에 동일하게 전달한다. 다른 프로젝트나 사용자 DB를 변경하지 않는다.
+전용 계정·포트만 사용한다. MySQL 23306, PostgreSQL 25432, MongoDB 27027, Redis 26379, H2 25435는 127.0.0.1에만 노출하며 SQLite는 로컬 파일이다. 포트 충돌 시 `DBUNNY_TEST_MYSQL_PORT`, `DBUNNY_TEST_POSTGRES_PORT`, `DBUNNY_TEST_MONGODB_PORT`, `DBUNNY_TEST_REDIS_PORT`, `DBUNNY_TEST_H2_PORT`를 Compose와 테스트에 동일하게 전달한다. 다른 프로젝트나 사용자 DB를 변경하지 않는다.
 
 현재 통합 묶음은 데이터를 공유하므로 병렬 실행하지 않는다. DB 실행 경로를 바꾸면 실제 통합 검사를 수행한다. 중지는 docker compose -p dbunny-verify stop이며 볼륨을 지우지 않는다. DB 미준비·실패·미실행을 성공으로 쓰지 않는다.
 

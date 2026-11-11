@@ -3251,7 +3251,7 @@
         "src/webview/ConnectionFormPanel.ts"
       ],
       "validation": "C/H/D/P · 전용 MySQL TLS fixture의 정상/다른 CA/이름 불일치/SSH 조합. 오류 메시지에 인증정보가 없어야 한다.",
-      "acceptance": "PG/MySQL TLS 지원표와 실제 응답. fixture 준비가 90분을 넘으면 먼저 독립 환경 카드로 분리."
+      "acceptance": "PG/MySQL TLS 지원표와 실제 응답. fixture 준비가 20~30분 목표을 넘으면 먼저 독립 환경 카드로 분리."
     },
     {
       "id": "D087",
