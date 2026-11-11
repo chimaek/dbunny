@@ -197,11 +197,11 @@ Read-only mode helps prevent accidental writes. PostgreSQL also uses server read
 
 ### Testing
 
-Use Node.js 24 LTS. See [Contributing](https://github.com/chimaek/dbunny/blob/v3.2.0/CONTRIBUTING.md) for unit, Extension Host, Docker integration and VSIX tests. See [Publishing](https://github.com/chimaek/dbunny/blob/v3.2.0/docs/PUBLISHING.md) for release tags and OIDC setup.
+Use Node.js 24 LTS. See [Contributing](https://github.com/chimaek/dbunny/blob/main/CONTRIBUTING.md) for unit, Extension Host, Docker integration and VSIX tests. See [Publishing](https://github.com/chimaek/dbunny/blob/main/CONTRIBUTING.md#게시) for release tags and OIDC setup.
 
 ### Upcoming Features
 
-See [ROADMAP.md](https://github.com/chimaek/dbunny/blob/v3.2.0/ROADMAP.md) for the full version-by-version plan.
+See [ROADMAP.md](https://github.com/chimaek/dbunny/blob/main/ROADMAP.md) for the current priorities and small development steps.
 
 ---
 
@@ -394,11 +394,11 @@ VS Code 1.85 이상이 필요하며 데스크톱 또는 원격 Node.js Extension
 
 ### 테스트
 
-개발 환경은 Node.js 24 LTS입니다. 단위·Extension Host·Docker 통합·VSIX 검증은 [개발 가이드](https://github.com/chimaek/dbunny/blob/v3.2.0/CONTRIBUTING.md), 릴리스 태그와 OIDC 설정은 [게시 가이드](https://github.com/chimaek/dbunny/blob/v3.2.0/docs/PUBLISHING.md)를 참고하세요.
+개발 환경은 Node.js 24 LTS입니다. 단위·Extension Host·Docker 통합·VSIX 검증은 [개발 가이드](https://github.com/chimaek/dbunny/blob/main/CONTRIBUTING.md), 릴리스 태그와 OIDC 설정은 [게시 가이드](https://github.com/chimaek/dbunny/blob/main/CONTRIBUTING.md#게시)를 참고하세요.
 
 ### 추가 예정 기능
 
-버전별 상세 계획은 [ROADMAP.md](https://github.com/chimaek/dbunny/blob/v3.2.0/ROADMAP.md)를 참조하세요.
+현재 개선 순서와 작은 작업 계획은 [ROADMAP.md](https://github.com/chimaek/dbunny/blob/main/ROADMAP.md)를 참조하세요.
 
 ---
 
