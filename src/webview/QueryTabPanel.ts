@@ -409,15 +409,7 @@ export class QueryTabPanel {
         this._update();
 
         try {
-            // getConnection()은 Map에서 가져오므로 연결되지 않은 객체일 수 있음
-            // activeConnection을 우선 사용하고 fallback으로 getConnection 사용
-            const activeConn = this._connectionManager.getActiveConnection();
-            const connection = (activeConn && activeConn.config.id === tab.connectionId)
-                ? activeConn
-                : this._connectionManager.getConnection(tab.connectionId);
-            if (!connection || !connection.isConnected()) {
-                throw new Error('Connection not available');
-            }
+            const connection = await this._connectionManager.ensureConnection(tab.connectionId);
 
             const startTime = Date.now();
             // 탭에서 선택된 데이터베이스를 전달하여 "No database selected" 에러 방지

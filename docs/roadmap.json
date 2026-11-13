@@ -2,22 +2,34 @@
   "schemaVersion": 2,
   "currentTask": "D001-2",
   "lastWork": {
-    "id": "D001-1",
+    "id": "D001-2",
     "status": "VERIFYING",
-    "dateKst": "2026-11-12",
-    "baseCommit": "6d068db4d173eab502d72bc0d6a45dc70b61013a",
-    "summary": "ensureConnection이 요청한 실제 연결을 확보하고 복원·재사용·실패 경계를 검사한다. QueryTabPanel 연결은 다음 단계다.",
+    "dateKst": "2026-11-13",
+    "baseCommit": "925a07540bda23d38fc55bc74805b95cc36e9c89",
+    "summary": "쿼리 탭 실행에 ensureConnection을 적용하고 실제 Webview 패널·SQLite A/B/A Host 회귀 검사를 통과했다. 수동 버튼 검증은 화면 도구 오류로 남아 있다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "build": "passed",
       "unitMocha": 195,
       "standaloneSuites": 16,
-      "extensionHost": 5,
-      "databaseIntegrationSuites": 22
+      "extensionHost": 6,
+      "databaseIntegrationSuites": 22,
+      "manualUi": {
+        "status": "UNVERIFIED",
+        "reason": "Native window binding failed; isolated manual UI harness timed out",
+        "harnessExitCode": 1
+      }
     }
   },
-  "progress": {},
+  "progress": {
+    "D001-1": {
+      "status": "DONE",
+      "commit": "925a07540bda23d38fc55bc74805b95cc36e9c89",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/43059744454",
+      "verifiedOnKst": "2026-11-13"
+    }
+  },
   "targetMinutes": [
     20,
     30
@@ -85,7 +97,9 @@
           ],
           "acceptance": "쿼리 탭 실행 한 곳에서 ensureConnection(tab.connectionId)을 사용한다. A/B 탭 왕복 실행이 각 DB의 결과를 표시한다.",
           "verification": "타입·린트·단위·Host와 전용 Docker 통합 검사. 실제 UI의 A/B 탭 왕복은 확인한 범위만 보고한다.",
-          "stopAt": "연결 폼·배지·다른 명령·오류 문구는 변경하지 않는다. 오류 후 UI 복구 보완은 D001-3이다."
+          "stopAt": "연결 폼·배지·다른 명령·오류 문구는 변경하지 않는다. 오류 후 UI 복구 보완은 D001-3이다.",
+          "implementationStatus": "IMPLEMENTED",
+          "remainingVerification": "실제 화면에서 실행 버튼으로 A/B/A를 왕복해 결과를 확인해야 한다. 창 연결 도구 오류로 미확인이며 호출부를 다시 구현하지 않는다."
         },
         {
           "id": "D001-3",
