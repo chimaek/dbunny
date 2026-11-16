@@ -451,10 +451,10 @@ export class QueryTabPanel {
                 status: 'error',
                 error: errorMessage
             });
+        } finally {
+            tab.isExecuting = false;
+            this._update();
         }
-
-        tab.isExecuting = false;
-        this._update();
     }
 
     // ===== 변수 세트 / 환경 프로필 관리 =====

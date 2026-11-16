@@ -1,42 +1,32 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D001-3",
+  "currentTask": "D108-1",
   "lastWork": {
-    "id": "D001-2",
+    "id": "D001-3",
     "status": "VERIFYING",
-    "dateKst": "2026-11-14",
-    "baseCommit": "0ce40e3d76110f0252cce9ebc82e488d65c033b2",
-    "summary": "남아 있던 실제 화면 검증을 완료했다. A/B/A 탭의 실행 버튼에서 각 DB의 A/B/A 결과와 성공 이력 3건을 확인했다.",
+    "dateKst": "2026-11-16",
+    "baseCommit": "077c67cc3e9dad3af2bca89f724102244ec5a8c6",
+    "summary": "재접속과 이력 저장 실패에도 finally에서 실행 상태를 해제한다. 다른 DB 쓰기 차단과 재접속 복구를 회귀 검사하고, 실제 화면에서 연결 실패→정상 연결→재실행 성공을 확인했다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "build": "passed",
       "unitMocha": 195,
       "standaloneSuites": 16,
-      "extensionHost": 6,
+      "extensionHost": 7,
       "databaseIntegrationSuites": 22,
+      "regressionBeforeFix": "Host regression failed because isExecuting remained true after history storage failure",
       "manualUi": {
         "status": "PASSED",
-        "verifiedOnKst": "2026-11-14",
-        "editor": "Installed Visual Studio Code in an isolated test profile",
-        "scenario": "Click Execute on A, switch to B and Execute, return to A and Execute",
-        "observedValues": [
-          "A",
-          "B",
-          "A"
-        ],
-        "successfulHistoryEntries": 3,
+        "verifiedOnKst": "2026-11-16",
+        "scenario": "Broken connection error shown; Execute enabled; select healthy connection; Execute displays recovered and clears error",
         "localEvidence": [
-          "test-results/d001-2/ui-20261114-a.png",
-          "test-results/d001-2/ui-20261114-b.png",
-          "test-results/d001-2/ui-20261114-state.json"
-        ]
+          "test-results/d001-3/ui-final-error-20261116.png",
+          "test-results/d001-3/ui-final-recovered-20261116.png",
+          "test-results/d001-3/ui-final-state-20261116.json"
+        ],
+        "harnessExitCode": 0
       }
-    },
-    "previousManualUiAttempt": {
-      "status": "UNVERIFIED",
-      "reason": "Native window binding failed; isolated manual UI harness timed out",
-      "harnessExitCode": 1
     }
   },
   "progress": {
@@ -50,7 +40,23 @@
       "status": "DONE",
       "implementationCommit": "0ce40e3d76110f0252cce9ebc82e488d65c033b2",
       "implementationCi": "https://github.com/chimaek/dbunny/actions/runs/43349028292",
-      "manualUiVerifiedOnKst": "2026-11-14"
+      "manualUiVerifiedOnKst": "2026-11-14",
+      "verificationCommit": "077c67cc3e9dad3af2bca89f724102244ec5a8c6",
+      "verificationCi": "https://github.com/chimaek/dbunny/actions/runs/43593591705"
+    },
+    "D001-3": {
+      "status": "VERIFYING",
+      "localVerification": "PASSED",
+      "manualUiVerifiedOnKst": "2026-11-16"
+    },
+    "D001": {
+      "status": "VERIFYING",
+      "children": [
+        "D001-1",
+        "D001-2",
+        "D001-3"
+      ],
+      "acceptance": "Local and native UI checks passed; awaiting this implementation commit CI"
     }
   },
   "targetMinutes": [

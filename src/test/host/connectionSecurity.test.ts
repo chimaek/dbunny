@@ -139,4 +139,59 @@ suite('ConnectionManager execution and persistence', () => {
             fs.rmSync(directory, { recursive: true, force: true });
         }
     });
+
+    test('Query tabs isolate reconnect failures and release busy state even if history storage fails', async () => {
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dbunny-query-recovery-'));
+        const { manager, context } = createManager([
+            sqlite('healthy', path.join(directory, 'healthy.db')),
+            sqlite('broken', directory)
+        ]);
+        const i18n = I18n.getInstance(context);
+        await i18n.initialize();
+        const history = new QueryHistoryProvider(context, i18n);
+        const originalUpdate = context.globalState.update;
+        let panel: QueryTabPanel | undefined;
+        try {
+            const healthy = await manager.ensureConnection('healthy');
+            await healthy.executeQuery('CREATE TABLE marker (value TEXT)');
+            await healthy.executeQuery("INSERT INTO marker VALUES ('healthy')");
+            panel = QueryTabPanel.createOrShow(vscode.Uri.file(context.extensionPath), manager, i18n, history);
+            const tab = panel['_tabs'][0];
+            Object.assign(tab, { connectionId: 'broken', connectionName: 'Broken', databaseName: directory, query: "INSERT INTO marker VALUES ('unexpected')" });
+            await panel['_executeQuery'](tab.id);
+            assert.match(tab.error || '', /Failed to connect to SQLite/);
+            assert.strictEqual(tab.results, null);
+            assert.strictEqual(tab.isExecuting, false);
+            assert.strictEqual(history.getHistory()[0].connectionId, 'broken');
+            assert.strictEqual(history.getHistory()[0].status, 'error');
+            const untouched = await manager.ensureConnection('healthy');
+            assert.deepStrictEqual((await untouched.executeQuery('SELECT value FROM marker')).rows, [{ value: 'healthy' }]);
+
+            context.globalState.update = async (key: string, value: unknown) => {
+                if (key === 'dbunny.queryHistory') { throw new Error('History storage unavailable'); }
+                await originalUpdate(key, value);
+            };
+            await assert.rejects(() => panel!['_executeQuery'](tab.id), /History storage unavailable/);
+            assert.strictEqual(tab.isExecuting, false);
+            assert.match(tab.error || '', /Failed to connect to SQLite/);
+            assert.strictEqual(tab.results, null);
+
+            context.globalState.update = originalUpdate;
+            const recoveredPath = path.join(directory, 'recovered.db');
+            await manager.updateConnection(sqlite('broken', recoveredPath));
+            Object.assign(tab, { databaseName: recoveredPath, query: "SELECT 'recovered' AS value" });
+            await panel['_executeQuery'](tab.id);
+            assert.strictEqual(tab.error, null);
+            assert.strictEqual(tab.isExecuting, false);
+            assert.deepStrictEqual(panel['_tabs'][0].results?.rows, [{ value: 'recovered' }]);
+            assert.strictEqual(manager.getActiveConnection()?.config.id, 'broken');
+        } finally {
+            context.globalState.update = originalUpdate;
+            panel?.dispose();
+            await manager.disconnect();
+            manager.dispose();
+            assert.strictEqual(path.dirname(directory), path.resolve(os.tmpdir()));
+            fs.rmSync(directory, { recursive: true, force: true });
+        }
+    });
 });
