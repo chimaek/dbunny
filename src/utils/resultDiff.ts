@@ -42,6 +42,17 @@ export interface DiffResult {
     keyColumns: string[];
 }
 
+/** 같은 키로 여러 행이 매칭되어 비교할 수 없는 그룹. 인덱스는 0부터 시작한다. */
+export interface DuplicateDiffKey {
+    key: Record<string, unknown>;
+    leftRowIndexes: number[];
+    rightRowIndexes: number[];
+}
+
+export type DiffComparison =
+    | { kind: 'diff'; diff: DiffResult }
+    | { kind: 'ambiguous'; keyColumns: string[]; duplicates: DuplicateDiffKey[]; left: QueryResult; right: QueryResult };
+
 /** 행 키 생성 — 지정된 컬럼으로 키 문자열 생성 */
 function buildRowKey(row: Record<string, unknown>, keyColumns: string[]): string {
     return keyColumns
@@ -116,6 +127,38 @@ function detectKeyColumns(leftFields: string[], rightFields: string[]): string[]
     return undefined;
 }
 
+function resolveKeyColumns(left: string[], right: string[], requested?: string[]): string[] {
+    if (requested && requested.length > 0) { return requested; }
+    const detected = detectKeyColumns(left, right);
+    if (detected) { return detected; }
+    const common = left.filter(column => right.includes(column));
+    return common.length > 0 ? common : mergeColumns(left, right);
+}
+
+/** 중복 키가 있으면 행을 임의로 고르지 않고 원본 입력과 해당 인덱스를 반환한다. */
+export function compareResults(left: QueryResult, right: QueryResult, keyColumns?: string[]): DiffComparison {
+    const effectiveKeys = resolveKeyColumns(left.fields.map(f => f.name), right.fields.map(f => f.name), keyColumns);
+    const groups = new Map<string, DuplicateDiffKey>();
+    const collect = (rows: Record<string, unknown>[], side: 'leftRowIndexes' | 'rightRowIndexes') => {
+        rows.forEach((row, index) => {
+            const id = buildRowKey(row, effectiveKeys);
+            let group = groups.get(id);
+            if (!group) {
+                group = { key: Object.fromEntries(effectiveKeys.map(column => [column, row[column]])), leftRowIndexes: [], rightRowIndexes: [] };
+                groups.set(id, group);
+            }
+            group[side].push(index);
+        });
+    };
+    collect(left.rows, 'leftRowIndexes');
+    collect(right.rows, 'rightRowIndexes');
+    const duplicates = [...groups.values()].filter(group => group.leftRowIndexes.length > 1 || group.rightRowIndexes.length > 1);
+    if (duplicates.length > 0) {
+        return { kind: 'ambiguous', keyColumns: effectiveKeys, duplicates, left, right };
+    }
+    return { kind: 'diff', diff: computeDiff(left, right, effectiveKeys) };
+}
+
 /**
  * 두 쿼리 결과를 비교하여 DiffResult를 반환합니다.
  *
@@ -132,16 +175,7 @@ export function computeDiff(
     const rightColNames = right.fields.map(f => f.name);
     const allColumns = mergeColumns(leftColNames, rightColNames);
 
-    // 키 컬럼 결정
-    let effectiveKeys = keyColumns;
-    if (!effectiveKeys || effectiveKeys.length === 0) {
-        effectiveKeys = detectKeyColumns(leftColNames, rightColNames);
-    }
-    if (!effectiveKeys || effectiveKeys.length === 0) {
-        // 자동 감지 실패 → 공통 컬럼 전체를 키로 사용
-        const commonCols = leftColNames.filter(c => rightColNames.includes(c));
-        effectiveKeys = commonCols.length > 0 ? commonCols : allColumns;
-    }
+    const effectiveKeys = resolveKeyColumns(leftColNames, rightColNames, keyColumns);
 
     // 행을 키 기반 Map으로 변환
     const leftMap = new Map<string, { row: Record<string, unknown>; index: number }>();

@@ -1,33 +1,21 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D108-1",
+  "currentTask": "D108-2",
   "lastWork": {
-    "id": "D001-3",
+    "id": "D108-1",
     "status": "VERIFYING",
-    "dateKst": "2026-11-16",
-    "baseCommit": "077c67cc3e9dad3af2bca89f724102244ec5a8c6",
-    "summary": "재접속과 이력 저장 실패에도 finally에서 실행 상태를 해제한다. 다른 DB 쓰기 차단과 재접속 복구를 회귀 검사하고, 실제 화면에서 연결 실패→정상 연결→재실행 성공을 확인했다.",
+    "dateKst": "2026-11-17",
+    "baseCommit": "95a6db29bb22f03439f64adc219e0783900d3866",
+    "summary": "compareResults가 정상 diff와 중복 키의 모호한 비교를 구분하고 원본 입력·양쪽 행 인덱스를 보존한다. 기존 UI/computeDiff 호출부의 전환은 D108-2에 남긴다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "build": "passed",
-      "unitMocha": 195,
+      "unitMocha": 202,
       "standaloneSuites": 16,
-      "extensionHost": 7,
-      "databaseIntegrationSuites": 22,
-      "regressionBeforeFix": "Host regression failed because isExecuting remained true after history storage failure",
-      "manualUi": {
-        "status": "PASSED",
-        "verifiedOnKst": "2026-11-16",
-        "scenario": "Broken connection error shown; Execute enabled; select healthy connection; Execute displays recovered and clears error",
-        "localEvidence": [
-          "test-results/d001-3/ui-final-error-20261116.png",
-          "test-results/d001-3/ui-final-recovered-20261116.png",
-          "test-results/d001-3/ui-final-state-20261116.json"
-        ],
-        "harnessExitCode": 0
-      }
-    }
+      "newContractCases": 7
+    },
+    "integrationStatus": "Backend contract only; not yet connected to DiffPanel"
   },
   "progress": {
     "D001-1": {
@@ -45,18 +33,25 @@
       "verificationCi": "https://github.com/chimaek/dbunny/actions/runs/43593591705"
     },
     "D001-3": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "localVerification": "PASSED",
-      "manualUiVerifiedOnKst": "2026-11-16"
+      "manualUiVerifiedOnKst": "2026-11-16",
+      "commit": "95a6db29bb22f03439f64adc219e0783900d3866",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/43823102895"
     },
     "D001": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "children": [
         "D001-1",
         "D001-2",
         "D001-3"
       ],
-      "acceptance": "Local and native UI checks passed; awaiting this implementation commit CI"
+      "acceptance": "Local and native UI checks passed; awaiting this implementation commit CI",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/43823102895"
+    },
+    "D108-1": {
+      "status": "VERIFYING",
+      "localVerification": "PASSED"
     }
   },
   "targetMinutes": [
@@ -4117,7 +4112,22 @@
           "target": "src/webview/DiffPanel.ts",
           "after": [
             "D108-1"
-          ]
+          ],
+          "acceptance": "DiffPanel의 초기 비교와 키 변경 경로를 compareResults로 연결한다. ambiguous이면 중복 건수·키 재선택을 안내하고 이전 정상 결과가 남거나 내보내지지 않게 한다.",
+          "verification": "타입·린트·단위·Host 및 실제 UI에서 중복→유일 키 변경과 정상 diff/내보내기 회귀를 확인한다. 원본 데이터와 중복 인덱스는 보존한다.",
+          "apiContract": {
+            "module": "src/utils/resultDiff.ts",
+            "function": "compareResults",
+            "kinds": [
+              "diff",
+              "ambiguous"
+            ],
+            "duplicateFields": [
+              "key",
+              "leftRowIndexes",
+              "rightRowIndexes"
+            ]
+          }
         }
       ],
       "scope": "선택한 비교 키가 중복이면 모호한 행 매칭을 성공 비교처럼 표시하지 않는다. 중복 건수와 키 변경 행동을 제공한다.",
