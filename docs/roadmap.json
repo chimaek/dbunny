@@ -1,21 +1,31 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D108-2",
+  "currentTask": "D008-1",
   "lastWork": {
-    "id": "D108-1",
+    "id": "D108-2",
     "status": "VERIFYING",
-    "dateKst": "2026-11-17",
-    "baseCommit": "95a6db29bb22f03439f64adc219e0783900d3866",
-    "summary": "compareResults가 정상 diff와 중복 키의 모호한 비교를 구분하고 원본 입력·양쪽 행 인덱스를 보존한다. 기존 UI/computeDiff 호출부의 전환은 D108-2에 남긴다.",
+    "dateKst": "2026-11-18",
+    "baseCommit": "db1b9c15eba092a0bb0d2f57be0c4ce0f19ec33b",
+    "summary": "중복 키를 감지하면 건수와 키 선택을 안내하고 비교 표와 내보내기를 차단한다. 유일 키로 변경하면 다시 비교하고 내보낼 수 있다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "build": "passed",
       "unitMocha": 202,
       "standaloneSuites": 16,
-      "newContractCases": 7
-    },
-    "integrationStatus": "Backend contract only; not yet connected to DiffPanel"
+      "extensionHost": 8,
+      "nativeUi": {
+        "status": "PASSED",
+        "verifiedOnKst": "2026-11-18",
+        "scenario": "중복 id에서 양쪽 중복 행 2개씩 표시 → 유일 키 line에서 추가·삭제·변경 1건씩 확인 및 JSON·Markdown 저장 → id에서 이전 결과와 내보내기 차단",
+        "localEvidence": [
+          "test-results/d108-2/ui-duplicate.png",
+          "test-results/d108-2/ui-unique-key.png",
+          "test-results/d108-2/diff-ui.json",
+          "test-results/d108-2/diff-ui.md"
+        ]
+      }
+    }
   },
   "progress": {
     "D001-1": {
@@ -50,8 +60,23 @@
       "ci": "https://github.com/chimaek/dbunny/actions/runs/43823102895"
     },
     "D108-1": {
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "db1b9c15eba092a0bb0d2f57be0c4ce0f19ec33b",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44015786715"
+    },
+    "D108-2": {
       "status": "VERIFYING",
-      "localVerification": "PASSED"
+      "localVerification": "PASSED",
+      "uiVerifiedOnKst": "2026-11-18"
+    },
+    "D108": {
+      "status": "VERIFYING",
+      "children": [
+        "D108-1",
+        "D108-2"
+      ],
+      "acceptance": "원본 보존 검사와 중복 키에서 유일 키로 변경하는 실제 화면 검증 통과"
     }
   },
   "targetMinutes": [

@@ -2,7 +2,7 @@ import { createNonce, secureWebviewHtml, serializeForWebview, webviewEventScript
 import * as vscode from 'vscode';
 import { QueryResult } from '../types/database';
 import { I18n } from '../utils/i18n';
-import { computeDiff, diffToMarkdown, diffToJson, DiffResult, RowDiff } from '../utils/resultDiff';
+import { compareResults, diffToMarkdown, diffToJson, DiffComparison, DiffResult, DuplicateDiffKey, RowDiff } from '../utils/resultDiff';
 
 /**
  * WebView panel for comparing query results (row-level diff)
@@ -37,7 +37,7 @@ export class DiffPanel {
                         await this._handleExportDiff(message.format);
                         break;
                     case 'recomputeDiff':
-                        this._recomputeDiff(message.keyColumns);
+                        this._changeKeyColumn(message.columnIndex);
                         break;
                     case 'copy':
                         await vscode.env.clipboard.writeText(message.text);
@@ -88,28 +88,38 @@ export class DiffPanel {
         this._leftLabel = leftLabel;
         this._rightLabel = rightLabel;
 
-        this._currentDiff = computeDiff(left, right, keyColumns);
-        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(this._currentDiff, leftLabel, rightLabel), this._panel.webview, this._nonce);
+        this._recomputeDiff(keyColumns);
     }
 
     public showLoading(): void {
         this._panel.webview.html = secureWebviewHtml(this._getLoadingHtml(), this._panel.webview, this._nonce);
     }
 
-    private _recomputeDiff(keyColumns: string[]): void {
+    private _changeKeyColumn(columnIndex: unknown): void {
+        if (typeof columnIndex !== 'number' || !Number.isInteger(columnIndex) || columnIndex < 0) { return; }
+        const column = this._sharedKeyColumns()[columnIndex];
+        if (column !== undefined) { this._recomputeDiff([column]); }
+    }
+
+    private _sharedKeyColumns(): string[] {
+        const rightColumns = new Set(this._rightResult?.fields.map(field => field.name));
+        const leftColumns = new Set(this._leftResult?.fields.map(field => field.name));
+        return [...leftColumns].filter(column => rightColumns.has(column));
+    }
+
+    private _recomputeDiff(keyColumns?: string[]): void {
         if (!this._leftResult || !this._rightResult) { return; }
-        this._currentDiff = computeDiff(this._leftResult, this._rightResult, keyColumns);
-        this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(this._currentDiff, this._leftLabel, this._rightLabel), this._panel.webview, this._nonce);
+        const comparison = compareResults(this._leftResult, this._rightResult, keyColumns);
+        this._currentDiff = comparison.kind === 'diff' ? comparison.diff : null;
+        const html = this._getHtmlContent(comparison, this._leftLabel, this._rightLabel);
+        this._panel.webview.html = secureWebviewHtml(html, this._panel.webview, this._nonce);
     }
 
     private async _handleExportDiff(format: string): Promise<void> {
-        if (!this._currentDiff) { return; }
+        const diff = this._currentDiff;
+        if (!diff) { return; }
 
         const ext = format === 'json' ? 'json' : 'md';
-        const content = format === 'json'
-            ? diffToJson(this._currentDiff)
-            : diffToMarkdown(this._currentDiff, this._leftLabel, this._rightLabel);
-
         const uri = await vscode.window.showSaveDialog({
             defaultUri: vscode.Uri.file(`query_diff_${Date.now()}.${ext}`),
             filters: {
@@ -118,29 +128,38 @@ export class DiffPanel {
             }
         });
 
-        if (!uri) { return; }
+        if (!uri || this._currentDiff !== diff) { return; }
 
+        const content = format === 'json'
+            ? diffToJson(diff)
+            : diffToMarkdown(diff, this._leftLabel, this._rightLabel);
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
         vscode.window.showInformationMessage(
             this.i18n.t('diff.exported', { path: uri.fsPath })
         );
     }
 
-    private _getHtmlContent(diff: DiffResult, leftLabel: string, rightLabel: string): string {
-        const s = diff.summary;
-        const hasChanges = s.added + s.removed + s.modified > 0;
+    private _getHtmlContent(comparison: DiffComparison, leftLabel: string, rightLabel: string): string {
+        const diff = comparison.kind === 'diff' ? comparison.diff : null;
+        const s = diff?.summary;
+        const hasChanges = s && s.added + s.removed + s.modified > 0;
+        const keys = comparison.kind === 'diff' ? comparison.diff.keyColumns : comparison.keyColumns;
+        const sharedColumns = this._sharedKeyColumns();
+        const selectedKey = keys.length === 1 ? keys[0] : undefined;
+        const selectedIndex = selectedKey === undefined ? -1 : sharedColumns.indexOf(selectedKey);
+        const canChangeKey = sharedColumns.length > (selectedIndex < 0 ? 0 : 1);
+        const title = this._escapeHtml(this.i18n.t('diff.title'));
 
         // 행을 JSON으로 전달 (스크립트에서 필터링)
-        const rowsJson = serializeForWebview(diff.rows);
-        const columnsJson = serializeForWebview(diff.columns);
-        const keyColumnsJson = serializeForWebview(diff.keyColumns);
+        const rowsJson = serializeForWebview(diff?.rows ?? []);
+        const columnsJson = serializeForWebview(diff?.columns ?? []);
 
         return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${this._escapeHtml(this.i18n.getCurrentLocale())}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Result Diff</title>
+    <title>${title}</title>
     <style>
         :root {
             --bg-color: var(--vscode-editor-background);
@@ -203,6 +222,36 @@ export class DiffPanel {
         .toolbar-btn:hover {
             background: var(--vscode-button-secondaryHoverBackground);
         }
+
+        .key-column {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 100%;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .key-column select {
+            min-width: 0;
+            max-width: 18em;
+            padding: 4px 6px;
+            font: inherit;
+            background: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
+            border: 1px solid var(--vscode-dropdown-border, var(--border-color));
+        }
+
+        .duplicate-keys {
+            margin: 12px 20px 16px;
+            padding: 12px 16px;
+            border: 1px solid var(--vscode-inputValidation-warningBorder, var(--border-color));
+            background: var(--vscode-inputValidation-warningBackground, var(--bg-color));
+            color: var(--vscode-inputValidation-warningForeground, var(--text-color));
+        }
+
+        .duplicate-keys h2 { font-size: 14px; }
+        .duplicate-keys p { margin-top: 6px; font-size: 13px; }
 
         .filter-group {
             display: flex;
@@ -382,8 +431,17 @@ export class DiffPanel {
     <div class="toolbar">
         <div class="toolbar-title">
             <span>&#x1F50D;</span>
-            <span>Result Diff</span>
+            <span>${title}</span>
         </div>
+        ${canChangeKey ? `
+        <label class="key-column">
+            ${this._escapeHtml(this.i18n.t('diff.keyColumn'))}
+            <select data-dbunny-change="changeKeyColumn(this.value)">
+                ${selectedIndex < 0 ? `<option disabled selected>${this._escapeHtml(keys.join(', '))}</option>` : ''}
+                ${sharedColumns.map((column, index) => `<option value="${index}"${index === selectedIndex ? ' selected' : ''}>${this._escapeHtml(column)}</option>`).join('')}
+            </select>
+        </label>` : ''}
+        ${diff && s ? `
         <div class="filter-group">
             <button class="filter-btn active" data-dbunny-click="filterRows('all')">All (${diff.rows.length})</button>
             <button class="filter-btn" data-dbunny-click="filterRows('added')">+ Added (${s.added})</button>
@@ -393,9 +451,11 @@ export class DiffPanel {
         </div>
         <div class="toolbar-spacer"></div>
         <button class="toolbar-btn" data-dbunny-click="exportDiff('markdown')">Export MD</button>
-        <button class="toolbar-btn" data-dbunny-click="exportDiff('json')">Export JSON</button>
+        <button class="toolbar-btn" data-dbunny-click="exportDiff('json')">Export JSON</button>` : ''}
     </div>
 
+    ${comparison.kind === 'ambiguous' ? this._renderDuplicateKeys(comparison.duplicates, keys, canChangeKey) : ''}
+    ${s ? `
     <div class="summary">
         <div class="summary-card">
             <div class="summary-title">Left Rows</div>
@@ -421,7 +481,7 @@ export class DiffPanel {
             <div class="summary-title">Unchanged</div>
             <div class="summary-value">${s.unchanged}</div>
         </div>
-    </div>
+    </div>` : ''}
 
     <div class="sources">
         <div class="source">
@@ -434,7 +494,7 @@ export class DiffPanel {
         </div>
     </div>
 
-    <div class="diff-container">
+    ${diff ? `<div class="diff-container">
         ${!hasChanges ? `
             <div class="no-changes">
                 <div class="no-changes-icon">&#x2705;</div>
@@ -455,13 +515,12 @@ export class DiffPanel {
                 </tbody>
             </table>
         </div>
-    </div>
+    </div>` : ''}
 
     <script nonce="${this._nonce}">
         const vscode = acquireVsCodeApi();
         const allRows = ${rowsJson};
         const allColumns = ${columnsJson};
-        const keyColumns = ${keyColumnsJson};
         let currentFilter = 'all';
 
         function escapeHtml(text) {
@@ -516,10 +575,24 @@ export class DiffPanel {
         function exportDiff(format) {
             vscode.postMessage({ command: 'exportDiff', format: format });
         }
-    ${webviewEventScript(["filterRows","exportDiff"],[])}
+
+        function changeKeyColumn(value) {
+            vscode.postMessage({ command: 'recomputeDiff', columnIndex: Number(value) });
+        }
+    ${webviewEventScript(["filterRows", "exportDiff", "changeKeyColumn"])}
 </script>
 </body>
 </html>`;
+    }
+
+    private _renderDuplicateKeys(duplicates: DuplicateDiffKey[], keys: string[], canChangeKey: boolean): string {
+        const leftCount = duplicates.reduce((count, group) => count + (group.leftRowIndexes.length > 1 ? group.leftRowIndexes.length : 0), 0);
+        const rightCount = duplicates.reduce((count, group) => count + (group.rightRowIndexes.length > 1 ? group.rightRowIndexes.length : 0), 0);
+        return `<section class="duplicate-keys" role="status">
+            <h2>${this._escapeHtml(this.i18n.t('diff.duplicateKeys'))} · ${this._escapeHtml(keys.join(', '))}</h2>
+            <p>${this._escapeHtml(this.i18n.t('diff.duplicateCounts', { keys: duplicates.length, left: leftCount, right: rightCount }))}</p>
+            <p>${this._escapeHtml(this.i18n.t(canChangeKey ? 'diff.pickUniqueKey' : 'diff.addUniqueKey'))}</p>
+        </section>`;
     }
 
     private _renderRows(rows: RowDiff[], columns: string[]): string {

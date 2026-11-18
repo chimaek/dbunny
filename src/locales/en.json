@@ -291,6 +291,11 @@
     "selectRight": "Select Right Result",
     "selectKey": "Select Key Columns (optional)",
     "allColumns": "All columns",
+    "keyColumn": "Key column",
+    "duplicateKeys": "Duplicate comparison keys",
+    "duplicateCounts": "Duplicate key groups ({keys}) · Left rows with repeated keys ({left}) · Right rows with repeated keys ({right})",
+    "pickUniqueKey": "Choose a column that uniquely identifies each row in both results.",
+    "addUniqueKey": "Include a common column that uniquely identifies each row in both queries, then compare the new results.",
     "exported": "Diff report exported to {path}"
   },
   "routine": {
