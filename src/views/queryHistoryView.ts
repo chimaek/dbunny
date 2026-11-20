@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomUUID } from 'node:crypto';
 import { QueryHistoryEntry } from '../types/database';
 import { I18n } from '../utils/i18n';
 
@@ -100,7 +101,7 @@ export class QueryHistoryProvider implements vscode.TreeDataProvider<QueryHistor
     async addQuery(entry: Omit<QueryHistoryEntry, 'id'>): Promise<void> {
         const newEntry: QueryHistoryEntry = {
             ...entry,
-            id: crypto.randomUUID()
+            id: randomUUID()
         };
 
         this.history.unshift(newEntry);

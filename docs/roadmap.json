@@ -6,7 +6,7 @@
     "status": "VERIFYING",
     "dateKst": "2026-11-20",
     "baseCommit": "4ef7c96bc008a3e2ad1362f9d2b0e07d3dc430ea",
-    "summary": "접속 설정의 연결 테스트에 원인별 한·영 안내를 적용했다. 드라이버 원문을 전달하지 않고 정리 실패에도 최초 연결 실패를 보존한다.",
+    "summary": "접속 설정의 연결 테스트에 원인별 한·영 안내를 적용했다. 드라이버 원문을 전달하지 않고 정리 실패에도 최초 연결 실패를 보존한다. 전역 crypto가 없는 Host에서도 쿼리 이력과 저장 쿼리 ID를 생성하도록 Node API를 명시했다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
@@ -26,7 +26,19 @@
         ],
         "hostLog": "검증한 인증·주소 오류 원문 및 테스트 자격증명 미노출",
         "scope": "연결 설정 폼의 연결 테스트"
+      },
+      "packageHost": {
+        "minimum": "1.85.0",
+        "stable": "passed",
+        "hostTestsPerVersion": 11,
+        "runtimeAndWasm": "passed"
       }
+    },
+    "ciRecovery": {
+      "implementationCommit": "4441910973d7d0c369782a9f8fca0fafe8ee68b8",
+      "failedRun": "https://github.com/chimaek/dbunny/actions/runs/44689852458",
+      "cause": "QueryHistoryProvider used a global crypto object unavailable in the Linux Extension Host",
+      "fix": "Import randomUUID from node:crypto in query history and saved queries"
     }
   },
   "progress": {

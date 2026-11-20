@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomUUID } from 'node:crypto';
 import { SavedQuery } from '../types/database';
 import { I18n } from '../utils/i18n';
 
@@ -75,7 +76,7 @@ export class SavedQueriesProvider implements vscode.TreeDataProvider<SavedQueryT
         const now = new Date();
         const newQuery: SavedQuery = {
             ...query,
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             createdAt: now,
             updatedAt: now
         };

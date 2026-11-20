@@ -7,6 +7,7 @@ import { ConnectionManager } from '../../managers/connectionManager';
 import { ConnectionConfig, DatabaseConnection } from '../../types/database';
 import { QueryTabPanel } from '../../webview/QueryTabPanel';
 import { QueryHistoryProvider } from '../../views/queryHistoryView';
+import { SavedQueriesProvider } from '../../views/savedQueriesView';
 import { I18n } from '../../utils/i18n';
 
 function createManager(connections: ConnectionConfig[] = []) {
@@ -22,6 +23,24 @@ function createManager(connections: ConnectionConfig[] = []) {
 
 const sqlite = (id: string, database = ':memory:'): ConnectionConfig => ({
     id, name: id, type: 'sqlite', host: '', port: 0, username: '', database
+});
+
+suite('Saved query persistence', () => {
+    test('bookmarks stay distinct and keep their IDs after a reload', async () => {
+        const { manager, context } = createManager();
+        try {
+            await manager.ready;
+            const i18n = I18n.getInstance(context);
+            const saved = new SavedQueriesProvider(context, i18n);
+            const first = await saved.saveQuery({ name: 'First', query: 'SELECT 1' });
+            const second = await saved.saveQuery({ name: 'Second', query: 'SELECT 2' });
+            assert.notStrictEqual(first.id, second.id);
+            const reloaded = new SavedQueriesProvider(context, i18n);
+            assert.deepStrictEqual((await reloaded.getChildren()).map(item => item.savedQuery.id), [first.id, second.id]);
+        } finally {
+            manager.dispose();
+        }
+    });
 });
 
 suite('ConnectionManager execution and persistence', () => {
