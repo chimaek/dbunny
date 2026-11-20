@@ -5,15 +5,16 @@
 ## 작업 흐름
 
 1. 작업 폴더·브랜치·원격·직전 CI를 확인하고 기존 변경을 보존한다.
-2. 다음 명령으로 현재 하위 작업 하나만 읽는다. 전체 로드맵 JSON을 출력하지 않는다.
+2. 다음 명령으로 현재 하위 작업과 그 검증 기준을 확인한다.
 
 ```powershell
-node -e "const r=require('./docs/roadmap.json'); const p=r.parents.find(p=>p.units.some(u=>u.id===r.currentTask)); console.log(JSON.stringify({lastWork:r.lastWork,...p.units.find(u=>u.id===r.currentTask)},null,2))"
+node -e "const r=require('./docs/roadmap.json'); const p=r.parents.find(p=>p.units.some(u=>u.id===r.currentTask)); const release=p.kind==='release'?{title:p.title,plannedVersion:p.plannedVersion,scope:p.scope,validation:p.validation,policy:r.releasePolicy}:undefined; console.log(JSON.stringify({lastWork:r.lastWork,...p.units.find(u=>u.id===r.currentTask),release},null,2))"
 ```
 
 3. 재현 입력과 기대 결과를 정하고 한 함수·한 상태 전이·한 오류 경계만 변경한다. 기본은 개발·로컬 확인 20~30분, 주 코드 파일 1개와 필요한 테스트다.
 4. 관련 검사를 통과한 뒤 변경·다음 currentTask·직전 lastWork(VERIFYING)를 함께 커밋·push한다. 실제 CI 성공이 완료 근거다. 다음 실행에서 확인한 결과는 다음 실제 변경과 함께 기록한다.
 5. 부모의 마지막 하위 작업에서 통합 완료 기준을 확인한다. 환경이 없거나 일이 크면 더 작은 후속 범위를 기록하고 멈춘다. 빈 커밋과 상태만 바꾸는 커밋은 만들지 않는다.
+6. 하위 작업에 `nextTask`가 있으면 해당 카드로 이동한다. 기능과 필수 CI가 통과한 배포 시점에는 `R…-1` 후보 준비·검증과 `R…-2` 게시·공개 확인을 차례로 진행한다. 게시 승인을 기다리는 동안 후보 SHA를 보존하고, 선행 조건을 충족한 독립 개발 작업은 이어갈 수 있다.
 
 로그는 test-results에 보관하고 성공 요약 또는 실패한 부분만 확인한다. 커밋에는 하위 ID와 실제 변경을 설명한다. 일반 push와 Marketplace 게시를 구분한다.
 
@@ -68,8 +69,8 @@ Remove-Item Env:VSCODE_TEST_VERSIONS
 
 공식 문서 확인일: 2026-11-11. [공식 게시 가이드](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#publish-with-github-actions-and-trusted-publishing)와 [vsce Trusted Publishing](https://github.com/microsoft/vscode-vsce#trusted-publishing)을 따른다. publisher는 chimaek, 확장 ID는 chimaek.dbunny다.
 
-1. 사용자가 승인한 버전·범위에서 package.json, CHANGELOG, 한·영 README를 맞춘다. 일반 개발 요청으로 릴리스를 시작하지 않는다.
-2. 필수 코드·DB·VSIX 검사와 전체 CI를 통과한다. 읽기 전용·자격증명 이전·업그레이드·알려진 제약을 확인한다.
+1. 로드맵의 후보 카드에서 버전·범위를 정하고 `package.json`, `package-lock.json`, CHANGELOG, 한·영 README를 맞춘다.
+2. 후보 SHA의 필수 코드·DB·VSIX 검사와 전체 CI를 확인한다. 읽기 전용·자격증명 이전·업그레이드·알려진 제약을 확인하고, 검증된 SHA와 변경 내역으로 해당 버전·범위의 게시 승인을 확인한다.
 3. Marketplace 신뢰 정책은 chimaek/dbunny, publish.yml, environment marketplace와 일치해야 한다. GitHub environment는 v* 태그로 제한한다. 게시 job만 id-token: write를 갖고 장기 PAT를 사용하지 않는다.
 4. 승인한 커밋에 매니페스트와 같은 v<version> 태그를 올린다. [publish workflow](.github/workflows/publish.yml)가 태그·VSIX publisher/name/version을 확인하고 검증한 같은 artifact를 OIDC로 게시한다. 게시 단계에서 재빌드하지 않는다.
 5. 게시 명령 성공 후 Marketplace의 Verifying가 끝났는지 공개 버전·README·CHANGELOG·이미지를 확인한다. 공식 Gallery에서 VSIX를 받아 SHA-256과 핵심 파일을 비교하고 다운로드한 파일로 Host 검사를 한다.
