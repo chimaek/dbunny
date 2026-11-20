@@ -1,0 +1,46 @@
+{
+  "extensionId": "chimaek.dbunny",
+  "version": "3.2.1",
+  "sourceTag": "v3.2.1",
+  "sourceCommit": "bc397dcd2f7d9cdf515e79afe029039c1a74c1c2",
+  "workflowRunId": 44695622654,
+  "workflowUrl": "https://github.com/chimaek/dbunny/actions/runs/44695622654",
+  "candidateWorkflowUrl": "https://github.com/chimaek/dbunny/actions/runs/44694555873",
+  "marketplaceUrl": "https://marketplace.visualstudio.com/items?itemName=chimaek.dbunny",
+  "githubReleaseUrl": "https://github.com/chimaek/dbunny/releases/tag/v3.2.1",
+  "publishCommandCompletedAtUtc": "2026-11-20T07:37:58.1701698Z",
+  "marketplaceVersionLastUpdatedUtc": "2026-11-20T07:47:23.157Z",
+  "marketplaceVersionLastUpdatedKst": "2026-11-20 16:47:23 KST",
+  "verifiedAtUtc": "2026-11-20T07:47:50.672Z",
+  "verifiedVsixSha256": "b2b55072cf7b8294323c256690c735228d222aa81170553c3266a96657cef5b5",
+  "marketplaceVsixSha256": "b2b55072cf7b8294323c256690c735228d222aa81170553c3266a96657cef5b5",
+  "payloadMatch": true,
+  "payloadSha256": {
+    "extension/package.json": "436a25232195d2ecfcc13936fa3b4c494d31f609e200dd74e0e633c9544cb48d",
+    "extension/readme.md": "43a945f0119d207778645835cb8f50e237198ee15aea07a4de8aa5a591733947",
+    "extension/changelog.md": "6c7ba9952f2b44c71a8399ff31a0ce53b14ba0392a677cbbebd17ad71f2441e7",
+    "extension/dist/extension.js": "639e6e18f5a018a57ebc04547cd06a8132e75cb7fe7fa44a1420da68139c7ce1",
+    "extension/src/locales/en.json": "6116f7a44519b70ef12e7e373268f1e8e32b71769d6899123cb57e854eac5fe1",
+    "extension/src/locales/ko.json": "e3faf68bcb9b496c4241e40cfe79f39abc6f6c13ad83e4d8fb0e0498d25a4eee"
+  },
+  "publicListing": {
+    "version": "3.2.1",
+    "marketplaceOverview": "passed",
+    "marketplaceChangelog": "passed",
+    "bilingualReadme": "passed",
+    "demoImageHttp": 200,
+    "verifiedAtUtc": "2026-11-20T07:48:13.9971650Z"
+  },
+  "postPublishRuntime": {
+    "verifiedDateKst": "2026-11-20",
+    "os": "Windows",
+    "vscodeVersions": [
+      "1.85.0",
+      "stable"
+    ],
+    "hostTestsPerVersion": 11,
+    "status": "passed",
+    "command": "npm run test:package -- test-results/releases/v3.2.1/dbunny-3.2.1-marketplace.vsix"
+  },
+  "upgradeValidation": "Public 3.2.0 synthetic saved state loaded by the 3.2.1 candidate in an isolated Extension Host. Marketplace automatic update was outside the test scope."
+}

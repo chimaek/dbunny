@@ -1,29 +1,29 @@
 {
   "schemaVersion": 2,
-  "currentTask": "R001-2",
+  "currentTask": "D105-1",
   "lastWork": {
-    "id": "R001-1",
+    "id": "R001-2",
     "status": "VERIFYING",
     "dateKst": "2026-11-20",
-    "baseCommit": "f7f6803d7aeaf529a6dc1a1d40d6125b5e9910ae",
-    "summary": "쿼리 탭 연결 복구, Diff 중복 키 처리, 연결 테스트 안내를 3.2.1 후보로 묶고 버전·CHANGELOG·한영 README를 맞췄다.",
+    "baseCommit": "bc397dcd2f7d9cdf515e79afe029039c1a74c1c2",
+    "summary": "승인된 3.2.1을 OIDC로 게시하고 공개 버전, 한·영 README·CHANGELOG, VSIX 해시와 두 VS Code 버전의 실행을 검증했다.",
+    "release": {
+      "version": "3.2.1",
+      "sourceTag": "v3.2.1",
+      "sourceCommit": "bc397dcd2f7d9cdf515e79afe029039c1a74c1c2",
+      "workflowUrl": "https://github.com/chimaek/dbunny/actions/runs/44695622654",
+      "marketplaceUrl": "https://marketplace.visualstudio.com/items?itemName=chimaek.dbunny",
+      "githubRelease": "https://github.com/chimaek/dbunny/releases/tag/v3.2.1",
+      "publication": "docs/releases/3.2.1.json"
+    },
     "localChecks": {
-      "typesLintBuild": "passed",
-      "unitMocha": 211,
-      "standaloneSuites": 16,
-      "dockerIntegrationSuites": 22,
-      "packagedHost": {
-        "minimum": "1.85.0",
-        "stable": "passed",
-        "hostTestsPerVersion": 11
-      },
       "manifestVsixTagMatch": "v3.2.1",
-      "upgradeFixture": "실제 공개 3.2.0에서 얻은 합성 저장 상태를 3.2.1 격리 Host에 주입해 연결 메타데이터·SecretStorage·이력·북마크, 조회 성공과 읽기 전용 DDL 차단을 확인했다.",
-      "userFlows": {
-        "connectionSwitch": "D001-2/D001-3 UI 및 후보 Host 회귀 검사",
-        "duplicateDiff": "D108-2 실제 키 변경·두 형식 내보내기와 후보 Host 회귀 검사",
-        "connectionTest": "D008-3 전용 PostgreSQL 실제 폼 및 후보 Host 회귀 검사"
-      }
+      "marketplaceVsixMatches": true,
+      "hostTestsPerVersion": 11,
+      "vscodeVersions": [
+        "1.85.0",
+        "stable"
+      ]
     }
   },
   "progress": {
@@ -143,13 +143,61 @@
       "ci": "https://github.com/chimaek/dbunny/actions/runs/44690466844"
     },
     "R001-1": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "candidateVersion": "3.2.1",
       "localPackage": {
         "path": "test-results/releases/v3.2.1/dbunny-3.2.1-local.vsix",
         "sha256": "ea5f59286954b002e8318274204622ffb88f00c91a1f896f8457ea60787cbadb"
       },
-      "candidateCommit": "R001-1 버전·문서 준비 커밋의 SHA 및 Verify DBunny 전체 실행 결과를 R001-2에서 대조한다."
+      "candidateCommit": "bc397dcd2f7d9cdf515e79afe029039c1a74c1c2",
+      "id": "R001-1",
+      "dateKst": "2026-11-20",
+      "baseCommit": "f7f6803d7aeaf529a6dc1a1d40d6125b5e9910ae",
+      "summary": "쿼리 탭 연결 복구, Diff 중복 키 처리, 연결 테스트 안내를 3.2.1 후보로 묶고 버전·CHANGELOG·한영 README를 맞췄다.",
+      "localChecks": {
+        "typesLintBuild": "passed",
+        "unitMocha": 211,
+        "standaloneSuites": 16,
+        "dockerIntegrationSuites": 22,
+        "packagedHost": {
+          "minimum": "1.85.0",
+          "stable": "passed",
+          "hostTestsPerVersion": 11
+        },
+        "manifestVsixTagMatch": "v3.2.1",
+        "upgradeFixture": "실제 공개 3.2.0에서 얻은 합성 저장 상태를 3.2.1 격리 Host에 주입해 연결 메타데이터·SecretStorage·이력·북마크, 조회 성공과 읽기 전용 DDL 차단을 확인했다.",
+        "userFlows": {
+          "connectionSwitch": "D001-2/D001-3 UI 및 후보 Host 회귀 검사",
+          "duplicateDiff": "D108-2 실제 키 변경·두 형식 내보내기와 후보 Host 회귀 검사",
+          "connectionTest": "D008-3 전용 PostgreSQL 실제 폼 및 후보 Host 회귀 검사"
+        }
+      },
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44694555873",
+      "candidateArtifact": {
+        "id": 14610206888,
+        "sha256": "4ccc5f0fe18bb24aac145bdfa1a8a61ab376cc91b129036d9f106285dca6e99c"
+      }
+    },
+    "R001-2": {
+      "status": "DONE",
+      "version": "3.2.1",
+      "sourceTag": "v3.2.1",
+      "sourceCommit": "bc397dcd2f7d9cdf515e79afe029039c1a74c1c2",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44695622654",
+      "githubRelease": "https://github.com/chimaek/dbunny/releases/tag/v3.2.1",
+      "publication": "docs/releases/3.2.1.json",
+      "marketplaceVersionLastUpdatedKst": "2026-11-20 16:47:23 KST"
+    },
+    "R001": {
+      "status": "DONE",
+      "children": [
+        "R001-1",
+        "R001-2"
+      ],
+      "version": "3.2.1",
+      "marketplaceUrl": "https://marketplace.visualstudio.com/items?itemName=chimaek.dbunny",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44695622654",
+      "githubRelease": "https://github.com/chimaek/dbunny/releases/tag/v3.2.1"
     }
   },
   "targetMinutes": [
