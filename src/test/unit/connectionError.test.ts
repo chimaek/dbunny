@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { classifyConnectionError } from '../../utils/connectionError';
+import { classifyConnectionError, toSafeConnectionError } from '../../utils/connectionError';
 
 suite('Connection error classification', () => {
     test('classifies structured driver codes even if the description is localized', () => {
@@ -39,5 +39,48 @@ suite('Connection error classification', () => {
         assert.strictEqual(classifyConnectionError(new Error('Column named timeout expired is not available')), 'unknown');
         assert.strictEqual(classifyConnectionError(null), 'unknown');
         assert.strictEqual(classifyConnectionError({ code: { value: '28P01' }, message: 12 }), 'unknown');
+    });
+});
+
+suite('Safe connection error messages', () => {
+    test('preserves the category and supplies a relevant next step', () => {
+        const cases = [
+            [{ code: '28P01' }, 'authentication', /username and password/],
+            [{ code: 'ENOTFOUND' }, 'address', /host and port/],
+            [{ code: 'ETIMEDOUT' }, 'timeout', /timed out/],
+            [new Error('Failed to connect to MySQL: SSH connection failed'), 'ssh', /SSH host/],
+            [undefined, 'unknown', /connection settings/]
+        ] as const;
+        for (const [error, kind, guidance] of cases) {
+            const result = toSafeConnectionError(error);
+            assert.strictEqual(result.kind, kind);
+            assert.match(result.message, guidance);
+        }
+    });
+
+    test('does not include a URI, credentials, or underlying error details', () => {
+        const testUri = 'mongodb://fixture-user:fixture%20value@db.invalid/example';
+        const testKey = '[synthetic private key body]';
+        const testPassphrase = '[synthetic SSH passphrase]';
+        const error = new Error(`Failed to connect to MongoDB: Authentication failed for ${testUri}`, {
+            cause: new Error(`Key data: ${testKey}\nPassphrase: ${testPassphrase}`)
+        });
+        const result = toSafeConnectionError(error);
+        assert.strictEqual(result.kind, 'authentication');
+        assert.deepStrictEqual(Reflect.ownKeys(result).sort(), ['kind', 'message']);
+        const output = JSON.stringify(result);
+        for (const sensitiveText of [testUri, 'fixture-user', 'fixture%20value', 'db.invalid', testKey, testPassphrase]) {
+            assert.ok(!output.includes(sensitiveText), 'Connection error output included test credentials or endpoint details');
+        }
+    });
+
+    test('uses the same generic guidance for opaque errors and unreadable error properties', () => {
+        const unreadableError = {
+            get message(): string { throw new Error('[synthetic credential detail]'); }
+        };
+        const fallback = toSafeConnectionError(null);
+        assert.strictEqual(fallback.kind, 'unknown');
+        assert.deepStrictEqual(toSafeConnectionError('Unexpected response mentioning fixture-only data'), fallback);
+        assert.deepStrictEqual(toSafeConnectionError(unreadableError), fallback);
     });
 });

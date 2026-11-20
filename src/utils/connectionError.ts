@@ -1,6 +1,11 @@
 /** 원본 오류와 독립적으로 화면이나 로그에 전달할 수 있는 고정 분류값. */
 export type ConnectionErrorKind = 'authentication' | 'address' | 'timeout' | 'ssh' | 'unknown';
 
+export interface SafeConnectionError {
+    kind: ConnectionErrorKind;
+    message: string;
+}
+
 const codeKinds = new Map<string | number, ConnectionErrorKind>([
     ['28P01', 'authentication'],
     ['28000', 'authentication'],
@@ -58,4 +63,23 @@ export function classifyConnectionError(error: unknown): ConnectionErrorKind {
         return 'timeout';
     }
     return 'unknown';
+}
+
+const safeMessages: Record<ConnectionErrorKind, string> = {
+    authentication: 'Check the database username and password, then try again.',
+    address: 'Check the database host and port, and make sure the server is reachable.',
+    timeout: 'The connection timed out. Check network connectivity and try again.',
+    ssh: 'Check the SSH host, port, and authentication settings, then try again.',
+    unknown: 'Check the connection settings and make sure the database is running.'
+};
+
+/** 원본 오류의 텍스트나 객체를 전달하지 않고 정해진 안내만 반환한다. */
+export function toSafeConnectionError(error: unknown): SafeConnectionError {
+    let kind: ConnectionErrorKind = 'unknown';
+    try {
+        kind = classifyConnectionError(error);
+    } catch {
+        // 임의로 던진 값의 속성을 읽는 중에도 실패할 수 있다.
+    }
+    return { kind, message: safeMessages[kind] };
 }
