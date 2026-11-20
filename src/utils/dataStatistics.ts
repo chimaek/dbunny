@@ -7,6 +7,23 @@ import { ColumnInfo, DatabaseConnection } from '../types/database';
 
 // ── 타입 ───────────────────────────────────────────
 
+/** 통계 항목 하나의 계산 결과. 계산에 성공해도 집계 값은 NULL일 수 있다. */
+export type StatisticOutcome<T> =
+    | { status: 'computed'; value: T }
+    | { status: 'failed' }
+    | { status: 'not-computed' };
+
+interface ColumnStatisticOutcomes {
+    totalCount: StatisticOutcome<number>;
+    nullCount: StatisticOutcome<number>;
+    nullPercent: StatisticOutcome<number>;
+    distinctCount: StatisticOutcome<number>;
+    min: StatisticOutcome<number | string | null>;
+    max: StatisticOutcome<number | string | null>;
+    avg: StatisticOutcome<number | null>;
+    topValues: StatisticOutcome<{ value: string; count: number }[]>;
+}
+
 /** 단일 컬럼 통계 */
 export interface ColumnStatistics {
     columnName: string;
@@ -21,6 +38,8 @@ export interface ColumnStatistics {
     avg?: number;
     /** 상위 빈출값 */
     topValues: { value: string; count: number }[];
+    /** 기존 수치 필드와 함께 읽는 항목별 계산 결과 */
+    outcomes?: ColumnStatisticOutcomes;
 }
 
 /** 테이블 전체 통계 */
