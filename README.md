@@ -12,12 +12,12 @@
 
 A fast and friendly database management extension for VS Code. Connect to 6 different databases, write queries, visualize schemas, and manage your data — all without leaving the editor.
 
-### v3.2.0 release — 2026-11-09
+### v3.2.1 · Connection and result comparison fixes
 
-- Browse SQL routines and inspect their source and parameters.
-- Keep DB/SSH credentials in SecretStorage and enforce shared read-only checks.
-- Fix PostgreSQL SSH database switching and clarify manual migration-script records.
-- [Full changelog](https://github.com/chimaek/dbunny/blob/v3.2.0/CHANGELOG.md) · [Publication time and release record](https://github.com/chimaek/dbunny/releases/tag/v3.2.0)
+- Run a query on its assigned DB when switching between query tabs.
+- See duplicate comparison keys and choose another shared key column before comparing or exporting results.
+- Get guidance for connection test failures without exposing the driver error or credentials.
+- [Full changelog](https://github.com/chimaek/dbunny/blob/main/CHANGELOG.md) · [Release records](https://github.com/chimaek/dbunny/releases)
 
 ### Supported Databases
 
@@ -101,7 +101,7 @@ A fast and friendly database management extension for VS Code. Connect to 6 diff
 - **Query Result Diff** — Compare two query results with row-level diff
   - Added / Removed / Modified row detection with color markers (+, -, ~)
   - Cell-level change highlighting for modified rows
-  - Automatic key column detection (id, _id, code, etc.)
+  - Automatic key detection and shared key selection when a key has duplicates
   - Status filter: All / Added / Removed / Modified / Unchanged
   - Export diff report as Markdown or JSON
 - **Inline Cell Editing** — Double-click to edit, Tab/Enter to navigate, Ctrl+S to save
@@ -209,12 +209,12 @@ See [ROADMAP.md](https://github.com/chimaek/dbunny/blob/main/ROADMAP.md) for the
 
 VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고, 스키마를 시각화하고, 데이터를 관리할 수 있는 빠르고 친근한 확장 프로그램입니다.
 
-### v3.2.0 릴리스 — 2026-11-09
+### v3.2.1 · 연결과 결과 비교 개선
 
-- SQL 루틴을 탐색하고 소스·파라미터를 확인할 수 있습니다.
-- DB·SSH 인증정보를 SecretStorage에 보관하고 공통 실행 경계에서 읽기 전용을 검사합니다.
-- PostgreSQL SSH 연결의 DB 전환을 수정하고, 마이그레이션 스크립트는 수동 작업 기록임을 명확히 했습니다.
-- [전체 변경 이력](https://github.com/chimaek/dbunny/blob/v3.2.0/CHANGELOG.md) · [실제 게시 시각과 릴리스 기록](https://github.com/chimaek/dbunny/releases/tag/v3.2.0)
+- 쿼리 탭을 전환한 뒤에도 각 탭에 지정한 DB에서 실행합니다.
+- 결과 비교 키가 중복되면 중복 건수를 확인하고 양쪽에 있는 다른 키 컬럼을 선택할 수 있습니다.
+- 연결 테스트가 실패하면 인증정보나 드라이버 오류 원문을 표시하지 않고 원인별 해결 방법을 안내합니다.
+- [전체 변경 이력](https://github.com/chimaek/dbunny/blob/main/CHANGELOG.md) · [릴리스 기록](https://github.com/chimaek/dbunny/releases)
 
 ### 지원 데이터베이스
 
@@ -298,7 +298,7 @@ VS Code에서 6종의 데이터베이스를 연결하고, 쿼리를 작성하고
 - **쿼리 결과 비교(Diff)** — 두 쿼리 결과를 행 단위로 비교
   - 추가 / 삭제 / 변경 행 감지 및 색상 마커 (+, -, ~)
   - 변경 행의 셀 단위 하이라이트
-  - 키 컬럼 자동 감지 (id, _id, code 등)
+  - 키 컬럼 자동 감지와 중복 시 공통 키 컬럼 다시 선택
   - 상태별 필터: 전체 / 추가 / 삭제 / 변경 / 동일
   - 비교 리포트를 마크다운 또는 JSON으로 내보내기
 - **인라인 셀 편집** — 더블클릭으로 수정, Tab/Enter로 이동, Ctrl+S로 저장

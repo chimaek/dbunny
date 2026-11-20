@@ -5,6 +5,21 @@ All notable changes to the DBunny extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1]
+
+### Fixed
+
+- Query tabs reconnect to their assigned DB when switching between tabs. Execute becomes available again after a connection failure, including when saving history fails.
+- Query history and bookmarks use the Node UUID API for compatibility with Extension Hosts without a global crypto object.
+
+### Changed
+
+- Result Diff reports duplicate keys and affected row counts. Choose a shared key column with unique values to resume comparison and JSON or Markdown export.
+
+### Security
+
+- The connection test shows cause-specific guidance in English and Korean. Driver messages, connection URIs, and credentials are omitted from the test feedback.
+
 ## [3.2.0] - 2026-11-09
 
 ### Added

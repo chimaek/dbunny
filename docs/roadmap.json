@@ -1,44 +1,29 @@
 {
   "schemaVersion": 2,
-  "currentTask": "R001-1",
+  "currentTask": "R001-2",
   "lastWork": {
-    "id": "D008-3",
+    "id": "R001-1",
     "status": "VERIFYING",
     "dateKst": "2026-11-20",
-    "baseCommit": "4ef7c96bc008a3e2ad1362f9d2b0e07d3dc430ea",
-    "summary": "접속 설정의 연결 테스트에 원인별 한·영 안내를 적용했다. 드라이버 원문을 전달하지 않고 정리 실패에도 최초 연결 실패를 보존한다. 전역 crypto가 없는 Host에서도 쿼리 이력과 저장 쿼리 ID를 생성하도록 Node API를 명시했다.",
+    "baseCommit": "f7f6803d7aeaf529a6dc1a1d40d6125b5e9910ae",
+    "summary": "쿼리 탭 연결 복구, Diff 중복 키 처리, 연결 테스트 안내를 3.2.1 후보로 묶고 버전·CHANGELOG·한영 README를 맞췄다.",
     "localChecks": {
-      "types": "passed",
-      "lint": "passed",
-      "build": "passed",
+      "typesLintBuild": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "extensionHost": 10,
-      "databaseIntegrationSuites": 22,
-      "nativeUi": {
-        "status": "PASSED",
-        "verifiedOnKst": "2026-11-20",
-        "scenario": "전용 PostgreSQL 인증 실패와 닫힌 로컬 포트에 서로 다른 한국어 안내가 표시됐다. 저장된 자격증명과 전용 포트로 다시 테스트해 성공했다.",
-        "localEvidence": [
-          "test-results/d008-3/ui-auth.png",
-          "test-results/d008-3/ui-success.png",
-          "test-results/d008-3/ui-events.json"
-        ],
-        "hostLog": "검증한 인증·주소 오류 원문 및 테스트 자격증명 미노출",
-        "scope": "연결 설정 폼의 연결 테스트"
-      },
-      "packageHost": {
+      "dockerIntegrationSuites": 22,
+      "packagedHost": {
         "minimum": "1.85.0",
         "stable": "passed",
-        "hostTestsPerVersion": 11,
-        "runtimeAndWasm": "passed"
+        "hostTestsPerVersion": 11
+      },
+      "manifestVsixTagMatch": "v3.2.1",
+      "upgradeFixture": "실제 공개 3.2.0에서 얻은 합성 저장 상태를 3.2.1 격리 Host에 주입해 연결 메타데이터·SecretStorage·이력·북마크, 조회 성공과 읽기 전용 DDL 차단을 확인했다.",
+      "userFlows": {
+        "connectionSwitch": "D001-2/D001-3 UI 및 후보 Host 회귀 검사",
+        "duplicateDiff": "D108-2 실제 키 변경·두 형식 내보내기와 후보 Host 회귀 검사",
+        "connectionTest": "D008-3 전용 PostgreSQL 실제 폼 및 후보 Host 회귀 검사"
       }
-    },
-    "ciRecovery": {
-      "implementationCommit": "4441910973d7d0c369782a9f8fca0fafe8ee68b8",
-      "failedRun": "https://github.com/chimaek/dbunny/actions/runs/44689852458",
-      "cause": "QueryHistoryProvider used a global crypto object unavailable in the Linux Extension Host",
-      "fix": "Import randomUUID from node:crypto in query history and saved queries"
     }
   },
   "progress": {
@@ -108,18 +93,63 @@
       "ci": "https://github.com/chimaek/dbunny/actions/runs/44647181457"
     },
     "D008-3": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "localVerification": "PASSED",
-      "uiVerifiedOnKst": "2026-11-20"
+      "uiVerifiedOnKst": "2026-11-20",
+      "commit": "f7f6803d7aeaf529a6dc1a1d40d6125b5e9910ae",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44690466844",
+      "checks": {
+        "types": "passed",
+        "lint": "passed",
+        "build": "passed",
+        "unitMocha": 211,
+        "standaloneSuites": 16,
+        "extensionHost": 10,
+        "databaseIntegrationSuites": 22,
+        "nativeUi": {
+          "status": "PASSED",
+          "verifiedOnKst": "2026-11-20",
+          "scenario": "전용 PostgreSQL 인증 실패와 닫힌 로컬 포트에 서로 다른 한국어 안내가 표시됐다. 저장된 자격증명과 전용 포트로 다시 테스트해 성공했다.",
+          "localEvidence": [
+            "test-results/d008-3/ui-auth.png",
+            "test-results/d008-3/ui-success.png",
+            "test-results/d008-3/ui-events.json"
+          ],
+          "hostLog": "검증한 인증·주소 오류 원문 및 테스트 자격증명 미노출",
+          "scope": "연결 설정 폼의 연결 테스트"
+        },
+        "packageHost": {
+          "minimum": "1.85.0",
+          "stable": "passed",
+          "hostTestsPerVersion": 11,
+          "runtimeAndWasm": "passed"
+        }
+      },
+      "ciRecovery": {
+        "implementationCommit": "4441910973d7d0c369782a9f8fca0fafe8ee68b8",
+        "failedRun": "https://github.com/chimaek/dbunny/actions/runs/44689852458",
+        "cause": "QueryHistoryProvider used a global crypto object unavailable in the Linux Extension Host",
+        "fix": "Import randomUUID from node:crypto in query history and saved queries"
+      }
     },
     "D008": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "children": [
         "D008-1",
         "D008-2",
         "D008-3"
       ],
-      "acceptance": "원인 분류·민감정보 미노출·연결 테스트 UI 확인 완료. 마지막 하위 작업 CI 확인 대기."
+      "acceptance": "원인 분류, 민감정보 미노출, 연결 테스트 화면과 저장값 재사용을 확인했다.",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44690466844"
+    },
+    "R001-1": {
+      "status": "VERIFYING",
+      "candidateVersion": "3.2.1",
+      "localPackage": {
+        "path": "test-results/releases/v3.2.1/dbunny-3.2.1-local.vsix",
+        "sha256": "ea5f59286954b002e8318274204622ffb88f00c91a1f896f8457ea60787cbadb"
+      },
+      "candidateCommit": "R001-1 버전·문서 준비 커밋의 SHA 및 Verify DBunny 전체 실행 결과를 R001-2에서 대조한다."
     }
   },
   "targetMinutes": [
