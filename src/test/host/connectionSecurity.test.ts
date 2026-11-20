@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ConnectionManager } from '../../managers/connectionManager';
-import { ConnectionConfig } from '../../types/database';
+import { ConnectionConfig, DatabaseConnection } from '../../types/database';
 import { QueryTabPanel } from '../../webview/QueryTabPanel';
 import { QueryHistoryProvider } from '../../views/queryHistoryView';
 import { I18n } from '../../utils/i18n';
@@ -25,6 +25,55 @@ const sqlite = (id: string, database = ':memory:'): ConnectionConfig => ({
 });
 
 suite('ConnectionManager execution and persistence', () => {
+    test('connection test returns a safe classified error when connection and cleanup both fail', async () => {
+        const { manager } = createManager();
+        const serverDetail = 'mongodb://fixture-user:fixture-text@db.invalid/demo';
+        const cleanupDetail = '[synthetic key detail]';
+        let disconnectCalls = 0;
+        const config = sqlite('failed-test');
+        manager['createConnection'] = () => ({
+            connect: async () => { throw new Error(`Authentication failed for ${serverDetail}`); },
+            disconnect: async () => {
+                disconnectCalls++;
+                throw new Error(cleanupDetail);
+            }
+        }) as unknown as DatabaseConnection;
+        try {
+            const result = await manager.testConnection(config);
+            assert.strictEqual(result.success, false);
+            if (result.success) { assert.fail('Expected a connection test failure'); }
+            assert.strictEqual(result.error.kind, 'authentication');
+            assert.match(result.error.message, /username and password/);
+            const serialized = JSON.stringify(result);
+            assert.ok(!serialized.includes(serverDetail) && !serialized.includes(cleanupDetail));
+            assert.strictEqual(disconnectCalls, 1);
+            assert.strictEqual(manager.getActiveConnection(), null);
+            assert.strictEqual(manager.getAllConnections().length, 0);
+        } finally {
+            manager.dispose();
+        }
+    });
+
+    test('connection test reuses saved credentials without activating or persisting the test connection', async () => {
+        const { manager } = createManager();
+        const config = { ...sqlite('saved-test'), password: 'fixture-only-value' };
+        await manager.addConnection(config);
+        const original = manager['createConnection'].bind(manager);
+        let usedSavedPassword = false;
+        manager['createConnection'] = testConfig => {
+            usedSavedPassword = testConfig.password === config.password;
+            return original(testConfig);
+        };
+        try {
+            assert.deepStrictEqual(await manager.testConnection({ ...config, password: undefined }), { success: true });
+            assert.ok(usedSavedPassword);
+            assert.strictEqual(manager.getActiveConnection(), null);
+            assert.strictEqual(manager.getAllConnections().length, 1);
+        } finally {
+            manager.dispose();
+        }
+    });
+
     test('All exposed connection objects enforce read-only and persist no credential fields', async () => {
         const { manager, state, secrets } = createManager();
         await manager.ready;

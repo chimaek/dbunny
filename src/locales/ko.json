@@ -29,6 +29,13 @@
     "testConnection": "연결 테스트",
     "testSuccess": "연결 성공!",
     "testFailed": "연결 실패: {error}",
+    "testError": {
+      "authentication": "데이터베이스 사용자명과 비밀번호를 확인한 후 다시 시도하세요.",
+      "address": "데이터베이스 호스트와 포트를 확인하고 서버에 접속할 수 있는지 확인하세요.",
+      "timeout": "연결 시간이 초과됐습니다. 네트워크 연결 상태를 확인한 후 다시 시도하세요.",
+      "ssh": "SSH 호스트, 포트, 인증 설정을 확인한 후 다시 시도하세요.",
+      "unknown": "연결 설정을 확인한 후 다시 시도하세요."
+    },
     "connected": "연결됨",
     "disconnected": "연결 안됨"
   },

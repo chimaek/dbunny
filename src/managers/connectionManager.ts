@@ -10,6 +10,7 @@ import { H2Provider } from '../providers/h2Provider';
 import { EncryptionService } from '../utils/encryption';
 import { CredentialStore } from '../utils/credentialStore';
 import { guardConnection } from '../utils/guardedConnection';
+import { toSafeConnectionError, type SafeConnectionError } from '../utils/connectionError';
 
 /**
  * Manages database connections using Factory Pattern
@@ -160,38 +161,40 @@ export class ConnectionManager {
         return this._selectedDatabase;
     }
 
-    /**
-     * Test a connection configuration
-     * Throws error with details if connection fails
-     */
-    async testConnection(config: ConnectionConfig): Promise<boolean> {
-        await this.ready;
-        // 편집 중 비밀번호를 비워도 SecretStorage에 보관한 기존 값으로 테스트한다.
-        const stored = this.connections.get(config.id);
-        if (stored) {
-            const resolved = await this.credentialStore.resolve(stored.config);
-            config = {
-                ...config,
-                password: config.password || resolved.password,
-                ssh: config.ssh ? {
-                    ...config.ssh,
-                    password: config.ssh.password || resolved.ssh?.password,
-                    privateKey: config.ssh.privateKey || resolved.ssh?.privateKey,
-                    passphrase: config.ssh.passphrase || resolved.ssh?.passphrase
-                } : undefined
-            };
-        }
-        const connection = this.createConnection(config);
+    /** 연결 테스트 결과를 폼에 전달할 수 있는 정보로 제한한다. */
+    async testConnection(config: ConnectionConfig): Promise<{ success: true } | { success: false; error: SafeConnectionError }> {
+        let connection: DatabaseConnection | undefined;
+        let failure: SafeConnectionError | undefined;
         try {
+            await this.ready;
+            // 편집 중 비밀번호를 비워도 SecretStorage에 보관한 기존 값으로 테스트한다.
+            const stored = this.connections.get(config.id);
+            if (stored) {
+                const resolved = await this.credentialStore.resolve(stored.config);
+                config = {
+                    ...config,
+                    password: config.password || resolved.password,
+                    ssh: config.ssh ? {
+                        ...config.ssh,
+                        password: config.ssh.password || resolved.ssh?.password,
+                        privateKey: config.ssh.privateKey || resolved.ssh?.privateKey,
+                        passphrase: config.ssh.passphrase || resolved.ssh?.passphrase
+                    } : undefined
+                };
+            }
+            connection = this.createConnection(config);
             await connection.connect();
-            return true;
         } catch (error) {
-            // Re-throw with detailed message
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            throw new Error(message);
+            failure = toSafeConnectionError(error);
         } finally {
-            await connection.disconnect();
+            try {
+                await connection?.disconnect();
+            } catch (error) {
+                // 정리 오류가 먼저 발생한 연결 실패 원인을 가리지 않게 한다.
+                failure ??= toSafeConnectionError(error);
+            }
         }
+        return failure ? { success: false, error: failure } : { success: true };
     }
 
     /**

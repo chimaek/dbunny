@@ -124,20 +124,21 @@ export class ConnectionFormPanel {
     private async _handleTest(data: ConnectionConfig): Promise<void> {
         try {
             this._panel.webview.postMessage({ command: 'testing', status: true });
-            const success = await this.connectionManager.testConnection(data);
+            const result = await this.connectionManager.testConnection(data);
             this._panel.webview.postMessage({
                 command: 'testResult',
-                success,
-                message: success
+                success: result.success,
+                message: result.success
                     ? this.i18n.t('connection.testSuccess')
-                    : this.i18n.t('connection.testFailed', { error: 'Connection failed' })
+                    : this.i18n.t('connection.testFailed', {
+                        error: this.i18n.t(`connection.testError.${result.error.kind}`)
+                    })
             });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
+        } catch {
             this._panel.webview.postMessage({
                 command: 'testResult',
                 success: false,
-                message: this.i18n.t('connection.testFailed', { error: message })
+                message: this.i18n.t('connection.testFailed', { error: this.i18n.t('connection.testError.unknown') })
             });
         } finally {
             this._panel.webview.postMessage({ command: 'testing', status: false });

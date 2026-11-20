@@ -29,6 +29,13 @@
     "testConnection": "Test Connection",
     "testSuccess": "Connection successful!",
     "testFailed": "Connection failed: {error}",
+    "testError": {
+      "authentication": "Check the database username and password, then try again.",
+      "address": "Check the database host and port, and make sure the server is reachable.",
+      "timeout": "The connection timed out. Check network connectivity and try again.",
+      "ssh": "Check the SSH host, port, and authentication settings, then try again.",
+      "unknown": "Check the connection settings and try again."
+    },
     "connected": "Connected",
     "disconnected": "Disconnected"
   },
