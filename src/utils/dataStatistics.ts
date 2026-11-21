@@ -32,13 +32,13 @@ export interface ColumnStatistics {
     nullCount: number;
     nullPercent: number;
     distinctCount: number;
-    /** 숫자 컬럼 전용 */
+    /** 최솟값·최댓값은 문자열도 지원하며 평균은 숫자 컬럼만 계산한다. */
     min?: number | string;
     max?: number | string;
     avg?: number;
     /** 상위 빈출값 */
     topValues: { value: string; count: number }[];
-    /** 기존 수치 필드와 함께 읽는 항목별 계산 결과 */
+    /** 실패 여부를 판단하는 항목별 결과. 기존 수치 필드는 호환용이다. */
     outcomes?: ColumnStatisticOutcomes;
 }
 
@@ -96,18 +96,18 @@ export function buildColumnStatsQuery(
 FROM ${tbl}`;
 }
 
-/** 숫자 컬럼 min/max/avg 쿼리 */
+/** 범위 집계 쿼리. 평균이 지원되지 않는 컬럼은 MIN/MAX만 조회한다. */
 export function buildNumericStatsQuery(
     tableName: string,
     columnName: string,
-    dbType: string
+    dbType: string,
+    includeAverage = true
 ): string {
     const tbl = escapeIdentifier(tableName, dbType);
     const col = escapeIdentifier(columnName, dbType);
     return `SELECT
   MIN(${col}) AS min_val,
-  MAX(${col}) AS max_val,
-  AVG(${col}) AS avg_val
+  MAX(${col}) AS max_val${includeAverage ? `,\n  AVG(${col}) AS avg_val` : ''}
 FROM ${tbl}`;
 }
 
@@ -130,11 +130,52 @@ ${limitClause(topN, dbType)}`;
 
 // ── 통계 수집 ──────────────────────────────────────
 
+function computed<T>(value: T): StatisticOutcome<T> {
+    return { status: 'computed', value };
+}
+
+const failed = { status: 'failed' } as const;
+const notComputed = { status: 'not-computed' } as const;
+
+function aggregateValue(row: Record<string, unknown> | undefined, alias: string): unknown {
+    if (!row) { return undefined; }
+    // 드라이버마다 별칭의 대소문자가 다르다. SQL NULL은 그대로 유지한다.
+    return Object.hasOwn(row, alias) ? row[alias] : row[alias.toUpperCase()];
+}
+
+function numericValue(value: unknown): number | undefined {
+    if (typeof value !== 'number' && typeof value !== 'bigint' &&
+        (typeof value !== 'string' || value.trim() === '')) { return undefined; }
+    const number = Number(value);
+    return Number.isFinite(number) ? number : undefined;
+}
+
+function countValue(value: unknown): StatisticOutcome<number> {
+    const count = numericValue(value);
+    return count !== undefined && Number.isInteger(count) && count >= 0 ? computed(count) : failed;
+}
+
+function rangeValue(value: unknown, numeric: boolean): StatisticOutcome<number | string | null> {
+    if (value === null) { return computed(null); }
+    const parsed = numeric ? numericValue(value) : value === undefined ? undefined : String(value);
+    return parsed !== undefined ? computed(parsed) : failed;
+}
+
+function averageValue(value: unknown): StatisticOutcome<number | null> {
+    if (value === null) { return computed(null); }
+    const number = numericValue(value);
+    return number !== undefined ? computed(Math.round(number * 100) / 100) : failed;
+}
+
+function legacyValue<T>(result: StatisticOutcome<T>): NonNullable<T> | undefined {
+    return result.status === 'computed' ? result.value ?? undefined : undefined;
+}
+
 /**
  * 테이블 전체 통계 수집
  */
 export async function collectTableStatistics(
-    conn: DatabaseConnection,
+    conn: Pick<DatabaseConnection, 'executeQuery'>,
     tableName: string,
     schema: ColumnInfo[],
     dbType: string,
@@ -147,24 +188,24 @@ export async function collectTableStatistics(
     const rowCountResult = await conn.executeQuery(
         buildRowCountQuery(tableName, dbType), database
     );
-    const totalRows = Number(
-        rowCountResult.rows[0]?.total_rows
-        ?? rowCountResult.rows[0]?.TOTAL_ROWS
-        ?? 0
-    );
+    const rowCount = countValue(aggregateValue(rowCountResult.rows[0], 'total_rows'));
+    if (rowCount.status !== 'computed') { throw new Error('Invalid table row count result'); }
+    const totalRows = rowCount.value;
 
     // 2. 컬럼별 통계
     const columns: ColumnStatistics[] = [];
 
     for (const col of schema) {
-        const colStat: ColumnStatistics = {
-            columnName: col.name,
-            columnType: col.type,
-            totalCount: totalRows,
-            nullCount: 0,
-            nullPercent: 0,
-            distinctCount: 0,
-            topValues: [],
+        const numeric = isNumericType(col.type);
+        const outcomes: ColumnStatisticOutcomes = {
+            totalCount: failed,
+            nullCount: failed,
+            nullPercent: notComputed,
+            distinctCount: failed,
+            min: failed,
+            max: failed,
+            avg: numeric ? failed : notComputed,
+            topValues: failed,
         };
 
         try {
@@ -172,66 +213,51 @@ export async function collectTableStatistics(
             const basicResult = await conn.executeQuery(
                 buildColumnStatsQuery(tableName, col.name, dbType), database
             );
-            const row = basicResult.rows[0] as Record<string, unknown>;
-            if (row) {
-                colStat.totalCount = Number(row.total_count ?? row.TOTAL_COUNT ?? totalRows);
-                colStat.nullCount = Number(row.null_count ?? row.NULL_COUNT ?? 0);
-                colStat.distinctCount = Number(row.distinct_count ?? row.DISTINCT_COUNT ?? 0);
-                colStat.nullPercent = colStat.totalCount > 0
-                    ? Math.round((colStat.nullCount / colStat.totalCount) * 10000) / 100
-                    : 0;
+            const row = basicResult.rows[0];
+            const count = countValue(aggregateValue(row, 'total_count'));
+            const rawNulls = aggregateValue(row, 'null_count');
+            // 빈 테이블에서는 SUM이 NULL이지만 NULL 행 수는 실제로 0이다.
+            const nulls = count.status === 'computed' && count.value === 0 && rawNulls === null
+                ? computed(0) : countValue(rawNulls);
+            outcomes.totalCount = count;
+            outcomes.nullCount = nulls;
+            outcomes.distinctCount = countValue(aggregateValue(row, 'distinct_count'));
+            if (count.status === 'computed' && nulls.status === 'computed') {
+                outcomes.nullPercent = computed(count.value > 0 ? Math.round((nulls.value / count.value) * 10000) / 100 : 0);
             }
+        } catch { /* 기본 집계 실패 상태 유지. 범위와 빈출값은 별도로 조회한다. */ }
 
-            // 숫자 컬럼 min/max/avg
-            if (isNumericType(col.type)) {
-                const numResult = await conn.executeQuery(
-                    buildNumericStatsQuery(tableName, col.name, dbType), database
-                );
-                const numRow = numResult.rows[0] as Record<string, unknown>;
-                if (numRow) {
-                    const minVal = numRow.min_val ?? numRow.MIN_VAL;
-                    const maxVal = numRow.max_val ?? numRow.MAX_VAL;
-                    const avgVal = numRow.avg_val ?? numRow.AVG_VAL;
-                    colStat.min = minVal !== null && minVal !== undefined ? Number(minVal) : undefined;
-                    colStat.max = maxVal !== null && maxVal !== undefined ? Number(maxVal) : undefined;
-                    colStat.avg = avgVal !== null && avgVal !== undefined
-                        ? Math.round(Number(avgVal) * 100) / 100 : undefined;
-                }
-            } else {
-                // 비숫자 컬럼 min/max (문자열)
-                try {
-                    const minMaxResult = await conn.executeQuery(
-                        buildNumericStatsQuery(tableName, col.name, dbType), database
-                    );
-                    const mmRow = minMaxResult.rows[0] as Record<string, unknown>;
-                    if (mmRow) {
-                        const minVal = mmRow.min_val ?? mmRow.MIN_VAL;
-                        const maxVal = mmRow.max_val ?? mmRow.MAX_VAL;
-                        if (minVal !== null && minVal !== undefined) { colStat.min = String(minVal); }
-                        if (maxVal !== null && maxVal !== undefined) { colStat.max = String(maxVal); }
-                    }
-                } catch { /* min/max 실패 무시 */ }
-            }
+        try {
+            const result = await conn.executeQuery(buildNumericStatsQuery(tableName, col.name, dbType, numeric), database);
+            const row = result.rows[0];
+            outcomes.min = rangeValue(aggregateValue(row, 'min_val'), numeric);
+            outcomes.max = rangeValue(aggregateValue(row, 'max_val'), numeric);
+            if (numeric) { outcomes.avg = averageValue(aggregateValue(row, 'avg_val')); }
+        } catch { /* 범위 집계 실패 상태 유지 */ }
 
-            // 상위 빈출값
-            try {
-                const topResult = await conn.executeQuery(
-                    buildTopValuesQuery(tableName, col.name, dbType, topN), database
-                );
-                colStat.topValues = topResult.rows.map(r => {
-                    const v = r.val ?? r.VAL;
-                    const c = r.cnt ?? r.CNT;
-                    return {
-                        value: v !== null && v !== undefined ? String(v) : 'NULL',
-                        count: Number(c ?? 0),
-                    };
-                });
-            } catch { /* 빈출값 실패 무시 */ }
-        } catch {
-            // 컬럼 통계 실패 시 기본값 유지
-        }
+        try {
+            const result = await conn.executeQuery(buildTopValuesQuery(tableName, col.name, dbType, topN), database);
+            outcomes.topValues = computed(result.rows.map(row => {
+                const value = aggregateValue(row, 'val');
+                const count = countValue(aggregateValue(row, 'cnt'));
+                if (value === undefined || count.status !== 'computed') { throw new Error('Invalid frequency result'); }
+                return { value: value === null ? 'NULL' : String(value), count: count.value };
+            }));
+        } catch { /* 빈출값 실패 상태 유지 */ }
 
-        columns.push(colStat);
+        columns.push({
+            columnName: col.name,
+            columnType: col.type,
+            totalCount: legacyValue(outcomes.totalCount) ?? totalRows,
+            nullCount: legacyValue(outcomes.nullCount) ?? 0,
+            nullPercent: legacyValue(outcomes.nullPercent) ?? 0,
+            distinctCount: legacyValue(outcomes.distinctCount) ?? 0,
+            min: legacyValue(outcomes.min),
+            max: legacyValue(outcomes.max),
+            avg: legacyValue(outcomes.avg),
+            topValues: legacyValue(outcomes.topValues) ?? [],
+            outcomes,
+        });
     }
 
     return {

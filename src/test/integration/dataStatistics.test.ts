@@ -7,6 +7,7 @@ import { testPort } from './testConfig';
  */
 
 import * as path from 'path';
+import * as nodeAssert from 'node:assert/strict';
 import { ConnectionConfig, DatabaseConnection } from '../../types/database';
 import { MySQLProvider } from '../../providers/mysqlProvider';
 import { PostgresProvider } from '../../providers/postgresProvider';
@@ -323,6 +324,68 @@ async function testForDB(
     try { await cleanup(conn, db); } catch { /* ok */ }
 }
 
+async function testPartialPostgresStatistics(conn: PostgresProvider): Promise<void> {
+    const table = 'dbunny_stat_outcome_fixture';
+    try {
+        await conn.executeQuery(`CREATE TEMP TABLE ${table} (n INTEGER, label TEXT, empty_amount NUMERIC)`);
+        await conn.executeQuery(`INSERT INTO ${table} VALUES (0, 'a', NULL), (2, 'b', NULL)`);
+        const schema = [
+            { name: 'n', type: 'integer', nullable: false, primaryKey: false },
+            { name: 'label', type: 'text', nullable: false, primaryKey: false },
+            { name: 'empty_amount', type: 'numeric', nullable: true, primaryKey: false },
+        ];
+        const [numbers, text, missing] = (await collectTableStatistics(conn, table, schema, 'postgres')).columns;
+        nodeAssert.deepEqual(numbers.outcomes?.min, { status: 'computed', value: 0 });
+        nodeAssert.deepEqual(numbers.outcomes?.nullCount, { status: 'computed', value: 0 });
+        nodeAssert.deepEqual(text.outcomes?.min, { status: 'computed', value: 'a' });
+        nodeAssert.deepEqual(text.outcomes?.avg, { status: 'not-computed' });
+        nodeAssert.deepEqual(missing.outcomes?.avg, { status: 'computed', value: null });
+        nodeAssert.deepEqual(missing.outcomes?.distinctCount, { status: 'computed', value: 0 });
+        nodeAssert.deepEqual(missing.outcomes?.topValues, { status: 'computed', value: [] });
+
+        // 실패한 기본 집계와 실제 서버 timeout 뒤에도 빈출값을 읽는다.
+        const basic = buildColumnStatsQuery(table, 'n', 'postgres');
+        const range = buildNumericStatsQuery(table, 'n', 'postgres');
+        const observedErrors: string[] = [];
+        const withFaults = {
+            executeQuery: async (query: string) => {
+                let fault: RegExp | undefined;
+                try {
+                    if (query === basic) {
+                        fault = /permission denied/;
+                        throw new Error('permission denied for aggregate fixture');
+                    }
+                    if (query === range) {
+                        fault = /statement timeout/;
+                        await conn.executeQuery("SET statement_timeout = '20ms'");
+                        try { return await conn.executeQuery('SELECT pg_sleep(0.2)'); }
+                        finally { await conn.executeQuery('RESET statement_timeout'); }
+                    }
+                    return await conn.executeQuery(query);
+                } catch (error) {
+                    if (fault && error instanceof Error && fault.test(error.message)) {
+                        observedErrors.push(fault.source);
+                    }
+                    throw error;
+                }
+            }
+        };
+        const [partial, unaffected] = (await collectTableStatistics(withFaults, table, schema, 'postgres')).columns;
+        nodeAssert.deepEqual(observedErrors, ['permission denied', 'statement timeout']);
+        nodeAssert.deepEqual(partial.outcomes?.distinctCount, { status: 'failed' });
+        nodeAssert.deepEqual(partial.outcomes?.nullPercent, { status: 'not-computed' });
+        nodeAssert.deepEqual(partial.outcomes?.min, { status: 'failed' });
+        nodeAssert.equal(partial.outcomes?.topValues.status, 'computed');
+        nodeAssert.equal(partial.topValues.length, 2);
+        nodeAssert.deepEqual(unaffected.outcomes?.distinctCount, { status: 'computed', value: 2 });
+        pass('[PostgreSQL] 0, NULL, 미계산과 부분 집계 실패를 구분한다');
+    } catch (error) {
+        fail('[PostgreSQL] 분리된 집계 상태', error);
+    } finally {
+        await conn.executeQuery(`DROP TABLE IF EXISTS ${table}`);
+    }
+}
+
 // ── 실행 ────────────────────────────────────────
 
 async function main() {
@@ -346,6 +409,7 @@ async function main() {
         try {
             await provider.connect();
             await testForDB(p.label, provider, p.dbType);
+            if (provider instanceof PostgresProvider) { await testPartialPostgresStatistics(provider); }
             await provider.disconnect();
         } catch (e) {
             fail(`[${p.label}] 연결 실패`, e);

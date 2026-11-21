@@ -1,18 +1,20 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D105-2",
+  "currentTask": "D105-3",
   "lastWork": {
-    "id": "D105-1",
+    "id": "D105-2",
     "status": "VERIFYING",
-    "dateKst": "2026-11-21",
-    "baseCommit": "4b0ca970f621523b24848e828dfd28d68d306fa2",
-    "summary": "컬럼 통계에 계산 성공·실패·미계산 타입을 추가했다. 계산 성공은 실제 0과 NULL을 각각 보존한다.",
+    "dateKst": "2026-11-22",
+    "baseCommit": "5bf3af0a27568c44a76979a2efeee2e6b43850ef",
+    "summary": "컬럼 집계별로 성공 값, 실패와 미계산을 기록한다. 기본·범위·빈출값 조회를 분리해 한 집계가 실패해도 나머지 결과를 보존한다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "typeContract": "0, NULL, 실패와 미계산의 구분 확인"
+      "databaseIntegrationSuites": 22,
+      "statisticsIntegrationAssertions": 191,
+      "postgresFixture": "실제 0·NULL·문자열 평균 미계산과 진짜 PostgreSQL statement timeout, 합성 권한 오류 뒤의 빈출값·다른 컬럼 결과 보존을 확인했다."
     }
   },
   "progress": {
@@ -191,6 +193,12 @@
       "githubRelease": "https://github.com/chimaek/dbunny/releases/tag/v3.2.1"
     },
     "D105-1": {
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "5bf3af0a27568c44a76979a2efeee2e6b43850ef",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44816203492"
+    },
+    "D105-2": {
       "status": "VERIFYING",
       "localVerification": "PASSED"
     }
@@ -4531,7 +4539,9 @@
           "target": "src/webview/StatisticsPanel.ts",
           "after": [
             "D105-2"
-          ]
+          ],
+          "acceptance": "통계 패널에서 측정값 0과 NULL, 실패, 미계산을 서로 다르게 표시한다. 실패한 항목과 재시도 방법을 안내하고 다른 성공 결과는 그대로 보여준다.",
+          "outcomeContract": "ColumnStatistics.outcomes가 현재 집계의 기준이다. 기존 수치 필드는 호환용이라 실패 때 0 또는 빈 배열일 수 있다."
         }
       ],
       "scope": "현재 서버 집계는 유지하고 실패를 기본 0/빈 값으로 삼키는 경로에 실패/미계산 상태를 추가한다. 일부 컬럼 실패가 나머지 결과의 성공을 가리지 않게 한다.",
