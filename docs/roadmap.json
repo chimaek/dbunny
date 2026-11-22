@@ -1,20 +1,19 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D105-3",
+  "currentTask": "D115-1",
   "lastWork": {
-    "id": "D105-2",
+    "id": "D105-3",
     "status": "VERIFYING",
     "dateKst": "2026-11-22",
-    "baseCommit": "5bf3af0a27568c44a76979a2efeee2e6b43850ef",
-    "summary": "컬럼 집계별로 성공 값, 실패와 미계산을 기록한다. 기본·범위·빈출값 조회를 분리해 한 집계가 실패해도 나머지 결과를 보존한다.",
+    "baseCommit": "49b61827f911f5370eeb48a491660decdf1a5828",
+    "summary": "통계 패널에 실제 0, NULL, 실패와 미계산을 구분해 표시한다. 정상 집계는 유지하고 일부 실패 시 새로고침으로 전체 집계를 재시도할 수 있다고 안내한다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "databaseIntegrationSuites": 22,
-      "statisticsIntegrationAssertions": 191,
-      "postgresFixture": "실제 0·NULL·문자열 평균 미계산과 진짜 PostgreSQL statement timeout, 합성 권한 오류 뒤의 빈출값·다른 컬럼 결과 보존을 확인했다."
+      "extensionHost": 12,
+      "uiFixture": "격리된 한국어 VS Code에서 SQLite 메모리 테이블과 주입한 집계 실패를 사용했다. 0·NULL·실패·미계산·값 없음과 정상 빈출값을 확인하고, 새로고침을 눌러 실패했던 집계가 정상 표시되는 것을 확인했다."
     }
   },
   "progress": {
@@ -199,8 +198,24 @@
       "ci": "https://github.com/chimaek/dbunny/actions/runs/44816203492"
     },
     "D105-2": {
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "49b61827f911f5370eeb48a491660decdf1a5828",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44930412560",
+      "databaseVerification": "Docker 통합 22개 묶음·통계 검사 191개. 실제 PostgreSQL 시간 초과와 주입한 권한 오류 뒤 다른 집계 결과가 유지됨을 확인했다."
+    },
+    "D105-3": {
       "status": "VERIFYING",
       "localVerification": "PASSED"
+    },
+    "D105": {
+      "status": "VERIFYING",
+      "children": [
+        "D105-1",
+        "D105-2",
+        "D105-3"
+      ],
+      "acceptance": "서버 집계·실제 시간 초과는 D105-2 Docker 검증, 집계별 상태 표시와 새로고침은 D105-3 SQLite·VS Code 화면 검증으로 확인했다."
     }
   },
   "targetMinutes": [

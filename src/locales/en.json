@@ -258,11 +258,16 @@
     "totalRows": "Total Rows",
     "columns": "Columns",
     "distinct": "Distinct",
-    "nullCount": "NULL",
+    "nullCount": "NULL Count",
+    "nullPercent": "NULL Ratio",
     "min": "Min",
     "max": "Max",
     "avg": "Avg",
     "topValues": "Top Values",
+    "noTopValues": "No values",
+    "failed": "Failed",
+    "notComputed": "Not calculated",
+    "partialFailure": "Some statistics failed. Check the connection and read permissions, then select Refresh to rerun all statistics.",
     "notSupported": "Statistics is only supported for SQL databases (MySQL, PostgreSQL, SQLite, H2)"
   },
   "rowInsert": {

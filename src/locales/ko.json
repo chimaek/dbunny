@@ -258,11 +258,16 @@
     "totalRows": "전체 행 수",
     "columns": "컬럼 수",
     "distinct": "고유값",
-    "nullCount": "NULL",
+    "nullCount": "NULL 개수",
+    "nullPercent": "NULL 비율",
     "min": "최솟값",
     "max": "최댓값",
     "avg": "평균",
     "topValues": "상위 빈출값",
+    "noTopValues": "값 없음",
+    "failed": "실패",
+    "notComputed": "미계산",
+    "partialFailure": "일부 통계를 집계하지 못했습니다. 연결과 조회 권한을 확인한 뒤 새로고침을 누르면 모든 항목을 다시 집계합니다.",
     "notSupported": "통계는 SQL 데이터베이스(MySQL, PostgreSQL, SQLite, H2)에서만 지원됩니다"
   },
   "rowInsert": {

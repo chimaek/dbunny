@@ -1,8 +1,8 @@
 import { createNonce, secureWebviewHtml } from '../utils/webviewSecurity';
 import * as vscode from 'vscode';
-import { ConnectionManager } from '../managers/connectionManager';
+import type { ConnectionManager } from '../managers/connectionManager';
 import { I18n } from '../utils/i18n';
-import { collectTableStatistics, TableStatistics, ColumnStatistics } from '../utils/dataStatistics';
+import { collectTableStatistics, TableStatistics, ColumnStatistics, StatisticOutcome } from '../utils/dataStatistics';
 
 /**
  * 데이터 통계 패널
@@ -22,7 +22,7 @@ export class StatisticsPanel {
     private constructor(
         panel: vscode.WebviewPanel,
         extensionUri: vscode.Uri,
-        private connectionManager: ConnectionManager,
+        private connectionManager: Pick<ConnectionManager, 'getActiveConnection'>,
         private i18n: I18n,
         tableName: string,
         databaseName: string,
@@ -45,13 +45,11 @@ export class StatisticsPanel {
             null,
             this._disposables
         );
-
-        this._loadStatistics();
     }
 
     public static async createOrShow(
         extensionUri: vscode.Uri,
-        connectionManager: ConnectionManager,
+        connectionManager: Pick<ConnectionManager, 'getActiveConnection'>,
         i18n: I18n,
         tableName: string,
         databaseName: string,
@@ -75,10 +73,12 @@ export class StatisticsPanel {
             { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'resources')], retainContextWhenHidden: true }
         );
 
-        StatisticsPanel.currentPanel = new StatisticsPanel(
+        const statisticsPanel = new StatisticsPanel(
             panel, extensionUri, connectionManager, i18n,
             tableName, databaseName, dbType
         );
+        StatisticsPanel.currentPanel = statisticsPanel;
+        await statisticsPanel._loadStatistics();
     }
 
     public dispose(): void {
@@ -124,10 +124,13 @@ export class StatisticsPanel {
     private _getHtmlContent(stats: TableStatistics): string {
         const t = (k: string) => this.i18n.t(k) || k;
 
-        const columnsHtml = stats.columns.map(col => this._renderColumnCard(col, stats.totalRows)).join('');
+        const columnsHtml = stats.columns.map(col => this._renderColumnCard(col)).join('');
+        const hasFailure = stats.columns.some(col =>
+            Object.values(col.outcomes ?? {}).some(outcome => outcome.status === 'failed')
+        );
 
         return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${this._escapeHtml(this.i18n.getCurrentLocale())}">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -150,6 +153,7 @@ export class StatisticsPanel {
   .header-meta { font-size: 12px; color: var(--muted); }
   .btn-refresh { background: none; border: 1px solid var(--border); color: var(--fg); padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
   .btn-refresh:hover { background: var(--card-bg); }
+  .partial-warning { padding: 8px 10px; margin-bottom: 12px; border-left: 3px solid var(--vscode-editorWarning-foreground); font-size: 12px; line-height: 1.5; }
 
   /* 요약 카드 */
   .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
@@ -167,6 +171,8 @@ export class StatisticsPanel {
   .stat { padding: 6px 8px; background: rgba(128,128,128,0.08); border-radius: 4px; }
   .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
   .stat-value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+  .stat-failed { color: var(--vscode-errorForeground); }
+  .stat-not-computed { color: var(--muted); }
 
   /* NULL 바 */
   .null-bar { height: 6px; background: rgba(128,128,128,0.2); border-radius: 3px; margin-top: 6px; overflow: hidden; }
@@ -190,6 +196,8 @@ export class StatisticsPanel {
   </div>
   <button class="btn-refresh" id="btnRefresh">${t('statistics.refresh')}</button>
 </div>
+
+${hasFailure ? `<p class="partial-warning" role="status">${t('statistics.partialFailure')}</p>` : ''}
 
 <div class="summary">
   <div class="summary-card">
@@ -216,50 +224,65 @@ ${columnsHtml}
 </html>`;
     }
 
-    private _renderColumnCard(col: ColumnStatistics, totalRows: number): string {
+    private _renderColumnCard(col: ColumnStatistics): string {
         const t = (k: string) => this.i18n.t(k) || k;
-        const maxCount = col.topValues.length > 0 ? col.topValues[0].count : 1;
-
-        let statsHtml = `
-        <div class="stat"><div class="stat-label">${t('statistics.distinct')}</div><div class="stat-value">${col.distinctCount.toLocaleString()}</div></div>
-        <div class="stat"><div class="stat-label">${t('statistics.nullCount')}</div><div class="stat-value">${col.nullCount.toLocaleString()} (${col.nullPercent}%)</div></div>`;
-
-        if (col.min !== undefined) {
-            statsHtml += `<div class="stat"><div class="stat-label">${t('statistics.min')}</div><div class="stat-value">${this._escapeHtml(String(col.min))}</div></div>`;
-        }
-        if (col.max !== undefined) {
-            statsHtml += `<div class="stat"><div class="stat-label">${t('statistics.max')}</div><div class="stat-value">${this._escapeHtml(String(col.max))}</div></div>`;
-        }
-        if (col.avg !== undefined) {
-            statsHtml += `<div class="stat"><div class="stat-label">${t('statistics.avg')}</div><div class="stat-value">${col.avg}</div></div>`;
-        }
-
-        let topHtml = '';
-        if (col.topValues.length > 0) {
-            topHtml = `<div class="top-values">
-                <div class="top-values-title">${t('statistics.topValues')}</div>`;
-            for (const tv of col.topValues.slice(0, 5)) {
-                const pct = Math.round((tv.count / maxCount) * 100);
-                topHtml += `<div class="tv-row">
-                    <span class="tv-val" title="${this._escapeHtml(tv.value)}">${this._escapeHtml(tv.value)}</span>
-                    <div class="tv-bar" style="width:${pct}px"></div>
-                    <span class="tv-cnt">${tv.count.toLocaleString()}</span>
-                </div>`;
-            }
-            topHtml += '</div>';
-        }
-
-        const nullBarWidth = totalRows > 0 ? (col.nullCount / totalRows) * 100 : 0;
+        const outcomes = col.outcomes;
+        const nullPercent = outcomes?.nullPercent;
+        const nullBar = nullPercent?.status === 'computed'
+            ? `<div class="null-bar" aria-hidden="true"><div class="null-fill" style="width:${nullPercent.value}%"></div></div>`
+            : '';
 
         return `<div class="col-card">
     <div class="col-header">
         <span class="col-name">${this._escapeHtml(col.columnName)}</span>
         <span class="col-type">${this._escapeHtml(col.columnType)}</span>
     </div>
-    <div class="col-stats">${statsHtml}</div>
-    <div class="null-bar"><div class="null-fill" style="width:${nullBarWidth}%"></div></div>
-    ${topHtml}
+    <div class="col-stats">
+        ${this._renderMetric(t('statistics.distinct'), outcomes?.distinctCount, value => value.toLocaleString())}
+        ${this._renderMetric(t('statistics.nullCount'), outcomes?.nullCount, value => value.toLocaleString())}
+        ${this._renderMetric(t('statistics.nullPercent'), nullPercent, value => `${value}%`)}
+        ${this._renderMetric(t('statistics.min'), outcomes?.min)}
+        ${this._renderMetric(t('statistics.max'), outcomes?.max)}
+        ${this._renderMetric(t('statistics.avg'), outcomes?.avg)}
+    </div>
+    ${nullBar}
+    <div class="top-values">
+        <div class="top-values-title">${t('statistics.topValues')}</div>
+        ${this._renderTopValues(outcomes?.topValues)}
+    </div>
 </div>`;
+    }
+
+    private _renderMetric<T extends number | string | null>(
+        label: string,
+        outcome: StatisticOutcome<T> | undefined,
+        format: (value: T) => string = value => value === null ? 'NULL' : String(value)
+    ): string {
+        const value = outcome?.status === 'computed'
+            ? this._escapeHtml(format(outcome.value))
+            : this._renderUnavailable(outcome?.status);
+        return `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+    }
+
+    private _renderTopValues(outcome: StatisticOutcome<ColumnStatistics['topValues']> | undefined): string {
+        if (outcome?.status !== 'computed') { return this._renderUnavailable(outcome?.status); }
+        if (outcome.value.length === 0) { return this.i18n.t('statistics.noTopValues'); }
+
+        const maxCount = Math.max(outcome.value[0].count, 1);
+        return outcome.value.slice(0, 5).map(({ value, count }) => {
+            const label = this._escapeHtml(value);
+            const width = Math.round((count / maxCount) * 100);
+            return `<div class="tv-row">
+                <span class="tv-val" title="${label}">${label}</span>
+                <div class="tv-bar" style="width:${width}px"></div>
+                <span class="tv-cnt">${count.toLocaleString()}</span>
+            </div>`;
+        }).join('');
+    }
+
+    private _renderUnavailable(status: 'failed' | 'not-computed' | undefined): string {
+        const key = status === 'failed' ? 'statistics.failed' : 'statistics.notComputed';
+        return `<span class="stat-${status ?? 'not-computed'}">${this.i18n.t(key)}</span>`;
     }
 
     private _escapeHtml(s: string): string {
