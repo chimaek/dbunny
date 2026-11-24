@@ -33,6 +33,9 @@ export class MonitoringPanel {
     private _connection: DatabaseConnection;
     private _connectionConfig: ConnectionConfig;
     private _refreshInterval: NodeJS.Timeout | undefined;
+    private _refreshInProgress = false;
+    private _refreshRevision = 0;
+    private _disposed = false;
     private _localization: I18n;
 
     private constructor(
@@ -89,11 +92,13 @@ export class MonitoringPanel {
     ): void {
         const column = vscode.ViewColumn.One;
 
-        if (MonitoringPanel.currentPanel) {
-            MonitoringPanel.currentPanel._panel.reveal(column);
-            MonitoringPanel.currentPanel._connection = connection;
-            MonitoringPanel.currentPanel._connectionConfig = connectionConfig;
-            MonitoringPanel.currentPanel._update();
+        const current = MonitoringPanel.currentPanel;
+        if (current) {
+            current._panel.reveal(column);
+            current._connection = connection;
+            current._connectionConfig = connectionConfig;
+            current._panel.title = `Monitoring: ${connectionConfig.name}`;
+            current._update();
             return;
         }
 
@@ -120,7 +125,7 @@ export class MonitoringPanel {
     private _startAutoRefresh(interval: number): void {
         this._stopAutoRefresh();
         this._refreshInterval = setInterval(() => {
-            this._refreshData();
+            void this._refreshData();
         }, interval);
     }
 
@@ -132,9 +137,19 @@ export class MonitoringPanel {
     }
 
     private async _refreshData(): Promise<void> {
+        if (this._refreshInProgress || this._disposed) { return; }
+
+        this._refreshInProgress = true;
+        const connection = this._connection;
+        const dbType = this._connectionConfig.type;
+        const revision = this._refreshRevision;
+        const isCurrent = () => !this._disposed && revision === this._refreshRevision;
+
         try {
-            const processes = await this._getProcessList();
-            const status = await this._getServerStatus();
+            const processes = await this._getProcessList(connection, dbType);
+            if (!isCurrent()) { return; }
+            const status = await this._getServerStatus(connection, dbType);
+            if (!isCurrent()) { return; }
 
             this._panel.webview.postMessage({
                 command: 'updateData',
@@ -142,17 +157,22 @@ export class MonitoringPanel {
                 status
             });
         } catch (error) {
+            if (!isCurrent()) { return; }
             vscode.window.showErrorMessage(
                 this._localization.t('monitoring.refreshFailed', { error: String(error) })
             );
+        } finally {
+            this._refreshInProgress = false;
+            // A reopened view or a completed process action needs a fresh snapshot.
+            if (revision !== this._refreshRevision) {
+                void this._refreshData();
+            }
         }
     }
 
-    private async _getProcessList(): Promise<ProcessInfo[]> {
-        const dbType = this._connectionConfig.type;
-
+    private async _getProcessList(connection: DatabaseConnection, dbType: ConnectionConfig['type']): Promise<ProcessInfo[]> {
         if (dbType === 'mysql') {
-            const result = await this._connection.executeQuery('SHOW FULL PROCESSLIST');
+            const result = await connection.executeQuery('SHOW FULL PROCESSLIST');
             return result.rows.map((row: Record<string, unknown>) => ({
                 id: row['Id'] as number,
                 user: row['User'] as string || '',
@@ -164,7 +184,7 @@ export class MonitoringPanel {
                 info: row['Info'] as string || ''
             }));
         } else if (dbType === 'postgres') {
-            const result = await this._connection.executeQuery(`
+            const result = await connection.executeQuery(`
                 SELECT
                     pid as id,
                     usename as user,
@@ -193,11 +213,9 @@ export class MonitoringPanel {
         return [];
     }
 
-    private async _getServerStatus(): Promise<ServerStatus> {
-        const dbType = this._connectionConfig.type;
-
+    private async _getServerStatus(connection: DatabaseConnection, dbType: ConnectionConfig['type']): Promise<ServerStatus> {
         if (dbType === 'mysql') {
-            const result = await this._connection.executeQuery('SHOW GLOBAL STATUS');
+            const result = await connection.executeQuery('SHOW GLOBAL STATUS');
             const statusMap: Record<string, string> = {};
             result.rows.forEach((row: Record<string, unknown>) => {
                 statusMap[row['Variable_name'] as string] = row['Value'] as string;
@@ -214,13 +232,13 @@ export class MonitoringPanel {
             };
         } else if (dbType === 'postgres') {
             // PostgreSQL stats
-            const connResult = await this._connection.executeQuery(`
+            const connResult = await connection.executeQuery(`
                 SELECT count(*) as count FROM pg_stat_activity
             `);
-            const activeResult = await this._connection.executeQuery(`
+            const activeResult = await connection.executeQuery(`
                 SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
             `);
-            const statsResult = await this._connection.executeQuery(`
+            const statsResult = await connection.executeQuery(`
                 SELECT
                     EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::integer as uptime,
                     sum(xact_commit + xact_rollback) as queries
@@ -269,6 +287,7 @@ export class MonitoringPanel {
                 this._localization.t('monitoring.processKilled', { id: String(processId) })
             );
 
+            this._refreshRevision++;
             await this._refreshData();
         } catch (error) {
             vscode.window.showErrorMessage(
@@ -278,8 +297,9 @@ export class MonitoringPanel {
     }
 
     private _update(): void {
+        this._refreshRevision++;
         this._panel.webview.html = secureWebviewHtml(this._getHtmlContent(), this._panel.webview, this._nonce);
-        this._refreshData();
+        void this._refreshData();
     }
 
     private _getHtmlContent(): string {
@@ -778,6 +798,8 @@ ${webviewArgumentScript()}
     }
 
     public dispose(): void {
+        if (this._disposed) { return; }
+        this._disposed = true;
         this._stopAutoRefresh();
         MonitoringPanel.currentPanel = undefined;
         this._panel.dispose();

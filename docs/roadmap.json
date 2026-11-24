@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D115-1",
+  "currentTask": "D115-2",
   "lastWork": {
-    "id": "D105-3",
+    "id": "D115-1",
     "status": "VERIFYING",
-    "dateKst": "2026-11-22",
-    "baseCommit": "49b61827f911f5370eeb48a491660decdf1a5828",
-    "summary": "통계 패널에 실제 0, NULL, 실패와 미계산을 구분해 표시한다. 정상 집계는 유지하고 일부 실패 시 새로고침으로 전체 집계를 재시도할 수 있다고 안내한다.",
+    "dateKst": "2026-11-24",
+    "baseCommit": "60a33ed7e43f08b6ec473365d9cc8343ead4c7e2",
+    "summary": "진행 중인 모니터링 조회가 끝날 때까지 자동·수동 중복 요청을 건너뛴다. 연결을 바꾸면 이전 결과를 표시하지 않고 새 연결을 이어서 조회한다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "extensionHost": 12,
-      "uiFixture": "격리된 한국어 VS Code에서 SQLite 메모리 테이블과 주입한 집계 실패를 사용했다. 0·NULL·실패·미계산·값 없음과 정상 빈출값을 확인하고, 새로고침을 눌러 실패했던 집계가 정상 표시되는 것을 확인했다."
+      "extensionHost": 14,
+      "postgresMonitoringUi": "격리된 VS Code에서 Docker PostgreSQL의 첫 결과 전달을 5초 자동 주기 두 번 이상 지연시키고 Refresh를 눌렀다. 완료 전 조회 1회, 최대 동시 조회 1개, 완료 후 두 번째 Refresh까지 SQL 8건을 확인했다."
     }
   },
   "progress": {
@@ -205,17 +205,24 @@
       "databaseVerification": "Docker 통합 22개 묶음·통계 검사 191개. 실제 PostgreSQL 시간 초과와 주입한 권한 오류 뒤 다른 집계 결과가 유지됨을 확인했다."
     },
     "D105-3": {
-      "status": "VERIFYING",
-      "localVerification": "PASSED"
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "60a33ed7e43f08b6ec473365d9cc8343ead4c7e2",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44973012439"
     },
     "D105": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "children": [
         "D105-1",
         "D105-2",
         "D105-3"
       ],
-      "acceptance": "서버 집계·실제 시간 초과는 D105-2 Docker 검증, 집계별 상태 표시와 새로고침은 D105-3 SQLite·VS Code 화면 검증으로 확인했다."
+      "acceptance": "서버 집계·실제 시간 초과는 D105-2 Docker 검증, 집계별 상태 표시와 새로고침은 D105-3 SQLite·VS Code 화면 검증으로 확인했다.",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/44973012439"
+    },
+    "D115-1": {
+      "status": "VERIFYING",
+      "localVerification": "PASSED"
     }
   },
   "targetMinutes": [
