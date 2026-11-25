@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D115-2",
+  "currentTask": "D115-3",
   "lastWork": {
-    "id": "D115-1",
+    "id": "D115-2",
     "status": "VERIFYING",
-    "dateKst": "2026-11-24",
-    "baseCommit": "60a33ed7e43f08b6ec473365d9cc8343ead4c7e2",
-    "summary": "진행 중인 모니터링 조회가 끝날 때까지 자동·수동 중복 요청을 건너뛴다. 연결을 바꾸면 이전 결과를 표시하지 않고 새 연결을 이어서 조회한다.",
+    "dateKst": "2026-11-25",
+    "baseCommit": "a91748dffd65e72a3022b18b75b0e44991a1b795",
+    "summary": "모니터링 탭이 숨겨지거나 닫히면 주기 조회를 중지한다. 탭에 돌아오면 Auto 설정과 선택한 주기를 적용하고 수동 조회는 그대로 사용할 수 있다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "extensionHost": 14,
-      "postgresMonitoringUi": "격리된 VS Code에서 Docker PostgreSQL의 첫 결과 전달을 5초 자동 주기 두 번 이상 지연시키고 Refresh를 눌렀다. 완료 전 조회 1회, 최대 동시 조회 1개, 완료 후 두 번째 Refresh까지 SQL 8건을 확인했다."
+      "extensionHost": 15,
+      "postgresMonitoringUi": "격리된 VS Code에서 Docker PostgreSQL 모니터링 탭을 5초 주기 두 번 이상 숨기거나 닫았을 때 새 SQL 호출은 각각 0건이었다. 복귀 후 자동 재개와 Auto 꺼짐 유지, 수동 Refresh를 확인했다."
     }
   },
   "progress": {
@@ -221,6 +221,13 @@
       "ci": "https://github.com/chimaek/dbunny/actions/runs/44973012439"
     },
     "D115-1": {
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "a91748dffd65e72a3022b18b75b0e44991a1b795",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/45357088486",
+      "maxConcurrentRefreshes": 1
+    },
+    "D115-2": {
       "status": "VERIFYING",
       "localVerification": "PASSED"
     }

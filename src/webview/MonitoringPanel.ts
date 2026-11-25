@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import { DatabaseConnection, ConnectionConfig } from '../types/database';
 import { I18n } from '../utils/i18n';
 
+const autoRefreshDelays = [1000, 5000, 10000, 30000];
+
 interface ProcessInfo {
     id: number | string;
     user: string;
@@ -32,7 +34,9 @@ export class MonitoringPanel {
     private _disposables: vscode.Disposable[] = [];
     private _connection: DatabaseConnection;
     private _connectionConfig: ConnectionConfig;
-    private _refreshInterval: NodeJS.Timeout | undefined;
+    private _autoRefreshEnabled = true;
+    private _autoRefreshDelay = 5000;
+    private _refreshTimer: NodeJS.Timeout | undefined;
     private _refreshInProgress = false;
     private _refreshRevision = 0;
     private _disposed = false;
@@ -51,9 +55,8 @@ export class MonitoringPanel {
         this._connectionConfig = connectionConfig;
         this._localization = localization;
 
-        this._update();
-
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel.onDidChangeViewState(() => this._syncRefreshTimer(), null, this._disposables);
 
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
@@ -66,12 +69,10 @@ export class MonitoringPanel {
                         await this._killProcess(message.processId);
                         break;
                     }
-                    case 'startAutoRefresh': {
-                        this._startAutoRefresh(message.interval);
-                        break;
-                    }
-                    case 'stopAutoRefresh': {
-                        this._stopAutoRefresh();
+                    case 'setAutoRefresh': {
+                        if (typeof message.enabled === 'boolean' && autoRefreshDelays.includes(message.interval)) {
+                            this._setAutoRefresh(message.enabled, message.interval);
+                        }
                         break;
                     }
                 }
@@ -80,8 +81,8 @@ export class MonitoringPanel {
             this._disposables
         );
 
-        // Start auto-refresh by default (5 seconds)
-        this._startAutoRefresh(5000);
+        this._update();
+        this._syncRefreshTimer();
     }
 
     public static createOrShow(
@@ -122,17 +123,29 @@ export class MonitoringPanel {
         );
     }
 
-    private _startAutoRefresh(interval: number): void {
-        this._stopAutoRefresh();
-        this._refreshInterval = setInterval(() => {
-            void this._refreshData();
-        }, interval);
+    private _setAutoRefresh(enabled: boolean, interval: number): void {
+        this._autoRefreshEnabled = enabled;
+        this._autoRefreshDelay = interval;
+        this._clearRefreshTimer();
+        this._syncRefreshTimer();
     }
 
-    private _stopAutoRefresh(): void {
-        if (this._refreshInterval) {
-            clearInterval(this._refreshInterval);
-            this._refreshInterval = undefined;
+    private _syncRefreshTimer(): void {
+        if (this._disposed || !this._panel.visible || !this._autoRefreshEnabled) {
+            this._clearRefreshTimer();
+        } else if (!this._refreshTimer) {
+            this._refreshTimer = setInterval(() => {
+                if (!this._disposed && this._panel.visible) {
+                    void this._refreshData();
+                }
+            }, this._autoRefreshDelay);
+        }
+    }
+
+    private _clearRefreshTimer(): void {
+        if (this._refreshTimer) {
+            clearInterval(this._refreshTimer);
+            this._refreshTimer = undefined;
         }
     }
 
@@ -305,6 +318,11 @@ export class MonitoringPanel {
     private _getHtmlContent(): string {
         const dbType = this._connectionConfig.type;
         const isSupported = dbType === 'mysql' || dbType === 'postgres';
+        const autoRefreshClass = this._autoRefreshEnabled ? ' active' : '';
+        const refreshOptions = autoRefreshDelays.map(delay => {
+            const selected = delay === this._autoRefreshDelay ? ' selected' : '';
+            return `<option value="${delay}"${selected}>${delay / 1000}s</option>`;
+        }).join('');
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -579,16 +597,13 @@ export class MonitoringPanel {
         <div class="header">
             <h1>
                 <span>Real-time Monitoring</span>
-                <span class="refresh-indicator" id="refreshIndicator">Auto-refresh</span>
+                <span class="refresh-indicator${autoRefreshClass}" id="refreshIndicator">Auto-refresh</span>
             </h1>
             <div class="controls">
                 <select id="refreshInterval" data-dbunny-change="changeInterval()">
-                    <option value="1000">1s</option>
-                    <option value="5000" selected>5s</option>
-                    <option value="10000">10s</option>
-                    <option value="30000">30s</option>
+                    ${refreshOptions}
                 </select>
-                <button class="btn btn-secondary toggle-btn active" id="autoRefreshBtn" data-dbunny-click="toggleAutoRefresh()">
+                <button class="btn btn-secondary toggle-btn${autoRefreshClass}" id="autoRefreshBtn" aria-pressed="${this._autoRefreshEnabled}" data-dbunny-click="toggleAutoRefresh()">
                     Auto
                 </button>
                 <button class="btn btn-primary" data-dbunny-click="refresh()">
@@ -658,7 +673,7 @@ export class MonitoringPanel {
     <script nonce="${this._nonce}">
 ${webviewArgumentScript()}
         const vscode = acquireVsCodeApi();
-        let autoRefresh = true;
+        let autoRefresh = ${this._autoRefreshEnabled};
 
         function refresh() {
             vscode.postMessage({ command: 'refresh' });
@@ -667,25 +682,15 @@ ${webviewArgumentScript()}
         function toggleAutoRefresh() {
             autoRefresh = !autoRefresh;
             const btn = document.getElementById('autoRefreshBtn');
-            const indicator = document.getElementById('refreshIndicator');
-
-            if (autoRefresh) {
-                btn.classList.add('active');
-                indicator.classList.add('active');
-                const interval = parseInt(document.getElementById('refreshInterval').value);
-                vscode.postMessage({ command: 'startAutoRefresh', interval });
-            } else {
-                btn.classList.remove('active');
-                indicator.classList.remove('active');
-                vscode.postMessage({ command: 'stopAutoRefresh' });
-            }
+            btn.classList.toggle('active', autoRefresh);
+            btn.setAttribute('aria-pressed', String(autoRefresh));
+            document.getElementById('refreshIndicator').classList.toggle('active', autoRefresh);
+            changeInterval();
         }
 
         function changeInterval() {
-            if (autoRefresh) {
-                const interval = parseInt(document.getElementById('refreshInterval').value);
-                vscode.postMessage({ command: 'startAutoRefresh', interval });
-            }
+            const interval = Number(document.getElementById('refreshInterval').value);
+            vscode.postMessage({ command: 'setAutoRefresh', enabled: autoRefresh, interval });
         }
 
         function killProcess(processId) {
@@ -789,8 +794,6 @@ ${webviewArgumentScript()}
             }
         });
 
-        // Initial state
-        document.getElementById('refreshIndicator')?.classList.add('active');
     ${webviewEventScript(["changeInterval","toggleAutoRefresh","refresh","killProcess"],[])}
 </script>
 </body>
@@ -800,7 +803,7 @@ ${webviewArgumentScript()}
     public dispose(): void {
         if (this._disposed) { return; }
         this._disposed = true;
-        this._stopAutoRefresh();
+        this._clearRefreshTimer();
         MonitoringPanel.currentPanel = undefined;
         this._panel.dispose();
         while (this._disposables.length) {

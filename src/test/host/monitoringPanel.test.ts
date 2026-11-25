@@ -12,6 +12,18 @@ function fixture(name: string): MySQLProvider {
     return new MySQLProvider({ id: name, name, type: 'mysql', host: '', port: 0, username: '' });
 }
 
+async function waitForVisibility(panel: vscode.WebviewPanel, visible: boolean): Promise<void> {
+    if (panel.visible === visible) { return; }
+    await new Promise<void>(resolve => {
+        const subscription = panel.onDidChangeViewState(() => {
+            if (panel.visible === visible) {
+                subscription.dispose();
+                resolve();
+            }
+        });
+    });
+}
+
 suite('Monitoring panel refresh', () => {
     const extension = () => vscode.extensions.getExtension('chimaek.dbunny')!;
     const open = (connection: MySQLProvider) => {
@@ -36,10 +48,10 @@ suite('Monitoring panel refresh', () => {
 
         const panel = open(connection);
         try {
-            panel['_startAutoRefresh'](10);
+            panel['_setAutoRefresh'](true, 10);
             await panel['_refreshData']();
             await new Promise(resolve => setTimeout(resolve, 45));
-            panel['_stopAutoRefresh']();
+            panel['_setAutoRefresh'](false, 10);
             assert.deepStrictEqual(calls, [processListQuery]);
 
             failFirst(new Error('Fixture monitoring refresh failed'));
@@ -78,6 +90,55 @@ suite('Monitoring panel refresh', () => {
             ]);
         } finally {
             completePrevious();
+        }
+    });
+
+    test('automatic queries pause when hidden and stop when closed', async () => {
+        const connection = fixture('Monitoring visibility');
+        let refreshes = 0;
+        connection.executeQuery = async query => {
+            if (query === processListQuery) { refreshes++; }
+            return emptyResult;
+        };
+        const waitForPolls = () => new Promise(resolve => setTimeout(resolve, 60));
+
+        const panel = open(connection);
+        const webviewPanel = panel['_panel'];
+        panel['_setAutoRefresh'](true, 10);
+        const coveringPanel = vscode.window.createWebviewPanel('monitoringCover', 'Monitoring cover', vscode.ViewColumn.One, {});
+        try {
+            await waitForVisibility(webviewPanel, false);
+            const hiddenCount = refreshes;
+            await waitForPolls();
+            assert.strictEqual(refreshes, hiddenCount, 'hidden panel must not query');
+
+            webviewPanel.reveal(vscode.ViewColumn.One);
+            await waitForVisibility(webviewPanel, true);
+            await waitForPolls();
+            assert.ok(refreshes > hiddenCount, 'visible panel resumes automatic queries');
+
+            panel['_setAutoRefresh'](false, 10);
+            coveringPanel.reveal(vscode.ViewColumn.One);
+            await waitForVisibility(webviewPanel, false);
+            webviewPanel.reveal(vscode.ViewColumn.One);
+            await waitForVisibility(webviewPanel, true);
+            const disabledCount = refreshes;
+            await waitForPolls();
+            assert.strictEqual(refreshes, disabledCount, 'Auto stays off on reveal');
+
+            panel['_setAutoRefresh'](false, 1000);
+            open(connection);
+            assert.match(webviewPanel.webview.html, /id="autoRefreshBtn" aria-pressed="false"/);
+            assert.match(webviewPanel.webview.html, /<option value="1000" selected>1s<\/option>/);
+
+            panel['_setAutoRefresh'](true, 10);
+            const closedCount = refreshes;
+            webviewPanel.dispose();
+            await waitForPolls();
+            assert.strictEqual(MonitoringPanel.currentPanel, undefined);
+            assert.strictEqual(refreshes, closedCount, 'closed panel must not query');
+        } finally {
+            coveringPanel.dispose();
         }
     });
 });
