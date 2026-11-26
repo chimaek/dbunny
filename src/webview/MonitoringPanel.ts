@@ -39,6 +39,7 @@ export class MonitoringPanel {
     private _refreshTimer: NodeJS.Timeout | undefined;
     private _refreshInProgress = false;
     private _refreshRevision = 0;
+    private _lastRefreshError: string | undefined;
     private _disposed = false;
     private _localization: I18n;
 
@@ -96,6 +97,9 @@ export class MonitoringPanel {
         const current = MonitoringPanel.currentPanel;
         if (current) {
             current._panel.reveal(column);
+            if (current._connection !== connection || current._connectionConfig.id !== connectionConfig.id) {
+                current._lastRefreshError = undefined;
+            }
             current._connection = connection;
             current._connectionConfig = connectionConfig;
             current._panel.title = `Monitoring: ${connectionConfig.name}`;
@@ -136,7 +140,7 @@ export class MonitoringPanel {
         } else if (!this._refreshTimer) {
             this._refreshTimer = setInterval(() => {
                 if (!this._disposed && this._panel.visible) {
-                    void this._refreshData();
+                    void this._refreshData('auto');
                 }
             }, this._autoRefreshDelay);
         }
@@ -149,7 +153,7 @@ export class MonitoringPanel {
         }
     }
 
-    private async _refreshData(): Promise<void> {
+    private async _refreshData(source: 'auto' | 'manual' = 'manual'): Promise<void> {
         if (this._refreshInProgress || this._disposed) { return; }
 
         this._refreshInProgress = true;
@@ -164,6 +168,7 @@ export class MonitoringPanel {
             const status = await this._getServerStatus(connection, dbType);
             if (!isCurrent()) { return; }
 
+            this._lastRefreshError = undefined;
             this._panel.webview.postMessage({
                 command: 'updateData',
                 processes,
@@ -171,8 +176,11 @@ export class MonitoringPanel {
             });
         } catch (error) {
             if (!isCurrent()) { return; }
+            const message = String(error);
+            if (source === 'auto' && message === this._lastRefreshError) { return; }
+            this._lastRefreshError = message;
             vscode.window.showErrorMessage(
-                this._localization.t('monitoring.refreshFailed', { error: String(error) })
+                this._localization.t('monitoring.refreshFailed', { error: message })
             );
         } finally {
             this._refreshInProgress = false;

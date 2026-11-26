@@ -35,6 +35,52 @@ suite('Monitoring panel refresh', () => {
 
     teardown(() => MonitoringPanel.currentPanel?.dispose());
 
+    test('repeated automatic failures stay quiet until the error changes or the refresh recovers', async () => {
+        const connection = fixture('Monitoring alerts');
+        const timeout = new Error('Fixture monitoring timeout');
+        let failure: Error | undefined;
+        connection.executeQuery = async () => {
+            if (failure) { throw failure; }
+            return emptyResult;
+        };
+
+        const panel = open(connection);
+        panel['_setAutoRefresh'](false, 5000);
+        await new Promise(resolve => setImmediate(resolve));
+
+        const notifications: string[] = [];
+        const showError = vscode.window.showErrorMessage;
+        vscode.window.showErrorMessage = async (message: string) => {
+            notifications.push(message);
+            return undefined;
+        };
+        try {
+            failure = timeout;
+            await panel['_refreshData']('auto');
+            await panel['_refreshData']('auto');
+            assert.strictEqual(notifications.length, 1);
+            assert.match(notifications[0], /Fixture monitoring timeout/);
+
+            await panel['_refreshData']();
+            await panel['_refreshData']('auto');
+            assert.strictEqual(notifications.length, 2, 'an explicit refresh still reports its failure');
+
+            failure = new Error('Fixture monitoring connection closed');
+            await panel['_refreshData']('auto');
+            assert.strictEqual(notifications.length, 3);
+            assert.match(notifications[2], /Fixture monitoring connection closed/);
+
+            failure = undefined;
+            await panel['_refreshData']('auto');
+            failure = new Error('Fixture monitoring connection closed');
+            await panel['_refreshData']('auto');
+            await panel['_refreshData']('auto');
+            assert.strictEqual(notifications.length, 4, 'the same error is reported again after recovery');
+        } finally {
+            vscode.window.showErrorMessage = showError;
+        }
+    });
+
     test('manual requests and timer ticks skip a pending refresh and recover after failure', async () => {
         const connection = fixture('Slow monitoring');
         const calls: string[] = [];

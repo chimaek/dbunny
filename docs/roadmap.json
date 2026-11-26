@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D115-3",
+  "currentTask": "D002-1",
   "lastWork": {
-    "id": "D115-2",
+    "id": "D115-3",
     "status": "VERIFYING",
-    "dateKst": "2026-11-25",
-    "baseCommit": "a91748dffd65e72a3022b18b75b0e44991a1b795",
-    "summary": "모니터링 탭이 숨겨지거나 닫히면 주기 조회를 중지한다. 탭에 돌아오면 Auto 설정과 선택한 주기를 적용하고 수동 조회는 그대로 사용할 수 있다.",
+    "dateKst": "2026-11-26",
+    "baseCommit": "d15d0947ac22f3d937ea8c82208655fc4534d152",
+    "summary": "같은 오류가 연속되면 자동 조회 알림은 한 번만 표시한다. 수동 조회 실패, 다른 오류, 정상 조회 후 다시 발생한 오류는 알린다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "extensionHost": 15,
-      "postgresMonitoringUi": "격리된 VS Code에서 Docker PostgreSQL 모니터링 탭을 5초 주기 두 번 이상 숨기거나 닫았을 때 새 SQL 호출은 각각 0건이었다. 복귀 후 자동 재개와 Auto 꺼짐 유지, 수동 Refresh를 확인했다."
+      "extensionHost": 16,
+      "postgresMonitoringUi": "격리된 VS Code의 전용 Docker PostgreSQL에서 같은 자동 조회 오류 27회에 알림 1건. 수동 Refresh 실패, 다른 오류, 정상 조회 후 같은 오류의 재발은 각각 알림 1건을 확인했다."
     }
   },
   "progress": {
@@ -228,8 +228,24 @@
       "maxConcurrentRefreshes": 1
     },
     "D115-2": {
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "d15d0947ac22f3d937ea8c82208655fc4534d152",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/45578104227",
+      "visibilityVerification": "숨김과 닫기 뒤 각각 두 주기 이상 기다려 새 SQL 호출 0건을 확인했다."
+    },
+    "D115-3": {
       "status": "VERIFYING",
       "localVerification": "PASSED"
+    },
+    "D115": {
+      "status": "VERIFYING",
+      "children": [
+        "D115-1",
+        "D115-2",
+        "D115-3"
+      ],
+      "acceptance": "전용 PostgreSQL과 VS Code 화면에서 동시 조회 최대 1개, 숨김·닫기 뒤 새 SQL 호출 0건, 반복 오류 알림 제한과 복구 후 재알림을 확인했다."
     }
   },
   "targetMinutes": [
