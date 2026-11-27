@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "currentTask": "D002-1",
+  "currentTask": "D002-2",
   "lastWork": {
-    "id": "D115-3",
+    "id": "D002-1",
     "status": "VERIFYING",
-    "dateKst": "2026-11-26",
-    "baseCommit": "d15d0947ac22f3d937ea8c82208655fc4534d152",
-    "summary": "같은 오류가 연속되면 자동 조회 알림은 한 번만 표시한다. 수동 조회 실패, 다른 오류, 정상 조회 후 다시 발생한 오류는 알린다.",
+    "dateKst": "2026-11-27",
+    "baseCommit": "af139c87724ae967bf8480688009746681d181dd",
+    "summary": "같은 ID의 활성 연결이 연결 상태라면 세션과 선택한 DB를 재사용한다. 연결이 종료된 상태에서는 새 세션을 연다.",
     "localChecks": {
       "types": "passed",
       "lint": "passed",
       "unitMocha": 211,
       "standaloneSuites": 16,
-      "extensionHost": 16,
-      "postgresMonitoringUi": "격리된 VS Code의 전용 Docker PostgreSQL에서 같은 자동 조회 오류 27회에 알림 1건. 수동 Refresh 실패, 다른 오류, 정상 조회 후 같은 오류의 재발은 각각 알림 1건을 확인했다."
+      "extensionHost": 17,
+      "postgresQueryTabUi": "격리된 VS Code 쿼리 탭에서 이미 활성인 Docker PostgreSQL 연결을 선택했다. 선택 전후 PID 393과 임시 행 값 42가 같았으며 추가 connect·disconnect와 연결 변경 이벤트는 각각 0건이었다."
     }
   },
   "progress": {
@@ -235,17 +235,25 @@
       "visibilityVerification": "숨김과 닫기 뒤 각각 두 주기 이상 기다려 새 SQL 호출 0건을 확인했다."
     },
     "D115-3": {
-      "status": "VERIFYING",
-      "localVerification": "PASSED"
+      "status": "DONE",
+      "localVerification": "PASSED",
+      "commit": "af139c87724ae967bf8480688009746681d181dd",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/45771692376",
+      "notificationVerification": "같은 자동 오류 27회에 알림 1건. 수동 실패, 오류 변경, 복구 후 재발은 각각 1건을 확인했다."
     },
     "D115": {
-      "status": "VERIFYING",
+      "status": "DONE",
       "children": [
         "D115-1",
         "D115-2",
         "D115-3"
       ],
-      "acceptance": "전용 PostgreSQL과 VS Code 화면에서 동시 조회 최대 1개, 숨김·닫기 뒤 새 SQL 호출 0건, 반복 오류 알림 제한과 복구 후 재알림을 확인했다."
+      "acceptance": "전용 PostgreSQL과 VS Code 화면에서 동시 조회 최대 1개, 숨김·닫기 뒤 새 SQL 호출 0건, 반복 오류 알림 제한과 복구 후 재알림을 확인했다.",
+      "ci": "https://github.com/chimaek/dbunny/actions/runs/45771692376"
+    },
+    "D002-1": {
+      "status": "VERIFYING",
+      "localVerification": "PASSED"
     }
   },
   "targetMinutes": [

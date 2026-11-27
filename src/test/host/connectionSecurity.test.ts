@@ -113,6 +113,34 @@ suite('ConnectionManager execution and persistence', () => {
         } finally { await manager.disconnect(); manager.dispose(); }
     });
 
+    test('connecting to the same active database reuses its session and selected database', async () => {
+        const { manager } = createManager([sqlite('active')]);
+        const events: (DatabaseConnection | null)[] = [];
+        const listener = manager.onDidChangeConnection(connection => events.push(connection));
+        try {
+            await manager.connect('active');
+            const active = manager.getActiveConnection()!;
+            manager.setSelectedDatabase('selected-context');
+            await active.executeQuery('CREATE TEMP TABLE session_marker (value INTEGER)');
+            await active.executeQuery('INSERT INTO session_marker VALUES (42)');
+
+            await Promise.all([manager.connect('active'), manager.connect('active')]);
+            assert.strictEqual(manager.getActiveConnection(), active);
+            assert.strictEqual(manager.getSelectedDatabase(), 'selected-context');
+            assert.deepStrictEqual(events, [active]);
+            assert.strictEqual((await active.executeQuery('SELECT value FROM session_marker')).rows[0].value, 42);
+
+            await active.disconnect();
+            await manager.connect('active');
+            assert.notStrictEqual(manager.getActiveConnection(), active);
+            assert.ok(manager.getActiveConnection()?.isConnected());
+        } finally {
+            listener.dispose();
+            await manager.disconnect();
+            manager.dispose();
+        }
+    });
+
     test('ensureConnection waits for restoration and reuses the live guarded connection', async () => {
         const { manager } = createManager([sqlite('restored')]);
         try {
