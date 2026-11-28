@@ -141,6 +141,45 @@ suite('ConnectionManager execution and persistence', () => {
         }
     });
 
+    test('reselecting a connection during an edit waits for the saved settings', async () => {
+        const config = sqlite('editing');
+        const { manager } = createManager([config]);
+        const store = manager['credentialStore'];
+        const save = store.save.bind(store);
+        let startSave!: () => void;
+        let finishSave!: () => void;
+        const saving = new Promise<void>(resolve => { startSave = resolve; });
+        const saveGate = new Promise<void>(resolve => { finishSave = resolve; });
+        store.save = async updated => {
+            startSave();
+            await saveGate;
+            return save(updated);
+        };
+
+        try {
+            const previous = await manager.ensureConnection(config.id);
+            const update = manager.updateConnection({ ...config, name: 'Edited connection', readOnly: true });
+            await saving;
+            const reconnect = manager.ensureConnection(config.id);
+            await new Promise(resolve => setImmediate(resolve));
+            const activeDuringSave = manager.getActiveConnection();
+
+            finishSave();
+            await update;
+            const current = await reconnect;
+            assert.strictEqual(activeDuringSave, null);
+            assert.strictEqual(previous.isConnected(), false);
+            assert.notStrictEqual(current, previous);
+            assert.strictEqual(current.config.name, 'Edited connection');
+            assert.strictEqual(current.config.readOnly, true);
+            assert.strictEqual(await manager.ensureConnection(config.id), current);
+        } finally {
+            finishSave();
+            await manager.disconnect();
+            manager.dispose();
+        }
+    });
+
     test('ensureConnection waits for restoration and reuses the live guarded connection', async () => {
         const { manager } = createManager([sqlite('restored')]);
         try {

@@ -933,7 +933,7 @@ ${webviewArgumentScript()}
             h2: '#0074BD'
         };
 
-        function selectDbType(type) {
+        function selectDbType(type, useDefaultPort = true) {
             // Update hidden input
             typeInput.value = type;
 
@@ -943,8 +943,9 @@ ${webviewArgumentScript()}
             });
             document.querySelector('[data-type="' + type + '"]').classList.add('selected');
 
-            // Update port
-            document.getElementById('port').value = defaultPorts[type];
+            if (useDefaultPort) {
+                document.getElementById('port').value = defaultPorts[type];
+            }
 
             // Show/hide fields based on type
             if (type === 'sqlite') {
@@ -1145,7 +1146,7 @@ ${webviewArgumentScript()}
         });
 
         // Initialize with current type
-        selectDbType('${this._escapeHtml(config?.type || 'mysql')}');
+        selectDbType('${this._escapeHtml(config?.type || 'mysql')}', ${!config?.port});
     ${webviewEventScript(["selectDbType","browseFile","toggleH2DbPath","selectColor","cancel","testConnection"],[])}
 </script>
 </body>

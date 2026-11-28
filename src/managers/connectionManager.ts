@@ -18,6 +18,7 @@ import { toSafeConnectionError, type SafeConnectionError } from '../utils/connec
 export class ConnectionManager {
     private connections: Map<string, DatabaseConnection> = new Map();
     private activeConnection: DatabaseConnection | null = null;
+    private pendingConnectionChange: Promise<void> = Promise.resolve();
     private encryptionService: EncryptionService;
     private credentialStore: CredentialStore;
     readonly ready: Promise<void>;
@@ -52,24 +53,29 @@ export class ConnectionManager {
     /**
      * Update an existing connection
      */
-    async updateConnection(config: ConnectionConfig): Promise<void> {
-        await this.ready;
-        const existing = this.connections.get(config.id);
-        if (!existing) {
-            throw new Error(`Connection not found: ${config.id}`);
-        }
+    updateConnection(config: ConnectionConfig): Promise<void> {
+        return this.queueConnectionChange(async () => {
+            if (!this.connections.has(config.id)) {
+                throw new Error(`Connection not found: ${config.id}`);
+            }
 
-        // Disconnect if currently connected
-        if (this.activeConnection?.config.id === config.id) {
-            await this.disconnect();
-        }
+            if (this.activeConnection?.config.id === config.id) {
+                await this.disconnect();
+            }
 
-        const encryptedConfig = await this.credentialStore.save(config);
+            const encryptedConfig = await this.credentialStore.save(config);
+            const connection = this.createConnection(encryptedConfig);
+            this.connections.set(config.id, connection);
+            await this.saveConnections();
+            this._onDidChangeConnections.fire();
+        });
+    }
 
-        const connection = this.createConnection(encryptedConfig);
-        this.connections.set(config.id, connection);
-        await this.saveConnections();
-        this._onDidChangeConnections.fire();
+    /** Wait for a pending settings save before selecting or reusing a session. */
+    private queueConnectionChange(change: () => Promise<void>): Promise<void> {
+        const result = this.pendingConnectionChange.then(() => this.ready).then(change);
+        this.pendingConnectionChange = result.catch(() => undefined);
+        return result;
     }
 
     /**
@@ -96,36 +102,34 @@ export class ConnectionManager {
     /**
      * Connect to a database
      */
-    async connect(connectionId: string): Promise<void> {
-        await this.ready;
-        const connection = this.connections.get(connectionId);
-        if (!connection) {
-            throw new Error(`Connection not found: ${connectionId}`);
-        }
+    connect(connectionId: string): Promise<void> {
+        return this.queueConnectionChange(async () => {
+            const connection = this.connections.get(connectionId);
+            if (!connection) {
+                throw new Error(`Connection not found: ${connectionId}`);
+            }
 
-        if (this.activeConnection?.config.id === connectionId && this.activeConnection.isConnected()) {
-            return;
-        }
+            if (this.activeConnection?.config.id === connectionId && this.activeConnection.isConnected()) {
+                return;
+            }
 
-        // Disconnect from current connection if any
-        if (this.activeConnection) {
-            await this.disconnect();
-        }
+            if (this.activeConnection) {
+                await this.disconnect();
+            }
 
-        const decryptedConfig = await this.credentialStore.resolve(connection.config);
+            const decryptedConfig = await this.credentialStore.resolve(connection.config);
+            const nextConnection = this.createConnection(decryptedConfig);
+            try {
+                await nextConnection.connect();
+            } catch (error) {
+                await nextConnection.disconnect();
+                throw error;
+            }
 
-        // Create new connection with decrypted config
-        const connectionWithDecryptedPassword = this.createConnection(decryptedConfig);
-        try {
-            await connectionWithDecryptedPassword.connect();
-        } catch (error) {
-            await connectionWithDecryptedPassword.disconnect();
-            throw error;
-        }
-
-        this.activeConnection = connectionWithDecryptedPassword;
-        this._selectedDatabase = decryptedConfig.database;
-        this._onDidChangeConnection.fire(this.activeConnection);
+            this.activeConnection = nextConnection;
+            this._selectedDatabase = decryptedConfig.database;
+            this._onDidChangeConnection.fire(nextConnection);
+        });
     }
 
     /**
